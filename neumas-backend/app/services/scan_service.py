@@ -118,25 +118,37 @@ class ScanService:
             storage_path=storage_path,
         )
 
-        # Step 3: Enqueue Celery task with all required arguments
-        task = celery_app.send_task(
-            "scans.process_scan",
-            kwargs={
-                "scan_id": str(scan_id),
-                "property_id": str(tenant.property_id),
-                "user_id": str(tenant.user_id),
-                "image_url": image_url,
-                "scan_type": scan_type,
-            },
-            queue="scans",
-        )
-
-        logger.info(
-            "Enqueued scan processing task",
-            scan_id=str(scan_id),
-            task_id=task.id,
-            image_url=image_url[:80] + "..." if len(image_url) > 80 else image_url,
-        )
+        # Step 3: Enqueue Celery task with all required arguments.
+        # If Redis is unavailable the scan record is already persisted; we
+        # return success so the upload is not lost. The scan will remain in
+        # "queued" status and can be retried once the broker is reachable.
+        try:
+            task = celery_app.send_task(
+                "scans.process_scan",
+                kwargs={
+                    "scan_id": str(scan_id),
+                    "property_id": str(tenant.property_id),
+                    "user_id": str(tenant.user_id),
+                    "image_url": image_url,
+                    "scan_type": scan_type,
+                },
+                queue="scans",
+            )
+            logger.info(
+                "Enqueued scan processing task",
+                scan_id=str(scan_id),
+                task_id=task.id,
+                image_url=image_url[:80] + "..." if len(image_url) > 80 else image_url,
+            )
+        except Exception as broker_exc:
+            # Broker (Redis) is unreachable — log and continue. The scan
+            # record is safely stored; processing will happen when the
+            # worker reconnects or CELERY_TASK_ALWAYS_EAGER is enabled.
+            logger.warning(
+                "Could not enqueue scan task — broker unavailable; scan saved and will be retried",
+                scan_id=str(scan_id),
+                error=str(broker_exc),
+            )
 
         return ScanQueuedResponse(
             scan_id=scan_id,
