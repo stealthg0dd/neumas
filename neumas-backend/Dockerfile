@@ -116,6 +116,7 @@ CMD gunicorn app.main:app \
     --timeout ${GUNICORN_TIMEOUT:-120} \
     --graceful-timeout 30 \
     --keep-alive 5 \
+    --worker-tmp-dir /dev/shm \
     --access-logfile - \
     --error-logfile - \
     --capture-output \

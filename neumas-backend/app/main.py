@@ -162,6 +162,7 @@ app = FastAPI(
     redoc_url=None,  # We'll add custom redoc route
     openapi_url=None if settings.is_production else "/openapi.json",
     lifespan=lifespan,
+    redirect_slashes=False,  # Prevent 307 redirect loops on trailing-slash requests
 )
 
 # Configure CORS — applied first so it covers every route including /api/auth/*
