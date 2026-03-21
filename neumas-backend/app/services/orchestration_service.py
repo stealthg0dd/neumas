@@ -69,9 +69,9 @@ OPENAI_MODEL_NAMES: dict[str, str] = {
 
 # Anthropic model name mapping
 ANTHROPIC_MODEL_NAMES: dict[str, str] = {
-    "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
-    "claude-sonnet": "claude-3-5-sonnet-20241022",
-    "claude-haiku": "claude-3-5-haiku-20241022",
+    "claude-3-5-sonnet": "claude-sonnet-4-6",
+    "claude-sonnet": "claude-sonnet-4-6",
+    "claude-haiku": "claude-haiku-4-5-20251001",
 }
 
 # Google model name mapping

@@ -77,7 +77,7 @@ class VisionAgent:
 
     def __init__(self) -> None:
         """Initialize the VisionAgent with Anthropic client."""
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = "claude-sonnet-4-6"
         self.max_tokens = 4096
         
         if not settings.ANTHROPIC_API_KEY:
