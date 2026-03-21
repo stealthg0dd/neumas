@@ -380,48 +380,35 @@ async def _upsert_inventory_item(
     Add a scanned item to the inventory.
 
     - If an item with the same name (case-insensitive) already exists:
-      increment its quantity and update last_scanned_at + cost_per_unit.
+      increment its current_qty.
     - Otherwise create a new inventory_items row.
 
-    Column names match app/db/models.py (InventoryItem):
-      quantity, cost_per_unit, last_scanned_at, is_active, metadata
+    Columns written: property_id, name, current_qty, unit, status
     """
     item_name: str = (item.get("item_name") or "").strip()
     if not item_name:
         return None
 
     qty_to_add = float(item.get("quantity") or 1)
-    unit        = str(item.get("unit") or "unit")
-    category    = str(item.get("category") or "Other")
-    unit_price  = item.get("unit_price")
-    now_iso     = datetime.now(UTC).isoformat()
+    unit       = str(item.get("unit") or "unit")
 
-    # Look for existing item by name (ilike = case-insensitive)
+    # Look for existing item by name (case-insensitive)
     existing_resp = await (
         supabase.table("inventory_items")
-        .select("id, quantity, cost_per_unit")
+        .select("id, current_qty")
         .eq("property_id", property_id)
         .ilike("name", item_name)
-        .eq("is_active", True)
         .limit(1)
         .execute()
     )
 
     if existing_resp.data:
         existing = existing_resp.data[0]
-        current_qty = float(existing.get("quantity") or 0)
-        new_qty = current_qty + qty_to_add
-
-        update_payload: dict[str, Any] = {
-            "quantity":        str(new_qty),
-            "last_scanned_at": now_iso,
-        }
-        if unit_price is not None:
-            update_payload["cost_per_unit"] = str(unit_price)
+        new_qty = float(existing.get("current_qty") or 0) + qty_to_add
 
         resp = await (
             supabase.table("inventory_items")
-            .update(update_payload)
+            .update({"current_qty": str(new_qty)})
             .eq("id", existing["id"])
             .execute()
         )
@@ -437,20 +424,12 @@ async def _upsert_inventory_item(
 
     # Create new item
     insert_payload: dict[str, Any] = {
-        "property_id":    property_id,
-        "name":           item_name,
-        "quantity":       str(qty_to_add),
-        "unit":           unit,
-        "is_active":      True,
-        "last_scanned_at": now_iso,
-        "metadata": {
-            "source":            "scan",
-            "original_category": category,
-            "total_price":       item.get("total_price"),
-        },
+        "property_id": property_id,
+        "name":        item_name,
+        "current_qty": str(qty_to_add),
+        "unit":        unit,
+        "status":      "active",
     }
-    if unit_price is not None:
-        insert_payload["cost_per_unit"] = str(unit_price)
 
     resp = await supabase.table("inventory_items").insert(insert_payload).execute()
 
