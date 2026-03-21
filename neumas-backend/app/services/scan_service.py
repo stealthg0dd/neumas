@@ -141,14 +141,30 @@ class ScanService:
                 image_url=image_url[:80] + "..." if len(image_url) > 80 else image_url,
             )
         except Exception as broker_exc:
-            # Broker (Redis) is unreachable — log and continue. The scan
-            # record is safely stored; processing will happen when the
-            # worker reconnects or CELERY_TASK_ALWAYS_EAGER is enabled.
+            # Broker (Redis) is unreachable — run the pipeline synchronously
+            # so the user gets immediate results without needing a Celery worker.
             logger.warning(
-                "Could not enqueue scan task — broker unavailable; scan saved and will be retried",
+                "Broker unavailable — processing scan synchronously",
                 scan_id=str(scan_id),
                 error=str(broker_exc),
             )
+            try:
+                from app.tasks.scan_tasks import _process_scan_async
+                await _process_scan_async(
+                    task=None,
+                    scan_id=str(scan_id),
+                    property_id=str(tenant.property_id),
+                    user_id=str(tenant.user_id),
+                    image_url=image_url,
+                    scan_type=scan_type,
+                )
+                logger.info("Scan processed synchronously", scan_id=str(scan_id))
+            except Exception as sync_exc:
+                logger.error(
+                    "Synchronous scan processing failed",
+                    scan_id=str(scan_id),
+                    error=str(sync_exc),
+                )
 
         return ScanQueuedResponse(
             scan_id=scan_id,

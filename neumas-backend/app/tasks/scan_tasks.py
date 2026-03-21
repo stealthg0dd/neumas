@@ -353,7 +353,9 @@ async def _process_scan_async(
             )
         result["status"] = "failed"
         result["errors"].append({"stage": "pipeline", "error": error_msg})
-        raise   # triggers Celery retry
+        if task is not None:
+            raise   # triggers Celery retry
+        return result
 
 
 # =============================================================================
