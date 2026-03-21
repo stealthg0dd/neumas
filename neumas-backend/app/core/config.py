@@ -92,6 +92,10 @@ class Settings(BaseSettings):
         default="redis://localhost:6379/0",
         description="Redis connection URL",
     )
+    REDIS_PRIVATE_URL: str = Field(
+        default="",
+        description="Railway internal Redis URL (preferred over REDIS_URL when set)",
+    )
 
     # AI/LLM API Keys
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API key")
@@ -133,12 +137,22 @@ class Settings(BaseSettings):
     )
 
     @property
+    def _resolved_redis_url(self) -> str:
+        """Pick the best available Redis URL and normalise the scheme."""
+        url = self.CELERY_BROKER_URL or self.REDIS_PRIVATE_URL or self.REDIS_URL
+        # Railway sometimes provides rediss:// (TLS). Celery needs redis://
+        # on private networking where TLS is not required.
+        if url.startswith("rediss://"):
+            url = "redis://" + url[len("rediss://"):]
+        return url
+
+    @property
     def celery_broker(self) -> str:
-        return self.CELERY_BROKER_URL or self.REDIS_URL
+        return self._resolved_redis_url
 
     @property
     def celery_backend(self) -> str:
-        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
+        return self.CELERY_RESULT_BACKEND or self._resolved_redis_url
 
     @property
     def is_production(self) -> bool:

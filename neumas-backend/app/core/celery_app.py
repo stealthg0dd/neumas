@@ -65,6 +65,11 @@ celery_app.conf.update(
         "app.tasks.agent_tasks.*": {"queue": "neumas.predictions"},
     },
     
+    # Broker connection retry (important for Railway cold-start)
+    broker_connection_retry_on_startup=True,
+    broker_connection_retry=True,
+    broker_connection_max_retries=10,
+
     # Result backend settings
     result_expires=3600,  # Results expire after 1 hour
     result_extended=True,
