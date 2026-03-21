@@ -23,11 +23,16 @@ shopping_service = ShoppingService()
 
 
 @router.get(
+    "/",
+    response_model=list[ActiveShoppingListResponse],
+    summary="List shopping lists (trailing slash)",
+    include_in_schema=False,  # Duplicate of "" — hidden from docs
+)
+@router.get(
     "",
     response_model=list[ActiveShoppingListResponse],
     summary="List shopping lists",
-    description="Return all active shopping lists for the current property. "
-                "Works with or without a trailing slash.",
+    description="Return all active shopping lists for the current property.",
 )
 async def list_shopping_lists(
     tenant: Annotated[TenantContext, Depends(get_tenant_context)],
