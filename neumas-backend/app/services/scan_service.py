@@ -15,6 +15,7 @@ Configurable via env / .env:
   STORAGE_SIGNED_URL_EXPIRY    seconds              (default: 3600)
 """
 
+import asyncio
 import uuid
 from datetime import datetime
 from typing import Any
@@ -23,7 +24,6 @@ from uuid import UUID
 from fastapi import UploadFile
 
 from app.api.deps import TenantContext
-from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.repositories.scans import get_scans_repository
@@ -118,53 +118,27 @@ class ScanService:
             storage_path=storage_path,
         )
 
-        # Step 3: Enqueue Celery task with all required arguments.
-        # If Redis is unavailable the scan record is already persisted; we
-        # return success so the upload is not lost. The scan will remain in
-        # "queued" status and can be retried once the broker is reachable.
-        try:
-            task = celery_app.send_task(
-                "scans.process_scan",
-                kwargs={
-                    "scan_id": str(scan_id),
-                    "property_id": str(tenant.property_id),
-                    "user_id": str(tenant.user_id),
-                    "image_url": image_url,
-                    "scan_type": scan_type,
-                },
-                queue="scans",
-            )
-            logger.info(
-                "Enqueued scan processing task",
+        # Step 3: Process scan in the background (no Redis/Celery needed).
+        # asyncio.create_task schedules _process_scan_async on the running
+        # event loop so the upload response returns immediately while the
+        # AI pipeline runs concurrently.
+        from app.tasks.scan_tasks import _process_scan_async
+
+        asyncio.create_task(
+            _process_scan_async(
+                task=None,
                 scan_id=str(scan_id),
-                task_id=task.id,
-                image_url=image_url[:80] + "..." if len(image_url) > 80 else image_url,
+                property_id=str(tenant.property_id),
+                user_id=str(tenant.user_id),
+                image_url=image_url,
+                scan_type=scan_type,
             )
-        except Exception as broker_exc:
-            # Broker (Redis) is unreachable — run the pipeline synchronously
-            # so the user gets immediate results without needing a Celery worker.
-            logger.warning(
-                "Broker unavailable — processing scan synchronously",
-                scan_id=str(scan_id),
-                error=str(broker_exc),
-            )
-            try:
-                from app.tasks.scan_tasks import _process_scan_async
-                await _process_scan_async(
-                    task=None,
-                    scan_id=str(scan_id),
-                    property_id=str(tenant.property_id),
-                    user_id=str(tenant.user_id),
-                    image_url=image_url,
-                    scan_type=scan_type,
-                )
-                logger.info("Scan processed synchronously", scan_id=str(scan_id))
-            except Exception as sync_exc:
-                logger.error(
-                    "Synchronous scan processing failed",
-                    scan_id=str(scan_id),
-                    error=str(sync_exc),
-                )
+        )
+
+        logger.info(
+            "Scan processing started in background",
+            scan_id=str(scan_id),
+        )
 
         return ScanQueuedResponse(
             scan_id=scan_id,
