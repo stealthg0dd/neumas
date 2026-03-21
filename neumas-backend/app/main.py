@@ -166,23 +166,29 @@ app = FastAPI(
 )
 
 # Configure CORS — applied first so it covers every route including /api/auth/*
-# Hardcoded Vercel origins are always allowed regardless of env var state
-_ALWAYS_ALLOWED = [
-    "https://neumasfinal.vercel.app",
-    "https://neumasfinal-stealthg0dd-varuns-projects-6fad10b9.vercel.app",
+#
+# Strategy: combine an explicit origin allowlist (production domain + localhost)
+# with allow_origin_regex to cover all Vercel preview deployment URLs, which
+# use unpredictable subdomains (neumasfinal-<hash>-<team>.vercel.app).
+# allow_credentials=True is compatible here because we are NOT using "*".
+
+_EXPLICIT_ORIGINS = [
+    "https://neumasfinal.vercel.app",          # production Vercel
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:8080",
 ]
-_env_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
-# Merge env origins with hardcoded list, deduplicating, excluding bare wildcard
-_cors_origins = list({o for o in (_ALWAYS_ALLOWED + _env_origins) if o != "*"})
+# Merge any additional origins from the Railway env var (e.g. custom domain)
+_env_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip() and o.strip() != "*"]
+_cors_origins = list({*_EXPLICIT_ORIGINS, *_env_origins})
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    # Regex covers every Vercel preview URL for the neumasfinal project
+    allow_origin_regex=r"https://neumasfinal(-[a-z0-9]+)*(-[a-z0-9]+-[a-z0-9]+-[a-z0-9]+)?\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
