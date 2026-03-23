@@ -266,6 +266,7 @@ async def _upsert_pattern(
     sample_size: int,
     org_id: str = "",
     property_id: str = "",
+    period_start: datetime | None = None,
 ) -> None:
     """
     Insert or update one consumption_patterns row.
@@ -281,6 +282,7 @@ async def _upsert_pattern(
         "pattern_data": pattern_data,
         "confidence": str(confidence),
         "sample_size": sample_size,
+        "period_start": (period_start or datetime.now(UTC)).isoformat(),
     }
     if org_id:
         payload["org_id"] = org_id
@@ -479,6 +481,7 @@ async def recompute_patterns_for_property(
         }
 
         # -- Upsert "daily" pattern --------------------------------------------
+        earliest_dt = events[0][0]
         try:
             await _upsert_pattern(
                 item_id=item_id,
@@ -488,6 +491,7 @@ async def recompute_patterns_for_property(
                 sample_size=n_purchases,
                 org_id=item_org_id,
                 property_id=str(property_id),
+                period_start=earliest_dt,
             )
             patterns_upserted += 1
         except Exception as exc:
@@ -511,6 +515,7 @@ async def recompute_patterns_for_property(
                     sample_size=n_purchases,
                     org_id=item_org_id,
                     property_id=str(property_id),
+                    period_start=earliest_dt,
                 )
                 patterns_upserted += 1
             except Exception as exc:

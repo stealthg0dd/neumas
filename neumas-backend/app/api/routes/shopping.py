@@ -70,6 +70,9 @@ async def generate_shopping_list(
     The list will appear under GET / once complete.
     """
     try:
+        # Resolve property_id from tenant context when not supplied in body
+        if request.property_id is None:
+            request.property_id = tenant.property_id
         return await shopping_service.generate_list(request, tenant)
     except Exception as e:
         logger.error("Failed to enqueue shopping list generation", error=str(e))

@@ -111,14 +111,20 @@ async def get_me(
     user: Annotated[UserInfo, Depends(get_current_user)],
 ) -> ProfileResponse:
     """Get current authenticated user's profile."""
+    if not user.default_property_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No property configured for this account. Contact your administrator.",
+        )
+
     return ProfileResponse(
         user_id=user.id,
         email=user.email,
         full_name=user.full_name,
         org_id=user.organization_id,
         org_name=user.organization_name or "",
-        property_id=user.default_property_id or user.organization_id,  # Fallback
-        property_name="",  # Would need property lookup
+        property_id=user.default_property_id,
+        property_name="",
         role=user.role,
     )
 

@@ -218,7 +218,7 @@ class ReducedItemSummary(BaseModel):
 class GenerateListRequest(BaseModel):
     """Request to generate shopping list via Celery."""
 
-    property_id: UUID
+    property_id: UUID | None = None
     preferred_store: str | None = Field(
         None,
         max_length=100,
