@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useSpring, useMotionValue, animate } from "framer-motion";
+import { motion, animate } from "framer-motion";
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
 // ── Animated number hook ───────────────────────────────────────────────────────
@@ -159,31 +159,31 @@ export function SavingsCounter({
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Total savings this month
+          Inventory value
         </span>
-        <span className="badge-mint">Live</span>
+        <span className="badge-cyan">Live</span>
       </div>
 
       {/* Big number */}
       <div className="flex items-baseline gap-1">
-        <span className="text-xl font-bold gradient-text">$</span>
+        {savedCount > 0 && (
+          <span className="text-xl font-bold gradient-text">$</span>
+        )}
         <span className="text-4xl font-bold tabular-nums tracking-tight gradient-text">
-          {savedCount.toLocaleString("en-US")}
+          {savedCount > 0 ? savedCount.toLocaleString("en-US") : "—"}
         </span>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <TrendingUp className="w-3.5 h-3.5 text-mint-500" />
-        <span className="text-xs font-semibold text-mint-500">+12.4%</span>
-        <span className="text-xs text-muted-foreground">vs last month</span>
-      </div>
+      <p className="text-xs text-muted-foreground/60">
+        {savedCount > 0 ? "Sum of qty × cost per unit" : "Add cost data in inventory to track value"}
+      </p>
 
       {/* Mini stats */}
       <div className="grid grid-cols-2 gap-3 mt-auto pt-3 border-t border-border/40">
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5">Waste reduced</p>
-          <p className="text-lg font-bold text-mint-500 tabular-nums">
-            {wasteCount.toFixed(0)}%
+          <p className="text-xs text-muted-foreground mb-0.5">Low stock items</p>
+          <p className="text-lg font-bold text-amber-400 tabular-nums">
+            {wasteCount}
           </p>
         </div>
         <div>

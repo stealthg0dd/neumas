@@ -29,7 +29,7 @@ function useCountUp(target: number, duration = 1.6) {
   return val;
 }
 
-// ── Mock data generators ───────────────────────────────────────────────────────
+// ── Illustrative data generators (labeled in footer) ──────────────────────────
 
 function genSavingsData(days: number) {
   let cum = 0;
@@ -54,15 +54,6 @@ function genAccuracyData(days: number) {
     };
   });
 }
-
-const CATEGORY_DATA = [
-  { name: "Produce",  value: 38, cost: 1240 },
-  { name: "Dairy",    value: 22, cost: 720 },
-  { name: "Meat",     value: 18, cost: 1860 },
-  { name: "Dry Goods",value: 12, cost: 430 },
-  { name: "Beverages",value: 7,  cost: 290 },
-  { name: "Other",    value: 3,  cost: 110 },
-];
 
 const WASTE_DONUT = [
   { name: "Reduced",  value: 37 },
@@ -202,10 +193,12 @@ export default function AnalyticsPage() {
 
   // Real counts from backend
   const [realStats, setRealStats] = useState({
-    itemsTracked: 148,
-    predictionsCount: 312,
+    itemsTracked: 0,
+    predictionsCount: 0,
     scansTotal: 0,
   });
+  const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
+
   useEffect(() => {
     async function load() {
       try {
@@ -219,6 +212,17 @@ export default function AnalyticsPage() {
           predictionsCount: Array.isArray(preds) ? preds.length : 0,
           scansTotal: Array.isArray(scans) ? scans.length : 0,
         });
+        // Build category breakdown from real inventory
+        const catMap = new Map<string, number>();
+        for (const item of inv.items) {
+          const cat = item.category?.name ?? "Other";
+          catMap.set(cat, (catMap.get(cat) ?? 0) + 1);
+        }
+        const built = Array.from(catMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(([name, value]) => ({ name, value }));
+        if (built.length > 0) setCategoryData(built);
       } catch {
         // keep defaults
       }
@@ -446,38 +450,44 @@ export default function AnalyticsPage() {
           subtitle="Items by category"
           index={2}
         >
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={CATEGORY_DATA} {...CHART_DEFAULTS} barSize={18}>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: C.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: C.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={28}
-              />
-              <Tooltip content={<CustomTooltip suffix=" items" />} />
-              <Bar
-                dataKey="value"
-                name="Items"
-                radius={[4, 4, 0, 0] as [number, number, number, number]}
-                isAnimationActive
-                animationDuration={800}
-              >
-                {CATEGORY_DATA.map((_, i) => (
-                  <Cell
-                    key={i}
-                    fill={([C.cyan, C.purple, C.mint, C.amber, C.red, C.muted] as string[])[i % 6]}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {categoryData.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
+              No inventory data yet
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={categoryData} {...CHART_DEFAULTS} barSize={18}>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: C.muted, fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: C.muted, fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                />
+                <Tooltip content={<CustomTooltip suffix=" items" />} />
+                <Bar
+                  dataKey="value"
+                  name="Items"
+                  radius={[4, 4, 0, 0] as [number, number, number, number]}
+                  isAnimationActive
+                  animationDuration={800}
+                >
+                  {categoryData.map((_, i) => (
+                    <Cell
+                      key={i}
+                      fill={([C.cyan, C.purple, C.mint, C.amber, C.red, C.muted] as string[])[i % 6]}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
 
         {/* D — Predictions accuracy (Area overlap) */}

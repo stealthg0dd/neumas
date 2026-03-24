@@ -79,6 +79,7 @@ export default function DashboardPage() {
   const [predictions,    setPredictions]    = useState<Prediction[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [inventoryTotal, setInventoryTotal] = useState(0);
+  const [inventoryValue, setInventoryValue] = useState(0);
   const [shoppingItems,  setShoppingItems]  = useState<ShoppingListItem[]>([]);
 
   const [loadingPred, setLoadingPred] = useState(true);
@@ -125,11 +126,16 @@ export default function DashboardPage() {
       try {
         const res = await listInventory({ limit: 10 });
         if (!cancelled) {
-          setInventoryItems(Array.isArray(res?.items) ? res.items : []);
+          const items = Array.isArray(res?.items) ? res.items : [];
+          setInventoryItems(items);
           setInventoryTotal(res?.total ?? 0);
+          const val = items.reduce(
+            (s, i) => s + (i.cost_per_unit ?? 0) * i.quantity, 0
+          );
+          setInventoryValue(Math.round(val));
         }
       } catch {
-        if (!cancelled) { setInventoryItems([]); setInventoryTotal(0); }
+        if (!cancelled) { setInventoryItems([]); setInventoryTotal(0); setInventoryValue(0); }
       } finally {
         if (!cancelled) setLoadingInv(false);
       }
@@ -225,10 +231,10 @@ export default function DashboardPage() {
         {/* Savings counter */}
         <motion.div variants={card} className="col-span-12 sm:col-span-6 lg:col-span-4">
           <SavingsCounter
-            totalSaved={4280}
-            wasteReduction={23}
+            totalSaved={inventoryValue}
+            wasteReduction={lowStockCount}
             activePredictions={predictions.length}
-            loading={false}
+            loading={loadingInv}
           />
         </motion.div>
 
