@@ -304,3 +304,43 @@ export interface ApiError {
   detail: string | Array<{ msg: string; loc: string[] }>;
   status?: number;
 }
+
+// ============================================================================
+// Analytics
+// ============================================================================
+
+export interface SpendHistoryPoint {
+  date:       string;
+  amount:     number;
+  cumulative: number;
+}
+
+export interface ConfidenceHistoryPoint {
+  date:           string;
+  avg_confidence: number;
+  count:          number;
+}
+
+export interface CategoryBreakdownPoint {
+  name:  string;
+  value: number;
+}
+
+export interface UrgencyBreakdown {
+  critical: number;
+  urgent:   number;
+  soon:     number;
+  later:    number;
+}
+
+export interface AnalyticsSummary {
+  spend_total:        number;
+  avg_confidence_pct: number;
+  items_tracked:      number;
+  predictions_count:  number;
+  scans_total:        number;
+  spend_history:      SpendHistoryPoint[];
+  confidence_history: ConfidenceHistoryPoint[];
+  category_breakdown: CategoryBreakdownPoint[];
+  urgency_breakdown:  UrgencyBreakdown;
+}

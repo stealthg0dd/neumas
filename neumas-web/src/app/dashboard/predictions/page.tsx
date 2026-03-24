@@ -350,8 +350,23 @@ export default function PredictionsPage() {
     setTriggering(true);
     try {
       await triggerForecast(14);
-      toast.success("Forecast queued — results will appear shortly.");
-      setTimeout(fetchPredictions, 3000);
+      toast.success("Forecast queued — analysing patterns…");
+      // Poll every 3 s for up to 45 s, stop early if new predictions appear
+      const before = predictions.length;
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const data = await listPredictions({ limit: 100 });
+          if (data.length !== before || attempts >= 15) {
+            clearInterval(poll);
+            setPredictions(data);
+            if (data.length > before) toast.success("Predictions updated!");
+          }
+        } catch {
+          if (attempts >= 15) clearInterval(poll);
+        }
+      }, 3000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to trigger forecast.");
     } finally {

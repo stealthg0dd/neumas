@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { listInventory, listScans, listPredictions } from "@/lib/api/endpoints";
+import { getAnalyticsSummary } from "@/lib/api/endpoints";
+import type { AnalyticsSummary } from "@/lib/api/types";
 import {
-  AreaChart, Area, LineChart, Line, BarChart, Bar,
+  AreaChart, Area, BarChart, Bar,
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
   DollarSign, Package, TrendingUp, Target,
-  Download, Printer, Calendar,
+  Printer,
 } from "lucide-react";
 import { animate } from "framer-motion";
 
@@ -28,37 +29,6 @@ function useCountUp(target: number, duration = 1.6) {
   }, [target, duration]);
   return val;
 }
-
-// ── Illustrative data generators (labeled in footer) ──────────────────────────
-
-function genSavingsData(days: number) {
-  let cum = 0;
-  return Array.from({ length: days }, (_, i) => {
-    cum += Math.round(40 + Math.random() * 120);
-    const date = new Date(Date.now() - (days - 1 - i) * 86_400_000);
-    return {
-      date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      savings: cum,
-      daily: Math.round(40 + Math.random() * 120),
-    };
-  });
-}
-
-function genAccuracyData(days: number) {
-  return Array.from({ length: days }, (_, i) => {
-    const date = new Date(Date.now() - (days - 1 - i) * 86_400_000);
-    return {
-      date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      predicted: Math.round(60 + Math.random() * 40),
-      actual: Math.round(55 + Math.random() * 45),
-    };
-  });
-}
-
-const WASTE_DONUT = [
-  { name: "Reduced",  value: 37 },
-  { name: "Remaining",value: 63 },
-];
 
 // ── Brand palette for recharts ────────────────────────────────────────────────
 
@@ -177,61 +147,43 @@ function ChartCard({
   );
 }
 
-// ── Time range selector ────────────────────────────────────────────────────────
+// ── Skeleton shimmer ─────────────────────────────────────────────────────────
 
-type Range = 7 | 30 | 90;
-const RANGES: Range[] = [7, 30, 90];
-
+function SkeletonCard() {
+  return <div className="h-28 rounded-2xl shimmer" />;
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const EMPTY_SUMMARY: AnalyticsSummary = {
+  spend_total:        0,
+  avg_confidence_pct: 0,
+  items_tracked:      0,
+  predictions_count:  0,
+  scans_total:        0,
+  spend_history:      [],
+  confidence_history: [],
+  category_breakdown: [],
+  urgency_breakdown:  { critical: 0, urgent: 0, soon: 0, later: 0 },
+};
+
 export default function AnalyticsPage() {
-  const [range, setRange] = useState<Range>(30);
-
-  const savingsData  = genSavingsData(range);
-  const accuracyData = genAccuracyData(Math.min(range, 14));
-
-  // Real counts from backend
-  const [realStats, setRealStats] = useState({
-    itemsTracked: 0,
-    predictionsCount: 0,
-    scansTotal: 0,
-  });
-  const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
+  const [summary, setSummary] = useState<AnalyticsSummary>(EMPTY_SUMMARY);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [inv, scans, preds] = await Promise.all([
-          listInventory({ limit: 500 }),
-          listScans({ limit: 100 }),
-          listPredictions({ limit: 100 }),
-        ]);
-        setRealStats({
-          itemsTracked: inv.total,
-          predictionsCount: Array.isArray(preds) ? preds.length : 0,
-          scansTotal: Array.isArray(scans) ? scans.length : 0,
-        });
-        // Build category breakdown from real inventory
-        const catMap = new Map<string, number>();
-        for (const item of inv.items) {
-          const cat = item.category?.name ?? "Other";
-          catMap.set(cat, (catMap.get(cat) ?? 0) + 1);
-        }
-        const built = Array.from(catMap.entries())
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 6)
-          .map(([name, value]) => ({ name, value }));
-        if (built.length > 0) setCategoryData(built);
-      } catch {
-        // keep defaults
-      }
-    }
-    load();
+    getAnalyticsSummary()
+      .then(setSummary)
+      .catch(() => {/* keep defaults */})
+      .finally(() => setLoading(false));
   }, []);
 
-  // Thinned x-axis labels to avoid overlap
-  const tickInterval = range === 7 ? 0 : range === 30 ? 4 : 13;
+  const urgencyData = [
+    { name: "Critical", value: summary.urgency_breakdown.critical, fill: C.red },
+    { name: "Urgent",   value: summary.urgency_breakdown.urgent,   fill: C.amber },
+    { name: "Soon",     value: summary.urgency_breakdown.soon,     fill: C.cyan },
+    { name: "Later",    value: summary.urgency_breakdown.later,    fill: C.muted },
+  ].filter((d) => d.value > 0);
 
   return (
     <div className="space-y-6">
@@ -239,250 +191,155 @@ export default function AnalyticsPage() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight gradient-text">Analytics</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Performance overview</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Performance overview · live data</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Time range */}
-          <div className="flex items-center gap-1 glass-button rounded-xl p-1">
-            {RANGES.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={[
-                  "px-3 h-7 rounded-lg text-xs font-semibold transition-all",
-                  range === r
-                    ? "bg-cyan-500/25 text-cyan-400"
-                    : "text-muted-foreground hover:text-foreground",
-                ].join(" ")}
-              >
-                {r}d
-              </button>
-            ))}
-          </div>
-
-          {/* Export */}
-          <button
-            onClick={() => window.print()}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-all"
-            title="Print report"
-          >
-            <Printer className="w-4 h-4" />
-          </button>
-        </div>
+        <button
+          onClick={() => window.print()}
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-all"
+          title="Print report"
+        >
+          <Printer className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={DollarSign}
-          label="Total saved"
-          value={4280}
-          prefix="$"
-          sub="+12.4% vs last period"
-          iconBg="bg-cyan-500/15"
-          iconColor="text-cyan-400"
-          index={0}
-        />
-        <StatCard
-          icon={Package}
-          label="Items tracked"
-          value={realStats.itemsTracked}
-          sub="Across all categories"
-          iconBg="bg-purple-500/15"
-          iconColor="text-purple-400"
-          index={1}
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Predictions made"
-          value={realStats.predictionsCount}
-          sub={`Last ${range} days`}
-          iconBg="bg-amber-500/15"
-          iconColor="text-amber-400"
-          index={2}
-        />
-        <StatCard
-          icon={Target}
-          label="Accuracy rate"
-          value={87}
-          suffix="%"
-          sub="Stockout prediction"
-          iconBg="bg-mint-500/15"
-          iconColor="text-mint-500"
-          index={3}
-        />
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            icon={DollarSign}
+            label="Planned spend"
+            value={Math.round(summary.spend_total)}
+            prefix="$"
+            sub="Total across all shopping lists"
+            iconBg="bg-cyan-500/15"
+            iconColor="text-cyan-400"
+            index={0}
+          />
+          <StatCard
+            icon={Package}
+            label="Items tracked"
+            value={summary.items_tracked}
+            sub="Across all categories"
+            iconBg="bg-purple-500/15"
+            iconColor="text-purple-400"
+            index={1}
+          />
+          <StatCard
+            icon={TrendingUp}
+            label="Predictions made"
+            value={summary.predictions_count}
+            sub="Stockout forecasts"
+            iconBg="bg-amber-500/15"
+            iconColor="text-amber-400"
+            index={2}
+          />
+          <StatCard
+            icon={Target}
+            label="Avg confidence"
+            value={Math.round(summary.avg_confidence_pct)}
+            suffix="%"
+            sub="Prediction confidence score"
+            iconBg="bg-mint-500/15"
+            iconColor="text-mint-500"
+            index={3}
+          />
+        </div>
+      )}
 
       {/* Charts grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* A — Savings over time (Line + Area) */}
+        {/* A — Planned spend over time */}
         <ChartCard
-          title="Cumulative savings"
-          subtitle={`Last ${range} days`}
+          title="Planned spend over time"
+          subtitle="Cumulative shopping list value"
           index={0}
           className="lg:col-span-2"
         >
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={savingsData} {...CHART_DEFAULTS}>
-              <defs>
-                <linearGradient id="savingsGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={C.cyan}   stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={C.cyan}   stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: C.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                interval={tickInterval}
-              />
-              <YAxis
-                tick={{ fill: C.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `$${v}`}
-                width={48}
-              />
-              <Tooltip content={<CustomTooltip prefix="$" />} />
-              <Area
-                type="monotone"
-                dataKey="savings"
-                name="Cumulative savings"
-                stroke={C.cyan}
-                strokeWidth={2.5}
-                fill="url(#savingsGrad)"
-                dot={false}
-                activeDot={{ r: 4, fill: C.cyan, strokeWidth: 0 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[220px] rounded-xl shimmer" />
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={summary.spend_history} {...CHART_DEFAULTS}>
+                <defs>
+                  <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor={C.cyan} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={C.cyan} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} width={48} />
+                <Tooltip content={<CustomTooltip prefix="$" />} />
+                <Area type="monotone" dataKey="cumulative" name="Cumulative spend" stroke={C.cyan} strokeWidth={2.5} fill="url(#spendGrad)" dot={false} activeDot={{ r: 4, fill: C.cyan, strokeWidth: 0 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
 
-        {/* B — Waste Reduction (Donut) */}
+        {/* B — Urgency breakdown donut */}
         <ChartCard
-          title="Waste reduction"
-          subtitle="vs baseline before Neumas"
+          title="Prediction urgency"
+          subtitle="Current stockout risk distribution"
           index={1}
         >
-          <div className="flex items-center gap-6">
-            <div className="relative shrink-0">
+          {loading ? (
+            <div className="h-[200px] rounded-xl shimmer" />
+          ) : urgencyData.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
+              No predictions yet — run a forecast first
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
               <ResponsiveContainer width={160} height={160}>
                 <PieChart>
-                  <Pie
-                    data={WASTE_DONUT}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={52}
-                    outerRadius={72}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey="value"
-                    strokeWidth={0}
-                    isAnimationActive
-                    animationDuration={900}
-                    animationEasing="ease-out"
-                  >
-                    <Cell fill={C.mint} />
-                    <Cell fill="oklch(0.18 0.01 240)" />
+                  <Pie data={urgencyData} cx="50%" cy="50%" innerRadius={48} outerRadius={70} dataKey="value" strokeWidth={0} animationDuration={800}>
+                    {urgencyData.map((d, i) => <Cell key={i} fill={d.fill} />)}
                   </Pie>
+                  <Tooltip formatter={(v, n) => [`${v} items`, n]} />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Centre label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-3xl font-bold gradient-text">37%</span>
-                <span className="text-xs text-muted-foreground">reduced</span>
+              <div className="space-y-2 flex-1">
+                {urgencyData.map((d) => (
+                  <div key={d.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.fill }} />
+                      <span className="text-muted-foreground">{d.name}</span>
+                    </div>
+                    <span className="font-semibold text-foreground">{d.value}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="space-y-3 flex-1">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-muted-foreground">Produce waste</span>
-                  <span className="font-medium text-mint-500">↓ 42%</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-surface-2">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: "42%" }}
-                    transition={{ duration: 0.8, delay: 0.3, ease: [0.23, 1, 0.32, 1] }}
-                    className="h-full rounded-full bg-mint-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-muted-foreground">Dairy waste</span>
-                  <span className="font-medium text-cyan-400">↓ 31%</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-surface-2">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: "31%" }}
-                    transition={{ duration: 0.8, delay: 0.4, ease: [0.23, 1, 0.32, 1] }}
-                    className="h-full rounded-full bg-cyan-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-muted-foreground">Meat waste</span>
-                  <span className="font-medium text-amber-400">↓ 28%</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-surface-2">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: "28%" }}
-                    transition={{ duration: 0.8, delay: 0.5, ease: [0.23, 1, 0.32, 1] }}
-                    className="h-full rounded-full bg-amber-500"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </ChartCard>
 
-        {/* C — Category breakdown (Bar) */}
+        {/* C — Category breakdown */}
         <ChartCard
           title="Category breakdown"
           subtitle="Items by category"
           index={2}
         >
-          {categoryData.length === 0 ? (
+          {loading ? (
+            <div className="h-[200px] rounded-xl shimmer" />
+          ) : summary.category_breakdown.length === 0 ? (
             <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
               No inventory data yet
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={categoryData} {...CHART_DEFAULTS} barSize={18}>
+              <BarChart data={summary.category_breakdown} {...CHART_DEFAULTS} barSize={18}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: C.muted, fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: C.muted, fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={28}
-                />
+                <XAxis dataKey="name" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
                 <Tooltip content={<CustomTooltip suffix=" items" />} />
-                <Bar
-                  dataKey="value"
-                  name="Items"
-                  radius={[4, 4, 0, 0] as [number, number, number, number]}
-                  isAnimationActive
-                  animationDuration={800}
-                >
-                  {categoryData.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={([C.cyan, C.purple, C.mint, C.amber, C.red, C.muted] as string[])[i % 6]}
-                    />
+                <Bar dataKey="value" name="Items" radius={[4, 4, 0, 0] as [number,number,number,number]} animationDuration={800}>
+                  {summary.category_breakdown.map((_, i) => (
+                    <Cell key={i} fill={([C.cyan, C.purple, C.mint, C.amber, C.red, C.muted] as string[])[i % 6]} />
                   ))}
                 </Bar>
               </BarChart>
@@ -490,74 +347,35 @@ export default function AnalyticsPage() {
           )}
         </ChartCard>
 
-        {/* D — Predictions accuracy (Area overlap) */}
+        {/* D — Prediction confidence over time */}
         <ChartCard
-          title="Prediction accuracy"
-          subtitle="Predicted vs actual consumption"
+          title="Prediction confidence over time"
+          subtitle="Average AI confidence score per day"
           index={3}
           className="lg:col-span-2"
         >
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={accuracyData} {...CHART_DEFAULTS}>
-              <defs>
-                <linearGradient id="predGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={C.purple} stopOpacity={0.4} />
-                  <stop offset="100%" stopColor={C.purple} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="actGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={C.mint}   stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={C.mint}   stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: C.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                interval={Math.floor(accuracyData.length / 7)}
-              />
-              <YAxis
-                tick={{ fill: C.muted, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={32}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                wrapperStyle={{ fontSize: 11, color: C.muted }}
-                iconType="circle"
-                iconSize={8}
-              />
-              <Area
-                type="monotone"
-                dataKey="predicted"
-                name="Predicted"
-                stroke={C.purple}
-                strokeWidth={2}
-                fill="url(#predGrad)"
-                dot={false}
-                activeDot={{ r: 3, strokeWidth: 0 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="actual"
-                name="Actual"
-                stroke={C.mint}
-                strokeWidth={2}
-                fill="url(#actGrad)"
-                dot={false}
-                activeDot={{ r: 3, strokeWidth: 0 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[200px] rounded-xl shimmer" />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={summary.confidence_history} {...CHART_DEFAULTS}>
+                <defs>
+                  <linearGradient id="confGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor={C.purple} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={C.purple} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={(v) => `${v}%`} width={36} />
+                <Tooltip content={<CustomTooltip suffix="%" />} />
+                <Legend wrapperStyle={{ fontSize: 11, color: C.muted }} iconType="circle" iconSize={8} />
+                <Area type="monotone" dataKey="avg_confidence" name="Confidence %" stroke={C.purple} strokeWidth={2} fill="url(#confGrad)" dot={false} activeDot={{ r: 3, strokeWidth: 0 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </ChartCard>
       </div>
-
-      {/* Note */}
-      <p className="text-xs text-center text-muted-foreground/60 pb-2">
-        Counts (items, predictions) are live from your database. Savings and waste charts are illustrative.
-      </p>
     </div>
   );
 }

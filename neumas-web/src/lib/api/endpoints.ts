@@ -27,6 +27,7 @@ import type {
   ShoppingListDetail,
   GenerateListRequest,
   GenerateListResponse,
+  AnalyticsSummary,
 } from "./types";
 import { LoginResponseSchema, SignupResponseSchema } from "./types";
 
@@ -245,4 +246,13 @@ export async function markItemPurchased(
   return patch<void>(`/api/shopping-list/${listId}/items/${itemId}/purchase`, {
     actual_price: actualPrice,
   });
+}
+
+// ============================================================================
+// Analytics
+// ============================================================================
+
+/** GET /api/analytics/summary */
+export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
+  return get<AnalyticsSummary>("/api/analytics/summary");
 }

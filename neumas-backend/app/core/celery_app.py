@@ -239,6 +239,7 @@ def discover_tasks() -> None:
             "app.tasks.scan_tasks",
             "app.tasks.prediction_tasks",
             "app.tasks.agent_tasks",
+            "app.tasks.shopping_tasks",
             "app.tasks.maintenance",
         ],
         force=True,

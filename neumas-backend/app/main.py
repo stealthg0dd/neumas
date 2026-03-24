@@ -67,7 +67,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 
 # Import routers explicitly at the top - errors will be visible in logs
-from app.api.routes import admin, auth, inventory, predictions, scans, shopping
+from app.api.routes import admin, auth, inventory, predictions, scans, shopping, analytics
 
 # Safe import for logging module
 try:
@@ -386,6 +386,12 @@ app.include_router(
     shopping.router,
     prefix="/api/shopping-list",
     tags=["Shopping"],
+)
+
+app.include_router(
+    analytics.router,
+    prefix="/api/analytics",
+    tags=["Analytics"],
 )
 
 # Admin routes

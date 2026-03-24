@@ -284,8 +284,6 @@ export default function ShoppingPage() {
   }, [propertyId]);
 
   async function handleGenerate(opts: GenerateOptions): Promise<void> {
-    // Use hook value first, fall back to getState() for edge cases where the
-    // component rendered before Zustand hydration completed.
     const pid = propertyId ?? useAuthStore.getState().propertyId;
     if (!pid) {
       toast.error("Property ID not found. Please log out and log in again.");
@@ -297,10 +295,25 @@ export default function ShoppingPage() {
         include_critical_only: opts.criticalOnly,
         min_days_threshold:    opts.daysAhead,
       });
-      toast.success("Shopping list is being generated — check back in a moment.");
+      toast.success("Generating shopping list — this may take up to 30 seconds…");
       setGenOpen(false);
-      // Refresh after 3 s to give the Celery task time to complete
-      setTimeout(() => fetchListsRef.current(), 3000);
+      // Poll every 3 s for up to 45 s, stop early when a new list appears
+      const before = lists.length;
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const data = await listShoppingLists();
+          const fresh = Array.isArray(data) ? data : [];
+          if (fresh.length > before || attempts >= 15) {
+            clearInterval(poll);
+            setLists(fresh);
+            if (fresh.length > before) toast.success("Shopping list is ready!");
+          }
+        } catch {
+          if (attempts >= 15) clearInterval(poll);
+        }
+      }, 3000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to generate list.");
     } finally {
