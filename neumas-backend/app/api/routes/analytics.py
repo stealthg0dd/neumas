@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from app.api.deps import TenantContext, require_property
 from app.core.logging import get_logger
@@ -36,7 +36,7 @@ def _dt_to_label(dt: datetime) -> str:
 
 @router.get("/summary")
 async def get_analytics_summary(
-    tenant: Annotated[TenantContext, Depends(require_property())],
+    tenant: TenantContext = require_property(),
 ) -> dict[str, Any]:
     """
     Return real computed analytics for the current property.
