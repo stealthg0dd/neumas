@@ -79,7 +79,7 @@ class ShoppingAgent:
         # 1. Get low stock items
         low_stock_count = 0
         if include_low_stock:
-            low_stock_items = await inventory_repo.get_low_stock_items(
+            low_stock_items = await inventory_repo.get_low_stock_items_admin(
                 property_id,
                 limit=100,
             )

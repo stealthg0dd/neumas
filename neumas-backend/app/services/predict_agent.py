@@ -211,8 +211,23 @@ async def _fetch_items_with_patterns(
     return merged
 
 
+async def _get_property_org_id(property_id: UUID) -> UUID | None:
+    """Fetch the org_id for a property (needed for predictions NOT NULL constraint)."""
+    client = await get_async_supabase_admin()
+    resp = await (
+        client.table("properties")
+        .select("org_id")
+        .eq("id", str(property_id))
+        .single()
+        .execute()
+    )
+    raw = (resp.data or {}).get("org_id")
+    return UUID(raw) if raw else None
+
+
 async def _upsert_prediction(
     property_id: UUID,
+    org_id: UUID,
     item_id: UUID,
     prediction_date: datetime,
     predicted_value: float,
@@ -229,6 +244,7 @@ async def _upsert_prediction(
 
     payload: dict[str, Any] = {
         "property_id": str(property_id),
+        "org_id": str(org_id),
         "item_id": str(item_id),
         "prediction_type": "stockout",
         "prediction_date": prediction_date.isoformat(),
@@ -298,6 +314,20 @@ async def recompute_predictions_for_property(
         "Starting prediction recomputation",
         property_id=str(property_id),
     )
+
+    org_id = await _get_property_org_id(property_id)
+    if not org_id:
+        logger.error("Cannot recompute predictions: property org_id not found", property_id=str(property_id))
+        return {
+            "property_id": str(property_id),
+            "items_evaluated": 0,
+            "predictions_upserted": 0,
+            "items_skipped": 0,
+            "critical_count": 0,
+            "urgent_count": 0,
+            "soon_count": 0,
+            "later_count": 0,
+        }
 
     merged = await _fetch_items_with_patterns(property_id)
 
@@ -407,6 +437,7 @@ async def recompute_predictions_for_property(
         try:
             await _upsert_prediction(
                 property_id=property_id,
+                org_id=org_id,
                 item_id=item_id,
                 prediction_date=predicted_runout_date,
                 predicted_value=days_remaining,

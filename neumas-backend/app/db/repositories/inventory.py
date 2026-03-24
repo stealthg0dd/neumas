@@ -162,6 +162,32 @@ class InventoryRepository:
         ]
         return low_stock
 
+    async def get_low_stock_items_admin(
+        self,
+        property_id: UUID,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """
+        Admin version: get low-stock items by property_id UUID directly.
+        Uses the repository's existing client (admin client for background tasks).
+        """
+        admin_client = await get_async_supabase_admin()
+        response = await (
+            admin_client.table(self.table)
+            .select("*")
+            .eq("property_id", str(property_id))
+            .eq("is_active", True)
+            .order("quantity")
+            .limit(limit)
+            .execute()
+        )
+        return [
+            item
+            for item in (response.data or [])
+            if float(item.get("quantity", 0))
+            <= float(item.get("reorder_point") or item.get("min_quantity", 0))
+        ]
+
     async def create_item(
         self,
         tenant: "TenantContext",
