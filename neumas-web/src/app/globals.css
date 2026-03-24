@@ -1,0 +1,406 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================================
+   Tailwind 4 @theme — Neumas brand tokens
+   Adds cyan/purple/mint/amber palette as Tailwind utilities AND
+   overrides the extended @theme block that maps CSS vars into colors.
+   ============================================================================ */
+@theme {
+  /* ── Neumas extended palette (utility classes: text-cyan-500, bg-purple-400 …) */
+  --color-cyan-50:   #ecfeff;
+  --color-cyan-100:  #cffafe;
+  --color-cyan-200:  #a5f3fc;
+  --color-cyan-300:  #67e8f9;
+  --color-cyan-400:  #22d3ee;
+  --color-cyan-500:  #06b6d4;
+  --color-cyan-600:  #0891b2;
+  --color-cyan-700:  #0e7490;
+  --color-cyan-800:  #155e75;
+  --color-cyan-900:  #164e63;
+  --color-cyan-950:  #083344;
+
+  --color-purple-50:  #fdf4ff;
+  --color-purple-100: #fae8ff;
+  --color-purple-200: #f5d0fe;
+  --color-purple-300: #f0abfc;
+  --color-purple-400: #e879f9;
+  --color-purple-500: #d946ef;
+  --color-purple-600: #c026d3;
+  --color-purple-700: #a21caf;
+  --color-purple-800: #86198f;
+  --color-purple-900: #701a75;
+  --color-purple-950: #4a044e;
+
+  --color-mint-50:  #f0fdf4;
+  --color-mint-100: #dcfce7;
+  --color-mint-200: #bbf7d0;
+  --color-mint-300: #86efac;
+  --color-mint-400: #4ade80;
+  --color-mint-500: #22c55e;
+  --color-mint-600: #16a34a;
+
+  --color-amber-50:  #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+
+  /* ── shadcn semantic → Tailwind color bridge ─────────────────────────── */
+  --color-background:         var(--background);
+  --color-foreground:         var(--foreground);
+  --color-card:               var(--card);
+  --color-card-foreground:    var(--card-foreground);
+  --color-popover:            var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary:            var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary:          var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:              var(--muted);
+  --color-muted-foreground:   var(--muted-foreground);
+  --color-accent:             var(--accent);
+  --color-accent-foreground:  var(--accent-foreground);
+  --color-destructive:        var(--destructive);
+  --color-border:             var(--border);
+  --color-input:              var(--input);
+  --color-ring:               var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar:                    var(--sidebar);
+  --color-sidebar-foreground:         var(--sidebar-foreground);
+  --color-sidebar-primary:            var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:             var(--sidebar-accent);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-ring:               var(--sidebar-ring);
+
+  /* ── Font variables ──────────────────────────────────────────────────── */
+  --font-sans:    var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono:    var(--font-geist-mono), monospace;
+  --font-heading: var(--font-geist-sans), system-ui, sans-serif;
+
+  /* ── Radius ──────────────────────────────────────────────────────────── */
+  --radius-sm:  calc(var(--radius) * 0.6);
+  --radius-md:  calc(var(--radius) * 0.8);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── Box shadows ─────────────────────────────────────────────────────── */
+  --shadow-glow-cyan:   0 0 20px rgba(6, 182, 212, 0.4);
+  --shadow-glow-purple: 0 0 20px rgba(217, 70, 239, 0.4);
+  --shadow-glass: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+
+  /* ── Custom animation presets ────────────────────────────────────────── */
+  --animate-fade-in:  fade-in 0.4s ease-out;
+  --animate-slide-up: slide-up 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  --animate-shimmer:  shimmer 2.5s linear infinite;
+  --animate-float:    float 3s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50%      { transform: translateY(-8px); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(6,182,212,0.3); }
+    50%      { box-shadow: 0 0 24px rgba(6,182,212,0.7), 0 0 48px rgba(217,70,239,0.2); }
+  }
+}
+
+/* ============================================================================
+   Neumas CSS custom properties
+   ── Light mode (defaults to dark — Neumas is a dark-first product)
+   ── We ship a single dark palette and let .dark class toggle it.
+   ============================================================================ */
+:root {
+  /* shadcn semantic vars — light mode (mostly unused; app forces dark) */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  /* Primary → Cyan 500 */
+  --primary: oklch(0.715 0.139 199.2);
+  --primary-foreground: oklch(0.984 0.019 196.5);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  /* Accent → Electric Purple 500 */
+  --accent: oklch(0.699 0.220 303.9);
+  --accent-foreground: oklch(0.977 0.017 308.9);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.715 0.139 199.2); /* cyan ring */
+  /* Charts → brand palette */
+  --chart-1: oklch(0.715 0.139 199.2);  /* cyan  */
+  --chart-2: oklch(0.699 0.220 303.9);  /* purple */
+  --chart-3: oklch(0.627 0.194 149.2);  /* mint  */
+  --chart-4: oklch(0.769 0.163 70.1);   /* amber */
+  --chart-5: oklch(0.637 0.237 25.3);   /* red   */
+  --radius: 0.75rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.715 0.139 199.2);
+  --sidebar-primary-foreground: oklch(0.984 0.019 196.5);
+  --sidebar-accent: oklch(0.699 0.220 303.9);
+  --sidebar-accent-foreground: oklch(0.977 0.017 308.9);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.715 0.139 199.2);
+
+  /* Neumas raw design tokens */
+  --neumas-cyan:   #06b6d4;
+  --neumas-purple: #d946ef;
+  --neumas-bg:     #030712;
+  --neumas-surface:#111827;
+}
+
+/* ── Dark mode (primary theme for Neumas) ─────────────────────────────────── */
+.dark {
+  /* Deep dark background with imperceptible teal tint */
+  --background: oklch(0.075 0.005 240);
+  --foreground: oklch(0.96 0.005 210);
+  /* Elevated surfaces */
+  --card: oklch(0.115 0.008 230);
+  --card-foreground: oklch(0.96 0.005 210);
+  --popover: oklch(0.130 0.010 230);
+  --popover-foreground: oklch(0.96 0.005 210);
+  /* Primary → Cyan 500 */
+  --primary: oklch(0.715 0.139 199.2);
+  --primary-foreground: oklch(0.075 0.005 240);
+  /* Secondary — subtle surface */
+  --secondary: oklch(0.180 0.010 230);
+  --secondary-foreground: oklch(0.85 0.010 210);
+  /* Muted */
+  --muted: oklch(0.165 0.008 230);
+  --muted-foreground: oklch(0.58 0.015 220);
+  /* Accent → Electric Purple 500 */
+  --accent: oklch(0.699 0.220 303.9);
+  --accent-foreground: oklch(0.075 0.005 240);
+  /* Destructive → Red 500 */
+  --destructive: oklch(0.637 0.237 25.3);
+  /* Borders — very subtle */
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 10%);
+  --ring: oklch(0.715 0.139 199.2); /* cyan ring */
+  /* Charts */
+  --chart-1: oklch(0.715 0.139 199.2);
+  --chart-2: oklch(0.699 0.220 303.9);
+  --chart-3: oklch(0.627 0.194 149.2);
+  --chart-4: oklch(0.769 0.163 70.1);
+  --chart-5: oklch(0.637 0.237 25.3);
+  /* Sidebar */
+  --sidebar: oklch(0.095 0.007 235);
+  --sidebar-foreground: oklch(0.96 0.005 210);
+  --sidebar-primary: oklch(0.715 0.139 199.2);
+  --sidebar-primary-foreground: oklch(0.075 0.005 240);
+  --sidebar-accent: oklch(0.699 0.220 303.9);
+  --sidebar-accent-foreground: oklch(0.977 0.017 308.9);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.715 0.139 199.2);
+}
+
+/* ============================================================================
+   Base layer — global element defaults
+   ============================================================================ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    /* dark class is applied in layout.tsx to <html> — Neumas is dark-first */
+    color-scheme: dark;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  }
+
+  /* Headings inherit brand feel */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading tracking-tight;
+  }
+
+  /* Smooth scrollbar (dark) */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.3 0.02 240);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--neumas-cyan);
+  }
+}
+
+/* ============================================================================
+   Utility layer — Glassmorphism, gradients, and brand helpers
+   ============================================================================ */
+@layer utilities {
+  /* ── Glassmorphism ───────────────────────────────────────────────────────── */
+
+  /* Standard glass card — use for panels, widgets, cards */
+  .glass-card {
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    background: oklch(1 0 0 / 4%);
+    border: 1px solid oklch(1 0 0 / 9%);
+    box-shadow: 0 8px 32px oklch(0 0 0 / 30%), inset 0 1px 0 oklch(1 0 0 / 8%);
+  }
+
+  /* Lighter glass — chips, badges, inline highlights */
+  .glass-light {
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    background: oklch(1 0 0 / 6%);
+    border: 1px solid oklch(1 0 0 / 12%);
+  }
+
+  /* Heavier glass — modals, sidebars, overlays */
+  .glass-heavy {
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    background: oklch(0.075 0.005 240 / 80%);
+    border: 1px solid oklch(1 0 0 / 10%);
+    box-shadow: 0 16px 64px oklch(0 0 0 / 50%);
+  }
+
+  /* Glass button — squishy, tactile */
+  .glass-button {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: oklch(1 0 0 / 6%);
+    border: 1px solid oklch(1 0 0 / 15%);
+    transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .glass-button:hover {
+    background: oklch(1 0 0 / 10%);
+    border-color: oklch(1 0 0 / 20%);
+    box-shadow: 0 4px 16px oklch(0 0 0 / 20%);
+    transform: translateY(-1px);
+  }
+  .glass-button:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: none;
+  }
+
+  /* ── Gradient text — cyan → purple ──────────────────────────────────────── */
+  .gradient-text {
+    background: linear-gradient(135deg, #06b6d4 0%, #d946ef 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    /* Fallback for older browsers */
+    color: #06b6d4;
+  }
+
+  /* Wider rainbow variant */
+  .gradient-text-wide {
+    background: linear-gradient(135deg, #22d3ee 0%, #a855f7 50%, #d946ef 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Gradient backgrounds ────────────────────────────────────────────────── */
+  .gradient-primary {
+    background: linear-gradient(135deg, #06b6d4 0%, #d946ef 100%);
+  }
+
+  .gradient-primary-subtle {
+    background: linear-gradient(
+      135deg,
+      oklch(0.715 0.139 199.2 / 15%) 0%,
+      oklch(0.699 0.220 303.9 / 15%) 100%
+    );
+  }
+
+  /* ── Glow effects ────────────────────────────────────────────────────────── */
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+  }
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(217, 70, 239, 0.4);
+  }
+  .glow-cyan-lg {
+    box-shadow: 0 0 40px rgba(6, 182, 212, 0.3), 0 0 80px rgba(6, 182, 212, 0.1);
+  }
+
+  /* ── Shimmer loading skeleton ────────────────────────────────────────────── */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      oklch(1 0 0 / 4%) 0%,
+      oklch(1 0 0 / 12%) 50%,
+      oklch(1 0 0 / 4%) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2.5s linear infinite;
+  }
+
+  /* ── Text utilities ──────────────────────────────────────────────────────── */
+  .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty; }
+
+  /* ── Focus ring — brand-colored ──────────────────────────────────────────── */
+  .focus-ring {
+    @apply outline-none ring-2 ring-cyan-500/70 ring-offset-2 ring-offset-background;
+  }
+
+  /* ── Surface hierarchy ───────────────────────────────────────────────────── */
+  .surface-0 { background: var(--background); }
+  .surface-1 { background: oklch(0.115 0.008 230); }
+  .surface-2 { background: oklch(0.145 0.010 230); }
+  .surface-3 { background: oklch(0.180 0.010 230); }
+
+  /* ── Badge / chip variants ───────────────────────────────────────────────── */
+  .badge-cyan {
+    @apply bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-purple {
+    @apply bg-purple-500/15 text-purple-300 border border-purple-500/30 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-mint {
+    @apply bg-mint-500/15 text-mint-300 border border-mint-500/30 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-amber {
+    @apply bg-amber-500/15 text-amber-300 border border-amber-500/30 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-red {
+    @apply bg-red-500/15 text-red-300 border border-red-500/30 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}
