@@ -216,7 +216,7 @@ async def update_inventory_item(
 
 
 @router.post(
-    "/{item_id}/adjust",
+    "/{item_id}/quantity/adjust",
     response_model=InventoryItemResponse,
     summary="Adjust quantity",
     description="Adjust inventory quantity (add or subtract).",

@@ -234,6 +234,16 @@ class GenerateListResponse(BaseModel):
     property_id: UUID
 
 
+class MarkItemPurchasedRequest(BaseModel):
+    """Request body for marking a shopping list item as purchased."""
+
+    actual_price: Decimal | None = Field(
+        None,
+        ge=0,
+        description="Actual price paid for the item (optional)",
+    )
+
+
 # ============================================================================
 # Order Deep Link Schemas
 # ============================================================================

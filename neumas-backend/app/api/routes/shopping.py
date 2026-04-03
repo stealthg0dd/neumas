@@ -9,10 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import TenantContext, get_tenant_context, require_property
 from app.core.logging import get_logger
+from app.db.repositories.shopping_lists import get_shopping_lists_repository
 from app.schemas.shopping import (
     ActiveShoppingListResponse,
     GenerateListRequest,
     GenerateListResponse,
+    MarkItemPurchasedRequest,
 )
 from app.services.shopping_service import ShoppingService
 
@@ -115,4 +117,74 @@ async def get_shopping_list(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve shopping list",
+        )
+
+
+@router.patch(
+    "/{list_id}/approve",
+    response_model=ActiveShoppingListResponse,
+    summary="Approve shopping list",
+    description="Approve a shopping list, marking it ready for ordering.",
+)
+async def approve_shopping_list(
+    list_id: UUID,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> ActiveShoppingListResponse:
+    """Approve a shopping list for ordering."""
+    try:
+        repo = await get_shopping_lists_repository(tenant)
+        await repo.update_status(tenant, list_id, "approved")
+        result = await shopping_service.get_active_list(list_id, tenant)
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Shopping list not found",
+            )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to approve shopping list", list_id=str(list_id), error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to approve shopping list",
+        )
+
+
+@router.patch(
+    "/{list_id}/items/{item_id}/purchase",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Mark item as purchased",
+    description="Mark a shopping list item as purchased with an optional actual price.",
+)
+async def mark_item_purchased(
+    list_id: UUID,
+    item_id: UUID,
+    request: MarkItemPurchasedRequest,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> None:
+    """Mark a shopping list item as purchased."""
+    try:
+        repo = await get_shopping_lists_repository(tenant)
+        await repo.mark_item_purchased(
+            tenant,
+            list_id,
+            item_id,
+            actual_price=request.actual_price,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(
+            "Failed to mark item purchased",
+            list_id=str(list_id),
+            item_id=str(item_id),
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark item as purchased",
         )
