@@ -388,12 +388,13 @@ async def readiness_check() -> dict:
         logger.warning("Database health check failed", error=str(e))
         all_healthy = False
 
-    # Check Redis
-    if settings.REDIS_URL:
+    # Check Redis — use the resolved URL which prefers REDIS_PRIVATE_URL on Railway
+    redis_url = settings.celery_broker_url or settings.REDIS_PRIVATE_URL or settings.REDIS_URL
+    if redis_url and redis_url != "redis://":
         try:
             import redis
 
-            r = redis.from_url(settings.REDIS_URL)
+            r = redis.from_url(redis_url)
             r.ping()
             checks["redis"] = True
         except Exception as e:
