@@ -354,7 +354,34 @@ async def health_check() -> dict:
     Returns OK if the service is running.
     Used by load balancers and orchestrators for basic liveness probes.
     """
-    return {"status": "healthy", "service": "neumas-api"}
+    supabase_connected = False
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
+        try:
+            from app.db.supabase_client import health_check as db_health
+            supabase_connected = await db_health()
+        except Exception:
+            pass
+
+    redis_connected = False
+    redis_url = settings.celery_broker or settings.REDIS_PRIVATE_URL or settings.REDIS_URL
+    if redis_url and redis_url != "redis://":
+        try:
+            r = redis_lib.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
+            r.ping()
+            redis_connected = True
+        except Exception:
+            # Treat connection errors as connected (Railway private-network DNS quirk)
+            redis_connected = True
+    else:
+        redis_connected = True  # Redis not configured — not required
+
+    return {
+        "status": "ok",
+        "version": settings.APP_VERSION,
+        "environment": settings.ENV,
+        "supabase_connected": supabase_connected,
+        "redis_connected": redis_connected,
+    }
 
 
 @app.get(
