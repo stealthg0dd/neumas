@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import { logout } from "@/lib/api/endpoints";
 import { Input } from "@/components/ui/input";
+import { track, resetAnalytics } from "@/lib/analytics";
 
 // ── Animation variants ────────────────────────────────────────────────────────
 
@@ -113,6 +114,8 @@ export default function SettingsPage() {
   async function handleLogout() {
     setLoggingOut(true);
     try { await logout(); } catch { /* swallow — clear state regardless */ }
+    track("user_signed_out", {});
+    resetAnalytics();
     clearAuth();
     router.replace("/login");
   }

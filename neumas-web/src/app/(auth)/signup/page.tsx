@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { track, identifyUser, captureUIError } from "@/lib/analytics";
 import { signup } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import { slideUp, scaleIn } from "@/lib/design-system";
@@ -146,11 +147,17 @@ export default function SignupPage() {
         property_name: merged.property_name!,
       });
       saveAuth(res);
+      track("user_signed_in", { email: merged.email! });
+      identifyUser({
+        userId:     res.profile.user_id,
+        email:      res.profile.email,
+        orgId:      res.profile.org_id,
+        propertyId: res.profile.property_id,
+      });
       toast.success("Account created! Welcome to Neumas.");
       router.replace("/dashboard");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Signup failed. Please try again.";
-      toast.error(msg);
+      captureUIError("signup", err);
     }
   }
 

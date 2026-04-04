@@ -13,6 +13,7 @@ import { use } from "react";
 
 import { getShoppingList, approveShoppingList, markItemPurchased } from "@/lib/api/endpoints";
 import type { ShoppingListDetail, ShoppingListItem, ItemPriority } from "@/lib/api/types";
+import { track, captureUIError } from "@/lib/analytics";
 
 // ── Priority config ────────────────────────────────────────────────────────────
 
@@ -136,8 +137,8 @@ export default function ShoppingDetailPage({
           return order.indexOf(a.priority) - order.indexOf(b.priority);
         })
       );
-    } catch {
-      toast.error("Failed to load shopping list.");
+    } catch (err) {
+      captureUIError("load_shopping_detail", err);
     } finally {
       setLoading(false);
     }
@@ -162,12 +163,12 @@ export default function ShoppingDetailPage({
         await markItemPurchased(id, itemId);
       }
       // No "un-purchase" endpoint — just keep optimistic
-    } catch {
+    } catch (err) {
       // Rollback
       setItems((prev) =>
         prev.map((i) => i.id === itemId ? { ...i, is_purchased: item.is_purchased } : i)
       );
-      toast.error("Failed to update item.");
+      captureUIError("toggle_purchased", err);
     } finally {
       setToggling(null);
     }
@@ -181,8 +182,9 @@ export default function ShoppingDetailPage({
       const updated = await approveShoppingList(id);
       setList((l) => l ? { ...l, status: updated.status } : l);
       toast.success("List approved successfully!");
+      track("shopping_list_approved", { list_id: id });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to approve list.");
+      captureUIError("approve_shopping_list", err);
     } finally {
       setApproving(false);
     }

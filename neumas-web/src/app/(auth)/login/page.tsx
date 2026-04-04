@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { login } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import { slideUp, staggerContainer } from "@/lib/design-system";
+import { track, identifyUser, captureUIError } from "@/lib/analytics";
 
 // ── Dynamic 3D import (SSR disabled) ─────────────────────────────────────────
 const ParticleField = dynamic(
@@ -49,12 +50,17 @@ export default function LoginPage() {
     try {
       const res = await login({ email: data.email, password: data.password });
       saveAuth(res);
+      track("user_signed_in", { email: data.email });
+      identifyUser({
+        userId:     res.profile.user_id,
+        email:      res.profile.email,
+        orgId:      res.profile.org_id,
+        propertyId: res.profile.property_id,
+      });
       toast.success("Welcome back!");
       router.replace("/dashboard");
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Login failed. Check your credentials.";
-      toast.error(msg);
+      captureUIError("login", err);
     }
   }
 

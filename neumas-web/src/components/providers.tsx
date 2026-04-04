@@ -1,10 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
+import { PostHogProvider } from "posthog-js/react";
+import posthog from "posthog-js";
 import { Toaster } from "sonner";
 
+import { initPostHog } from "@/lib/analytics";
+import { PageTracker } from "@/components/analytics/PageTracker";
+
 export function Providers({ children }: { children: React.ReactNode }) {
+  // Initialise PostHog once on the client. initPostHog() is idempotent and
+  // guards against server-side execution.
+  useEffect(() => {
+    initPostHog();
+  }, []);
+
   return (
-    <>
+    <PostHogProvider client={posthog}>
+      <PageTracker />
       {children}
       <Toaster
         position="bottom-right"
@@ -17,6 +30,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
           },
         }}
       />
-    </>
+    </PostHogProvider>
   );
 }

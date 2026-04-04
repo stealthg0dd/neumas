@@ -13,6 +13,7 @@ import Link from "next/link";
 import { uploadScan, getScanStatus } from "@/lib/api/endpoints";
 import type { ScanStatus } from "@/lib/api/types";
 import { useAuthStore } from "@/lib/store/auth";
+import { track, captureUIError } from "@/lib/analytics";
 
 const ScanProcessor = dynamic(
   () => import("@/components/three/ScanProcessor").then((m) => m.ScanProcessor),
@@ -225,7 +226,8 @@ export default function ScansPage() {
       setUploadState("error");
       const msg = err instanceof Error ? err.message : "Upload failed. Please try again.";
       setErrorMsg(msg);
-      toast.error(msg);
+      captureUIError("scan_upload", err);
+      track("scan_upload_failed", { method: "receipt", error: msg });
     }
   }
 
@@ -265,6 +267,11 @@ export default function ScansPage() {
             toast.warning("Scan complete — no items detected. Try a clearer image.");
           } else {
             toast.success(`Scan complete — ${items.length} items extracted!`);
+            track("item_scanned", {
+              method:     "receipt",
+              item_count: items.length,
+              scan_id:    scanId ?? undefined,
+            });
           }
         } else if (status.status === "failed") {
           clearTimeout(timeoutId);

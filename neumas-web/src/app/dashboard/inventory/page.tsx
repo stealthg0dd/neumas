@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { track, captureUIError } from "@/lib/analytics";
 
 // ── Relative time helper ──────────────────────────────────────────────────────
 
@@ -321,8 +322,8 @@ export default function InventoryPage() {
       const res = await listInventory({ limit: 200 });
       setItems(res.items);
       setTotal(res.total);
-    } catch {
-      toast.error("Failed to load inventory.");
+    } catch (err) {
+      captureUIError("load_inventory", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -338,8 +339,9 @@ export default function InventoryPage() {
     setItems((prev) => prev.map((i) => i.id === id ? { ...i, ...patch } : i));
     try {
       await updateInventoryItem(id, patch);
-    } catch {
-      toast.error("Failed to update item.");
+      track("inventory_updated", { action: "update", item_count: 1 });
+    } catch (err) {
+      captureUIError("inventory_inline_edit", err);
       fetchItems(true); // rollback
     }
   }
@@ -363,8 +365,9 @@ export default function InventoryPage() {
       setTotal((t) => t + 1);
       setAddOpen(false);
       toast.success(`"${created.name}" added.`);
+      track("inventory_updated", { action: "add", item_count: 1, item_name: created.name });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add item.");
+      captureUIError("inventory_add", err);
     } finally {
       setModalLoading(false);
     }
@@ -386,8 +389,9 @@ export default function InventoryPage() {
       setItems((prev) => prev.map((i) => i.id === editItem.id ? updated : i));
       setEditItem(null);
       toast.success("Item updated.");
+      track("inventory_updated", { action: "update", item_count: 1, item_name: updated.name });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update item.");
+      captureUIError("inventory_edit", err);
     } finally {
       setModalLoading(false);
     }
@@ -404,8 +408,9 @@ export default function InventoryPage() {
       setTotal((t) => t - 1);
       setDeleteItem(null);
       toast.success(`"${deleteItem.name}" deleted.`);
+      track("inventory_updated", { action: "remove", item_count: 1, item_name: deleteItem.name });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete item.");
+      captureUIError("inventory_delete", err);
     } finally {
       setModalLoading(false);
     }
@@ -424,8 +429,9 @@ export default function InventoryPage() {
       setTotal((t) => t - ids.length);
       setRowSelection({});
       toast.success(`${ids.length} items deleted.`);
-    } catch {
-      toast.error("Bulk delete partially failed.");
+      track("inventory_updated", { action: "remove", item_count: ids.length });
+    } catch (err) {
+      captureUIError("inventory_bulk_delete", err);
       fetchItems(true);
     }
   }

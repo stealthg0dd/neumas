@@ -9,6 +9,7 @@ import { useAuthStore } from "@/lib/store/auth";
 import { listPredictions, listInventory, listShoppingLists, getShoppingList, generateShoppingList, triggerForecast } from "@/lib/api/endpoints";
 import type { Prediction, InventoryItem, ShoppingListItem } from "@/lib/api/types";
 import { normalizeShoppingItem } from "@/lib/api/types";
+import { track, captureUIError } from "@/lib/analytics";
 
 import { StockoutAlert } from "@/components/dashboard/StockoutAlert";
 import { SavingsCounter, StatCard } from "@/components/dashboard/SavingsCounter";
@@ -188,8 +189,9 @@ export default function DashboardPage() {
       setGeneratingList(true);
       await generateShoppingList({});
       toast.success("Shopping list generation queued!");
+      track("shopping_list_generated", { critical_only: false, days_ahead: 14, min_qty_pct: 20 });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to generate list.");
+      captureUIError("dashboard_generate_list", err);
     } finally {
       setGeneratingList(false);
     }
@@ -200,8 +202,9 @@ export default function DashboardPage() {
       setTriggeringForecast(true);
       await triggerForecast(14);
       toast.success("Forecast job queued — check back shortly.");
+      track("forecast_triggered", { window_days: 14 });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to trigger forecast.");
+      captureUIError("dashboard_trigger_forecast", err);
     } finally {
       setTriggeringForecast(false);
     }

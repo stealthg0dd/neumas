@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { listShoppingLists, generateShoppingList } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import type { ShoppingList, ShoppingListStatus } from "@/lib/api/types";
+import { track, captureUIError } from "@/lib/analytics";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -265,8 +266,8 @@ export default function ShoppingPage() {
     try {
       const data = await listShoppingLists();
       setLists(Array.isArray(data) ? data : []);
-    } catch {
-      toast.error("Failed to load shopping lists.");
+    } catch (err) {
+      captureUIError("load_shopping_lists", err);
       setLists([]);
     } finally {
       setLoading(false);
@@ -296,6 +297,11 @@ export default function ShoppingPage() {
         min_days_threshold:    opts.daysAhead,
       });
       toast.success("Generating shopping list — this may take up to 30 seconds…");
+      track("shopping_list_generated", {
+        critical_only: opts.criticalOnly,
+        days_ahead:    opts.daysAhead,
+        min_qty_pct:   opts.minQtyPct,
+      });
       setGenOpen(false);
       // Poll every 3 s for up to 45 s, stop early when a new list appears
       const before = lists.length;
@@ -315,7 +321,7 @@ export default function ShoppingPage() {
         }
       }, 3000);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to generate list.");
+      captureUIError("generate_shopping_list", err);
     } finally {
       setGenLoading(false);
     }

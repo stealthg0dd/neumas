@@ -12,6 +12,7 @@ import Link from "next/link";
 import { listPredictions, triggerForecast } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import type { Prediction, UrgencyLevel } from "@/lib/api/types";
+import { track, captureUIError } from "@/lib/analytics";
 
 // ── Zone config ────────────────────────────────────────────────────────────────
 
@@ -337,8 +338,18 @@ export default function PredictionsPage() {
     try {
       const data = await listPredictions({ limit: 100 });
       setPredictions(data);
-    } catch {
-      toast.error("Failed to load predictions.");
+      const critical = data.filter((p) => p.stockout_risk_level === "critical").length;
+      const urgent   = data.filter((p) => p.stockout_risk_level === "urgent").length;
+      track("predictions_loaded", { total: data.length, critical, urgent });
+      if (critical > 0 || urgent > 0) {
+        track("alert_triggered", {
+          alert_type: "stockout",
+          severity:   critical > 0 ? "critical" : "urgent",
+          item_count: critical + urgent,
+        });
+      }
+    } catch (err) {
+      captureUIError("load_predictions", err);
     } finally {
       setLoading(false);
     }
@@ -351,6 +362,7 @@ export default function PredictionsPage() {
     try {
       await triggerForecast(14);
       toast.success("Forecast queued — analysing patterns…");
+      track("forecast_triggered", { window_days: 14 });
       // Poll every 3 s for up to 45 s, stop early if new predictions appear
       const before = predictions.length;
       let attempts = 0;
@@ -368,7 +380,7 @@ export default function PredictionsPage() {
         }
       }, 3000);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to trigger forecast.");
+      captureUIError("trigger_forecast", err);
     } finally {
       setTriggering(false);
     }

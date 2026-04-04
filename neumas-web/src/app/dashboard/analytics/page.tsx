@@ -14,6 +14,7 @@ import {
   Printer,
 } from "lucide-react";
 import { animate } from "framer-motion";
+import { track } from "@/lib/analytics";
 
 // ── Count-up ──────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,13 @@ export default function AnalyticsPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Performance overview · live data</p>
         </div>
         <button
-          onClick={() => window.print()}
+          onClick={() => {
+            track("pantry_report_generated", {
+              items_tracked:      summary.items_tracked,
+              predictions_count:  summary.predictions_count,
+            });
+            window.print();
+          }}
           className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-all"
           title="Print report"
         >

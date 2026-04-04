@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { listScans } from "@/lib/api/endpoints";
 import type { Scan } from "@/lib/api/types";
+import { captureUIError } from "@/lib/analytics";
 
 export default function ScansHistoryPage() {
   const [scans, setScans] = useState<Scan[]>([]);
@@ -13,8 +14,8 @@ export default function ScansHistoryPage() {
       try {
         const data = await listScans({ limit: 50 });
         setScans(data);
-      } catch (error) {
-        console.error("Failed to fetch scans:", error);
+      } catch (err) {
+        captureUIError("load_scan_history", err);
       } finally {
         setLoading(false);
       }
