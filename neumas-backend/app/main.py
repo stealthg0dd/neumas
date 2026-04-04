@@ -181,7 +181,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.post(
                     f"{settings.AGENT_OS_URL}/api/register",
-                    json={"repo_id": "neumas-backend"},
+                    json={
+                        "repo_id": "neumas-backend",
+                        "service_name": "neumas-backend",
+                        "health_url": f"{settings.BASE_URL}/health",
+                        "base_url": settings.BASE_URL,
+                        "version": settings.APP_VERSION,
+                        "environment": settings.ENV,
+                    },
                     headers=headers,
                 )
                 resp.raise_for_status()
