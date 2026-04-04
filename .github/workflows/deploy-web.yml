@@ -45,6 +45,7 @@ jobs:
         run: npm install -g vercel@latest
 
       - name: Pull Vercel environment
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         working-directory: neumas-web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -53,6 +54,7 @@ jobs:
         run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
 
       - name: Build for Vercel
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         working-directory: neumas-web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -63,6 +65,7 @@ jobs:
         run: vercel build --prod --token=$VERCEL_TOKEN
 
       - name: Deploy to Vercel (production)
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         id: deploy
         working-directory: neumas-web
         env:
@@ -75,6 +78,7 @@ jobs:
           echo "Deployed to: $URL"
 
       - name: Verify /api/health
+        if: ${{ steps.deploy.outputs.url != '' }}
         run: |
           HEALTH_URL="${{ steps.deploy.outputs.deploy_url }}/api/health"
           echo "Checking $HEALTH_URL"
@@ -91,6 +95,7 @@ jobs:
           exit 1
 
       - name: Create Sentry release
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' && steps.deploy.outputs.url != '' }}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
