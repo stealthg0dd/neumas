@@ -389,7 +389,7 @@ async def readiness_check() -> dict:
         all_healthy = False
 
     # Check Redis — use the resolved URL which prefers REDIS_PRIVATE_URL on Railway
-    redis_url = settings.celery_broker_url or settings.REDIS_PRIVATE_URL or settings.REDIS_URL
+    redis_url = settings.celery_broker or settings.REDIS_PRIVATE_URL or settings.REDIS_URL
     if redis_url and redis_url != "redis://":
         try:
             import redis
