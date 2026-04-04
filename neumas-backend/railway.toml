@@ -4,7 +4,8 @@ dockerfilePath = "Dockerfile"
 dockerBuildTarget = "api"
 
 [deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 30
+# healthcheckPath is set per-service via Railway service instance settings.
+# API service: /health (configured in Railway dashboard)
+# Worker service: no healthcheck (Celery workers don't expose HTTP)
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
