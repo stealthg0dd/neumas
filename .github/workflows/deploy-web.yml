@@ -44,8 +44,20 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
+      - name: Check Vercel configuration
+        id: vercel-check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "configured=true" >> $GITHUB_OUTPUT
+          else
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "⚠️ VERCEL_TOKEN not set — skipping Vercel deploy steps"
+          fi
+
       - name: Pull Vercel environment
-        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        if: steps.vercel-check.outputs.configured == 'true'
         working-directory: neumas-web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -54,7 +66,7 @@ jobs:
         run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
 
       - name: Build for Vercel
-        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        if: steps.vercel-check.outputs.configured == 'true'
         working-directory: neumas-web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -65,7 +77,7 @@ jobs:
         run: vercel build --prod --token=$VERCEL_TOKEN
 
       - name: Deploy to Vercel (production)
-        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        if: steps.vercel-check.outputs.configured == 'true'
         id: deploy
         working-directory: neumas-web
         env:
@@ -78,9 +90,9 @@ jobs:
           echo "Deployed to: $URL"
 
       - name: Verify /api/health
-        if: ${{ steps.deploy.outputs.url != '' }}
+        if: steps.deploy.outputs.url != ''
         run: |
-          HEALTH_URL="${{ steps.deploy.outputs.deploy_url }}/api/health"
+          HEALTH_URL="${{ steps.deploy.outputs.url }}/api/health"
           echo "Checking $HEALTH_URL"
           for i in 1 2 3 4 5; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
@@ -95,7 +107,7 @@ jobs:
           exit 1
 
       - name: Create Sentry release
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' && steps.deploy.outputs.url != '' }}
+        if: steps.deploy.outputs.url != ''
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -105,7 +117,7 @@ jobs:
           npx @sentry/cli releases set-commits "${{ github.sha }}" --auto
           npx @sentry/cli releases deploys "${{ github.sha }}" new \
             --env production \
-            --url "${{ steps.deploy.outputs.deploy_url }}"
+            --url "${{ steps.deploy.outputs.url }}"
           npx @sentry/cli releases finalize "${{ github.sha }}"
 
       - name: Register heartbeat with agent OS
@@ -125,6 +137,7 @@ jobs:
             }' || echo "Heartbeat failed (non-fatal)"
 
       - name: Notify success — #neumas-alerts
+        if: steps.deploy.outputs.url != ''
         uses: slackapi/slack-github-action@v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_NEUMAS_ALERTS }}
@@ -137,20 +150,21 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": ":rocket: *neumas-web deployed to production*\n*URL:* ${{ steps.deploy.outputs.deploy_url }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|`${{ github.sha }}`>\n*By:* ${{ github.actor }}"
+                    "text": ":rocket: *neumas-web deployed to production*\n*URL:* ${{ steps.deploy.outputs.url }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|`${{ github.sha }}`>\n*By:* ${{ github.actor }}"
                   }
                 }
               ]
             }
 
       - name: Notify success — #ctech-command
+        if: steps.deploy.outputs.url != ''
         uses: slackapi/slack-github-action@v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_CTECH_COMMAND }}
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": ":white_check_mark: neumas-web production deploy complete — ${{ steps.deploy.outputs.deploy_url }}"
+              "text": ":white_check_mark: neumas-web production deploy complete — ${{ steps.deploy.outputs.url }}"
             }
 
   notify-failure:
