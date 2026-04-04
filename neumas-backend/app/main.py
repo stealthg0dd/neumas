@@ -10,6 +10,7 @@ Production-hardened with:
 """
 
 import os
+import socket
 import sys
 
 
@@ -59,6 +60,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import redis as redis_lib
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
@@ -402,9 +404,6 @@ async def readiness_check() -> dict:
     redis_url = settings.celery_broker or settings.REDIS_PRIVATE_URL or settings.REDIS_URL
     if redis_url and redis_url != "redis://":
         try:
-            import socket
-            import redis as redis_lib
-
             r = redis_lib.from_url(
                 redis_url,
                 socket_connect_timeout=2,
