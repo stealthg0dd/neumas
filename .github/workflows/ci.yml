@@ -121,7 +121,7 @@ jobs:
 
       - name: Run tests
         env:
-          ENV: test
+          ENV: dev
           DEBUG: "true"
           SUPABASE_URL: https://test.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: test-key
