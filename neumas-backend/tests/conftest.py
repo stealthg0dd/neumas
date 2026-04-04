@@ -42,6 +42,7 @@ def mock_user() -> UserInfo:
     """Create a mock authenticated user."""
     return UserInfo(
         id=uuid4(),
+        auth_id=uuid4(),
         email="test@example.com",
         full_name="Test User",
         role="manager",
@@ -55,6 +56,7 @@ def mock_admin_user() -> UserInfo:
     """Create a mock admin user."""
     return UserInfo(
         id=uuid4(),
+        auth_id=uuid4(),
         email="admin@example.com",
         full_name="Admin User",
         role="admin",
