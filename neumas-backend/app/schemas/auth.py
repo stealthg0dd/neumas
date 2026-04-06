@@ -136,6 +136,14 @@ class LoginResponse(BaseModel):
     profile: ProfileResponse
 
 
+class GoogleCompleteRequest(BaseModel):
+    """Complete profile for a Google OAuth user (first sign-in)."""
+
+    org_name: str = Field(..., min_length=2, max_length=255, description="Organization name")
+    property_name: str = Field(..., min_length=2, max_length=255, description="Property name")
+    role: str = Field(default="admin", description="Role for the new account owner")
+
+
 class InviteUserRequest(BaseModel):
     """Invite user to organization."""
 

@@ -527,8 +527,126 @@ class AuthService:
             profile=profile,
         )
 
+    async def complete_google_signup(
+        self,
+        auth_id: str,
+        email: str,
+        org_name: str,
+        property_name: str,
+        role: str = "admin",
+    ) -> ProfileResponse:
+        """
+        Create Neumas DB records for a user who signed up via Google OAuth.
 
-# Service instance factory
+        Called when the user has a Supabase Auth identity (auth_id) but no
+        corresponding row in the `users` table.  Idempotent — if the user
+        record already exists the existing profile is returned.
+
+        Args:
+            auth_id:       Supabase Auth user UUID (from JWT `sub` claim).
+            email:         User email from Supabase.
+            org_name:      Organization name chosen by the user.
+            property_name: First property name chosen by the user.
+            role:          Role to assign (default: admin for org creators).
+
+        Returns:
+            ProfileResponse with org_id, property_id, etc.
+        """
+        admin_client = await get_async_supabase_admin()
+
+        # -- Idempotency check: user record may already exist -----------------
+        existing = await (
+            admin_client.table("users")
+            .select("id, org_id, email, role")
+            .eq("auth_id", auth_id)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            user = existing.data[0]
+            user_id = UUID(user["id"])
+            org_id  = UUID(user["org_id"])
+
+            org_resp = await (
+                admin_client.table("organizations")
+                .select("name")
+                .eq("id", str(org_id))
+                .single()
+                .execute()
+            )
+            fetched_org_name = org_resp.data.get("name", "") if org_resp.data else ""
+
+            props = await (
+                admin_client.table("properties")
+                .select("id, name")
+                .eq("org_id", str(org_id))
+                .eq("is_active", True)
+                .order("created_at")
+                .limit(1)
+                .execute()
+            )
+            prop = props.data[0] if props.data else None
+            return ProfileResponse(
+                user_id=user_id,
+                email=user["email"],
+                org_id=org_id,
+                org_name=fetched_org_name,
+                property_id=UUID(prop["id"]) if prop else UUID(int=0),
+                property_name=prop.get("name", "") if prop else "",
+                role=user["role"],
+            )
+
+        # -- Create org, property, user ----------------------------------------
+        try:
+            org_slug = generate_slug(org_name)
+
+            org_resp = await admin_client.table("organizations").insert({
+                "name": org_name,
+                "slug": org_slug,
+            }).execute()
+            if not org_resp.data:
+                raise ValueError("Failed to create organization")
+            org_id = UUID(org_resp.data[0]["id"])
+            logger.info("Google signup: org created", org_id=str(org_id))
+
+            prop_resp = await admin_client.table("properties").insert({
+                "org_id": str(org_id),
+                "name": property_name,
+                "type": "hotel",
+            }).execute()
+            if not prop_resp.data:
+                raise ValueError("Failed to create property")
+            property_id = UUID(prop_resp.data[0]["id"])
+            logger.info("Google signup: property created", property_id=str(property_id))
+
+            user_resp = await admin_client.table("users").insert({
+                "auth_id": auth_id,
+                "email": email.lower(),
+                "org_id": str(org_id),
+                "role": role,
+                "is_active": True,
+            }).execute()
+            if not user_resp.data:
+                raise ValueError("Failed to create user record")
+            user_id = UUID(user_resp.data[0]["id"])
+            logger.info("Google signup: user record created", user_id=str(user_id))
+
+        except Exception:
+            logger.error("Google signup failed", auth_id=auth_id)
+            raise
+
+        return ProfileResponse(
+            user_id=user_id,
+            email=email,
+            org_id=org_id,
+            org_name=org_name,
+            property_id=property_id,
+            property_name=property_name,
+            role=role,
+        )
+
+
+
 async def get_auth_service() -> AuthService:
     """Get auth service instance."""
     return AuthService()
