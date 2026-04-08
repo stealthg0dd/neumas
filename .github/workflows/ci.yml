@@ -29,6 +29,7 @@ jobs:
             web:
               - 'neumas-web/**'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/deploy-web.yml'
             backend:
               - 'neumas-backend/**'
               - '.github/workflows/ci.yml'

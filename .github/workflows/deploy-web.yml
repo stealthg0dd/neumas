@@ -16,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "neumas-web/**"
+      - ".github/workflows/deploy-web.yml"
   workflow_dispatch:
     inputs:
       skip_ci_wait:

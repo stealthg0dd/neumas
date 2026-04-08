@@ -24,6 +24,8 @@ All secrets are set at **repository level** in Settings → Secrets and variable
 - **Environment protection:** If the `production` environment has required reviewers, deployments stay pending until someone approves in **Actions → Deploy Web → Review deployments**.
 - **Native Vercel Git:** If the Vercel project is connected to GitHub with auto-deploy but you disabled it or pointed the wrong **Root Directory** (must be `neumas-web` for this monorepo), the dashboard deployment will not match pushes from this repo.
 
+Pushes that only change `.github/workflows/deploy-web.yml` still trigger **Deploy Web** and the **CI** web job (so the deploy workflow can wait on a green check).
+
 ## Sentry
 
 | Secret | Description | How to obtain |
