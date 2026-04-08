@@ -82,7 +82,11 @@ Return ONLY valid JSON with these fields:
     text = re.sub(r"^```json\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
 
-    data = json.loads(text)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        logger.error("research_agent: invalid JSON from Claude", error=str(exc), preview=text[:400])
+        raise
 
     slug = re.sub(r"[^a-z0-9]+", "-", str(data["title"]).lower()).strip("-")[:80]
     slug = f"{slug}-{now.strftime('%Y-%m')}"
