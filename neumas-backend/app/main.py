@@ -96,6 +96,7 @@ from app.api.routes import (
     admin,
     analytics,
     auth,
+    insights,
     inventory,
     predictions,
     scans,
@@ -505,6 +506,12 @@ app.include_router(
     analytics.router,
     prefix="/api/analytics",
     tags=["Analytics"],
+)
+
+app.include_router(
+    insights.router,
+    prefix="/api/insights",
+    tags=["Insights"],
 )
 
 # Admin routes

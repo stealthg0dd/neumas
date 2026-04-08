@@ -29,13 +29,9 @@ export function LandingPage() {
             >
               Pricing
             </button>
-            <button
-              type="button"
-              onClick={() => scrollToId("insights")}
-              className="transition-colors hover:text-gray-900"
-            >
+            <Link href="/insights" className="transition-colors hover:text-gray-900">
               Insights
-            </button>
+            </Link>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
@@ -298,6 +294,9 @@ export function LandingPage() {
               <button type="button" onClick={() => scrollToId("pricing")} className="block text-gray-600 hover:text-gray-900">
                 Pricing
               </button>
+              <Link href="/insights" className="block text-gray-600 hover:text-gray-900">
+                Insights
+              </Link>
             </div>
             <div className="space-y-2">
               <p className="font-semibold text-gray-900">Legal</p>

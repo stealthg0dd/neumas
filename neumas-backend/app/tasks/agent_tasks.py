@@ -658,3 +658,49 @@ async def _refresh_all_predictions_async() -> dict[str, Any]:
         total=len(properties),
     )
     return {"enqueued": enqueued, "failed": failed, "total": len(properties)}
+
+
+# =============================================================================
+# Task: research.generate_weekly_post
+# =============================================================================
+
+
+@neumas_task(
+    name="research.generate_weekly_post",
+    bind=True,
+    queue="agents",
+    max_retries=1,
+    default_retry_delay=120,
+)
+def generate_weekly_post(self) -> dict[str, Any]:
+    """
+    Weekly Celery beat: generate one research / insights blog post via Claude
+    and upsert into Supabase `research_posts`.
+    """
+    logger.info("research.generate_weekly_post: starting")
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError("closed")
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop.run_until_complete(_generate_weekly_post_async())
+
+
+async def _generate_weekly_post_async() -> dict[str, Any]:
+    from app.db.supabase_client import get_async_supabase_admin
+    from app.services.research_agent import generate_research_post
+
+    post = await generate_research_post()
+    supabase = await get_async_supabase_admin()
+    if not supabase:
+        logger.error("research.generate_weekly_post: Supabase not configured")
+        return {"status": "skipped", "reason": "no_supabase", "slug": post.get("slug")}
+
+    payload = {**post, "published": True}
+    await supabase.table("research_posts").upsert(payload, on_conflict="slug").execute()
+    logger.info("research.generate_weekly_post: upserted", slug=payload.get("slug"))
+    return {"status": "created", "slug": payload.get("slug")}

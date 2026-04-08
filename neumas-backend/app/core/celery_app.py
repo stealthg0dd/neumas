@@ -10,6 +10,7 @@ IMPORTANT: This module is designed to avoid circular imports.
 """
 
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import worker_init
 from kombu import Exchange, Queue
 
@@ -90,6 +91,7 @@ celery_app.conf.update(
         "agents.optimize_budget": {"queue": "agents", "routing_key": "agents"},
         "agents.run_predictions": {"queue": "agents", "routing_key": "agents"},
         "agents.analyze_spending": {"queue": "agents", "routing_key": "agents"},
+        "research.generate_weekly_post": {"queue": "agents", "routing_key": "agents"},
         "app.tasks.scan_tasks.*": {"queue": "scans"},
         "app.tasks.agent_tasks.*": {"queue": "neumas.predictions"},
     },
@@ -148,6 +150,12 @@ celery_app.conf.update(
         "refresh-predictions-daily": {
             "task": "agents.refresh_all_predictions",
             "schedule": 86400,  # Once per day
+            "options": {"queue": "agents"},
+        },
+        # Monday 00:00 UTC = 08:00 SGT — weekly research blog post
+        "research-weekly-post": {
+            "task": "research.generate_weekly_post",
+            "schedule": crontab(hour=0, minute=0, day_of_week=1),
             "options": {"queue": "agents"},
         },
     },

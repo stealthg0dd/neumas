@@ -97,6 +97,12 @@ class Settings(BaseSettings):
         description="Railway internal Redis URL (preferred over REDIS_URL when set)",
     )
 
+    # Internal admin (insights generation, maintenance hooks)
+    ADMIN_SECRET_KEY: str = Field(
+        default="change-me",
+        description="Secret for POST /api/insights/generate and similar internal endpoints",
+    )
+
     # AI/LLM API Keys
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API key")
     ANTHROPIC_API_KEY: str = Field(default="", description="Anthropic API key")
