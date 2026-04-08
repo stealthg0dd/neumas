@@ -185,6 +185,18 @@ export interface ScanStatusResponse {
 
 export type UrgencyLevel = "critical" | "urgent" | "soon" | "later";
 
+/** Optional fields returned on stockout predictions (see backend `features_used`). */
+export interface PredictionFeaturesUsed {
+  urgency_bucket?: string;
+  days_remaining?: number;
+  avg_daily_consumption?: number;
+  current_quantity?: number;
+  pattern_confidence?: number;
+  inventory_recency_days?: number | null;
+  sample_size?: number;
+  reason?: string;
+}
+
 export interface Prediction {
   id: string;
   property_id: string;
@@ -202,6 +214,8 @@ export interface Prediction {
   stockout_risk_level: UrgencyLevel | null;
   /** Denormalized item info */
   inventory_item: { id: string; name: string } | null;
+  /** Present on stockout predictions from API when serialized */
+  features_used?: PredictionFeaturesUsed | Record<string, unknown> | null;
 }
 
 export interface ForecastQueuedResponse {

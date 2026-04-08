@@ -31,9 +31,11 @@ import {
 import {
   deleteInventoryItem,
   listInventoryItems,
+  listPredictions,
 } from "@/lib/api/endpoints";
-import type { InventoryItem } from "@/lib/api/types";
+import type { InventoryItem, Prediction } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
+import { confidenceToPercent, getFeatures } from "@/lib/prediction-display";
 import { daysUntilExpiry, expiryTone, getExpiryIso } from "@/lib/inventory-dates";
 import { cn } from "@/lib/utils";
 
@@ -55,10 +57,29 @@ function statusLabel(item: InventoryItem): { label: string; className: string } 
   return { label: "Fresh", className: "bg-[#34c759]/12 text-[#1e7e34] border-[#34c759]/25" };
 }
 
+function ConfidenceCell({ itemId, predByItem }: { itemId: string; predByItem: Map<string, Prediction> }) {
+  const pred = predByItem.get(itemId);
+  const feat = pred ? getFeatures(pred) : null;
+  const n = feat?.sample_size ?? 0;
+  if (!pred || n < 3) {
+    return <span className="text-xs text-gray-400">Still learning…</span>;
+  }
+  const pct = confidenceToPercent(pred.confidence);
+  return (
+    <div className="min-w-[100px]">
+      <div className="h-1.5 w-full max-w-[120px] overflow-hidden rounded-full bg-gray-100">
+        <div className="h-full rounded-full bg-[#0071a3]" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="mt-1 block font-mono text-[11px] text-[var(--text-muted)] tabular-nums">{pct}%</span>
+    </div>
+  );
+}
+
 export default function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [predByItem, setPredByItem] = useState<Map<string, Prediction>>(() => new Map());
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -75,12 +96,20 @@ export default function InventoryPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listInventoryItems({
-        limit: 500,
-        search: debounced || undefined,
-      });
+      const [res, preds] = await Promise.all([
+        listInventoryItems({
+          limit: 500,
+          search: debounced || undefined,
+        }),
+        listPredictions({ limit: 500 }).catch(() => [] as Prediction[]),
+      ]);
       setItems(res.items);
       setTotal(res.total);
+      const m = new Map<string, Prediction>();
+      for (const p of preds) {
+        if (p.item_id) m.set(p.item_id, p);
+      }
+      setPredByItem(m);
     } catch (err) {
       captureUIError("inventory_list", err);
     } finally {
@@ -236,6 +265,7 @@ export default function InventoryPage() {
                   <th className="px-4 py-3 font-medium font-mono">Qty</th>
                   <th className="px-4 py-3 font-medium font-mono">Expiry</th>
                   <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">AI confidence</th>
                   <th className="px-4 py-3 font-medium w-24">Actions</th>
                 </tr>
               </thead>
@@ -243,14 +273,14 @@ export default function InventoryPage() {
                 {loading ? (
                   [...Array(6)].map((_, i) => (
                     <tr key={i} className="border-b border-[var(--border)]">
-                      <td colSpan={6} className="px-4 py-3">
+                      <td colSpan={7} className="px-4 py-3">
                         <div className="h-4 rounded bg-[var(--surface-elevated)] animate-pulse" />
                       </td>
                     </tr>
                   ))
                 ) : slice.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-16 text-center text-[var(--text-secondary)]">
+                    <td colSpan={7} className="px-4 py-16 text-center text-[var(--text-secondary)]">
                       No items match.
                     </td>
                   </tr>
@@ -285,6 +315,9 @@ export default function InventoryPage() {
                           >
                             {st.label}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <ConfidenceCell itemId={item.id} predByItem={predByItem} />
                         </td>
                         <td className="px-4 py-3">
                           <button
@@ -364,6 +397,12 @@ export default function InventoryPage() {
                           ? new Date(exp).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })
                           : "—"}
                       </p>
+                      <div className="mt-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                          AI confidence
+                        </p>
+                        <ConfidenceCell itemId={item.id} predByItem={predByItem} />
+                      </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <span

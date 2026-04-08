@@ -1,208 +1,346 @@
 "use client";
 
-import { ChangeEvent, DragEvent, useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { listInventoryItems, listRecentScans, postScanUpload, getScanStatus } from "@/lib/api/endpoints";
-import type { InventoryItem, ScanStatusResponse } from "@/lib/api/types";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Brain } from "lucide-react";
 
-function cardClassName() {
-  return "border border-gray-100 rounded-xl shadow-sm p-6 bg-white hover:border-blue-200 transition-colors duration-200";
+import {
+  getAnalyticsSummary,
+  listPredictions,
+  listScans,
+  listShoppingLists,
+  getShoppingList,
+} from "@/lib/api/endpoints";
+import type { AnalyticsSummary, Prediction, Scan, ShoppingListDetail, UrgencyLevel } from "@/lib/api/types";
+import { captureUIError } from "@/lib/analytics";
+import {
+  confidenceToPercent,
+  daysUntilStockout,
+  getFeatures,
+  sortPredictionsByUrgencyThenDays,
+} from "@/lib/prediction-display";
+
+function formatRelativeUpdated(iso: string | undefined): string {
+  if (!iso) return "just now";
+  const t = new Date(iso).getTime();
+  const sec = Math.floor((Date.now() - t) / 1000);
+  if (sec < 10) return "just now";
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
 
-function getStatus(item: InventoryItem): "In Stock" | "Low Stock" | "Out" {
-  if (item.stock_status === "out_of_stock" || item.quantity <= 0) return "Out";
-  if (item.stock_status === "low_stock" || item.quantity <= item.min_quantity) return "Low Stock";
-  return "In Stock";
+const URGENCY_CARD: Record<
+  UrgencyLevel,
+  { wrap: string; border: string; dot: string }
+> = {
+  critical: {
+    wrap: "bg-red-50 border-red-200",
+    border: "border-red-200",
+    dot: "bg-red-400",
+  },
+  urgent: {
+    wrap: "bg-amber-50 border-amber-200",
+    border: "border-amber-200",
+    dot: "bg-amber-400",
+  },
+  soon: {
+    wrap: "bg-yellow-50 border-yellow-100",
+    border: "border-yellow-100",
+    dot: "bg-yellow-300",
+  },
+  later: {
+    wrap: "bg-gray-50 border-gray-100",
+    border: "border-gray-100",
+    dot: "bg-gray-300",
+  },
+};
+
+function scanStatusLabel(s: Scan): string {
+  if (s.status === "pending" || s.status === "processing") return "processing";
+  return s.status;
 }
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<InventoryItem[]>([]);
-  const [scansCount, setScansCount] = useState(0);
-  const [search, setSearch] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [scanBusy, setScanBusy] = useState(false);
-  const [scanResult, setScanResult] = useState<ScanStatusResponse | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [scans, setScans] = useState<Scan[]>([]);
+  const [listPreview, setListPreview] = useState<ShoppingListDetail | null>(null);
+  const [updatedLabel, setUpdatedLabel] = useState("just now");
 
-  useEffect(() => {
-    const run = async () => {
-      setLoading(true);
-      try {
-        const [inv, recent] = await Promise.all([
-          listInventoryItems({ limit: 100 }),
-          listRecentScans({ limit: 20 }),
-        ]);
-        setItems(inv.items ?? []);
-        setScansCount(recent.length);
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [sum, preds, recentScans, lists] = await Promise.all([
+        getAnalyticsSummary(),
+        listPredictions({ limit: 100 }),
+        listScans({ limit: 3 }),
+        listShoppingLists({ limit: 1 }),
+      ]);
+      setAnalytics(sum);
+      setPredictions(preds);
+      setScans(Array.isArray(recentScans) ? recentScans : []);
+
+      const lastHist = sum.confidence_history?.length
+        ? sum.confidence_history[sum.confidence_history.length - 1]?.date
+        : undefined;
+      setUpdatedLabel(formatRelativeUpdated(lastHist));
+
+      if (lists.length > 0) {
+        try {
+          const detail = await getShoppingList(lists[0].id);
+          setListPreview(detail);
+        } catch {
+          setListPreview(null);
+        }
+      } else {
+        setListPreview(null);
       }
-    };
-    void run();
+    } catch (err) {
+      captureUIError("dashboard_overview", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((i) => i.name.toLowerCase().includes(q));
-  }, [items, search]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  const lowStockCount = useMemo(
-    () => items.filter((i) => getStatus(i) !== "In Stock").length,
-    [items]
-  );
+  const sortedPreds = useMemo(() => sortPredictionsByUrgencyThenDays(predictions), [predictions]);
 
-  const onFile = (f: File | null) => {
-    if (!f) return;
-    if (!f.type.startsWith("image/")) return;
-    setFile(f);
-  };
+  const bannerPred = useMemo(() => {
+    return sortedPreds.find(
+      (p) => p.stockout_risk_level === "critical" || p.stockout_risk_level === "urgent"
+    );
+  }, [sortedPreds]);
 
-  const onDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(false);
-    onFile(e.dataTransfer.files?.[0] ?? null);
-  };
+  const topThree = useMemo(() => sortedPreds.slice(0, 3), [sortedPreds]);
 
-  const onScan = async () => {
-    if (!file) return;
-    setScanBusy(true);
-    setScanResult(null);
-    try {
-      const queued = await postScanUpload(file, "receipt");
-      const id = queued.scan_id || queued.id;
-      if (!id) return;
-      let done = false;
-      while (!done) {
-        const status = await getScanStatus(id);
-        if (status.status === "completed" || status.status === "failed") {
-          setScanResult(status);
-          done = true;
-        } else {
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-      }
-    } finally {
-      setScanBusy(false);
-    }
-  };
+  const nextStockoutLabel = useMemo(() => {
+    if (sortedPreds.length === 0) return "—";
+    const nearest = sortedPreds.reduce((best, p) => {
+      const d = daysUntilStockout(p.prediction_date);
+      const bd = daysUntilStockout(best.prediction_date);
+      return d < bd ? p : best;
+    });
+    const d = daysUntilStockout(nearest.prediction_date);
+    if (d === 0) return "Today";
+    if (d === 1) return "1 day";
+    return `${d} days`;
+  }, [sortedPreds]);
+
+  const accuracyPct = analytics ? Math.min(100, Math.max(0, analytics.avg_confidence_pct)) : 0;
+  const hoursToNext = Math.max(1, 24 - new Date().getHours());
 
   return (
-    <div className="space-y-6">
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4"
-      >
-        <div className={cardClassName()}>
-          <p className="text-gray-600">Total Inventory Items</p>
-          <p className="text-3xl font-semibold text-gray-900 mt-2">{loading ? "Getting data..." : items.length}</p>
-        </div>
-        <div className={cardClassName()}>
-          <p className="text-gray-600">Low / Out of Stock</p>
-          <p className="text-3xl font-semibold text-gray-900 mt-2">{loading ? "Getting data..." : lowStockCount}</p>
-        </div>
-        <div className={cardClassName()}>
-          <p className="text-gray-600">Recent Scans</p>
-          <p className="text-3xl font-semibold text-gray-900 mt-2">{loading ? "Getting data..." : scansCount}</p>
-        </div>
-      </motion.section>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Overview</h1>
+        <p className="mt-1 text-sm text-gray-500">What you need to do right now</p>
+      </div>
 
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.08 }}
-        className={cardClassName()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-gray-900 font-semibold">Inventory</h2>
-          <input
-            value={search}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-            placeholder="Search inventory..."
-            className="w-64 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          />
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b border-gray-100">
-                <th className="py-2">Item name</th>
-                <th className="py-2">Quantity</th>
-                <th className="py-2">Status</th>
-                <th className="py-2">Last updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice(0, 50).map((item) => {
-                const status = getStatus(item);
-                const pillClass =
-                  status === "In Stock"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : status === "Low Stock"
-                    ? "bg-amber-50 text-amber-700"
-                    : "bg-red-50 text-red-700";
-                return (
-                  <tr key={item.id} className="border-b border-gray-50">
-                    <td className="py-3 text-gray-900">{item.name}</td>
-                    <td className="py-3 text-gray-700">{item.quantity}</td>
-                    <td className="py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${pillClass}`}>{status}</span>
-                    </td>
-                    <td className="py-3 text-gray-600">{new Date(item.updated_at).toLocaleString()}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </motion.section>
-
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.16 }}
-        className={cardClassName()}
-      >
-        <h2 className="text-gray-900 font-semibold mb-3">Upload receipt or product photo to scan</h2>
-        <div
-          onDrop={onDrop}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer ${
-            dragging ? "border-blue-400 bg-blue-50" : "border-blue-200"
-          }`}
-          onClick={() => document.getElementById("scan-upload-input")?.click()}
-        >
-          <input
-            id="scan-upload-input"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-          />
-          <p className="text-blue-600 font-medium">{file ? file.name : "Drop image here or click to upload"}</p>
-        </div>
-        <button
-          onClick={onScan}
-          disabled={!file || scanBusy}
-          className="mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm disabled:opacity-50"
-        >
-          {scanBusy ? "Scanning..." : "Run Scan"}
-        </button>
-
-        {scanResult && (
-          <div className="mt-4 border border-gray-100 rounded-lg p-4 bg-gray-50">
-            <p className="text-sm text-gray-700">Status: {scanResult.status}</p>
-            <p className="text-sm text-gray-700">Items detected: {scanResult.items_detected ?? 0}</p>
+      {loading ? (
+        <div className="space-y-4">
+          <div className="h-24 animate-pulse rounded-xl bg-gray-100" />
+          <div className="h-40 animate-pulse rounded-2xl bg-gray-100" />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="h-28 animate-pulse rounded-xl bg-gray-100" />
+            <div className="h-28 animate-pulse rounded-xl bg-gray-100" />
+            <div className="h-28 animate-pulse rounded-xl bg-gray-100" />
           </div>
-        )}
-      </motion.section>
+        </div>
+      ) : (
+        <>
+          {bannerPred && (
+            <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" aria-hidden />
+              <p className="min-w-0 flex-1 text-sm font-medium text-red-900">
+                You&apos;re likely to run out of{" "}
+                <span className="font-semibold">
+                  {bannerPred.inventory_item?.name ?? "an item"}
+                </span>{" "}
+                in {daysUntilStockout(bannerPred.prediction_date)} days
+              </p>
+              <Link
+                href="/dashboard/shopping"
+                className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+              >
+                Add to list →
+              </Link>
+            </div>
+          )}
+
+          <section className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-6">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Brain className="h-6 w-6 shrink-0 text-blue-600" aria-hidden />
+                <h3 className="text-lg font-semibold text-gray-900">AI Intelligence Center</h3>
+              </div>
+              <span className="text-xs text-blue-400">Updated {updatedLabel}</span>
+            </div>
+            <p className="mt-1 text-sm text-blue-700">
+              Learning from {analytics?.items_tracked ?? 0} items across {analytics?.scans_total ?? 0}{" "}
+              receipts
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="text-xs text-blue-500">Prediction accuracy</span>
+              <div className="h-2 min-w-[120px] flex-1 rounded bg-blue-100">
+                <div
+                  className="h-2 rounded bg-blue-500 transition-all duration-1000"
+                  style={{ width: `${accuracyPct}%` }}
+                />
+              </div>
+              <span className="font-mono text-xs text-blue-700">{accuracyPct}%</span>
+            </div>
+            <p className="mt-1 text-xs text-blue-400">Accuracy improves with each receipt scan</p>
+            <p className="mt-2 text-xs text-blue-400">Next prediction update: in {hoursToNext} hours</p>
+          </section>
+
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Items tracked</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-gray-900">{analytics?.items_tracked ?? 0}</p>
+              <p className="mt-1 text-xs text-gray-400">From your pantry</p>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Predicted savings</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-gray-900">
+                ${(analytics?.spend_total ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </p>
+              <p className="mt-1 text-xs text-gray-400">Spend tracked (analytics)</p>
+            </div>
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Next stockout</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-gray-900">{nextStockoutLabel}</p>
+              <p className="mt-1 text-xs text-gray-400">Nearest forecast</p>
+            </div>
+          </div>
+
+          <section className="mb-6">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-900">
+                Stockout predictions
+              </h2>
+              <Link href="/dashboard/predictions" className="text-sm font-medium text-blue-600 hover:underline">
+                View all →
+              </Link>
+            </div>
+            {topThree.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-8 text-center text-sm text-gray-500">
+                Scan more receipts to get stockout predictions
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {topThree.map((p) => {
+                  const level = p.stockout_risk_level ?? "later";
+                  const u = URGENCY_CARD[level];
+                  const days = daysUntilStockout(p.prediction_date);
+                  const conf = confidenceToPercent(p.confidence);
+                  const feat = getFeatures(p);
+                  const patternLine =
+                    typeof feat?.reason === "string"
+                      ? feat.reason
+                      : feat?.avg_daily_consumption != null
+                        ? `Avg. daily use tracked`
+                        : "Consumption pattern";
+
+                  return (
+                    <div
+                      key={p.id}
+                      className={`flex flex-wrap items-center gap-4 rounded-xl border p-4 ${u.wrap}`}
+                    >
+                      <span className={`h-3 w-3 shrink-0 rounded-full ${u.dot}`} aria-hidden />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {p.inventory_item?.name ?? "Item"}
+                        </p>
+                        <p className="text-xs text-gray-500">{patternLine}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="font-mono text-sm font-bold text-gray-900">{days} days</span>
+                        <span className="text-xs text-gray-400">{conf}% confidence</span>
+                      </div>
+                      <Link
+                        href="/dashboard/shopping"
+                        className="ml-auto text-sm font-medium text-gray-700 underline-offset-4 hover:underline"
+                      >
+                        Add to list
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900">Recent scans</h3>
+              <ul className="mt-3 space-y-2 text-sm">
+                {scans.length === 0 ? (
+                  <li className="text-gray-500">No scans yet</li>
+                ) : (
+                  scans.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-50 pb-2 last:border-0"
+                    >
+                      <span className="text-gray-600">
+                        {new Date(s.created_at).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                      <span className="text-gray-900">{s.items_detected} items</span>
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-600">
+                        {scanStatusLabel(s)}
+                      </span>
+                    </li>
+                  ))
+                )}
+              </ul>
+              <Link
+                href="/dashboard/scans/new"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+              >
+                + Scan new receipt
+              </Link>
+            </section>
+
+            <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900">Shopping list preview</h3>
+              {!listPreview ? (
+                <p className="mt-3 text-sm text-gray-500">No shopping list yet</p>
+              ) : (
+                <div className="mt-3 space-y-1 text-sm">
+                  <p className="text-gray-900">
+                    <span className="font-medium">{listPreview.items?.length ?? 0}</span> items ·{" "}
+                    <span className="capitalize text-gray-600">{listPreview.status}</span>
+                  </p>
+                  <p className="text-gray-500">
+                    Total estimate:{" "}
+                    {listPreview.total_estimated_cost != null
+                      ? `$${Number(listPreview.total_estimated_cost).toFixed(2)}`
+                      : "—"}
+                  </p>
+                </div>
+              )}
+              <Link
+                href="/dashboard/shopping"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Generate new list
+              </Link>
+            </section>
+          </div>
+        </>
+      )}
     </div>
   );
 }
