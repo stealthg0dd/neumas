@@ -20,6 +20,8 @@ import {
   sortPredictionsByUrgencyThenDays,
 } from "@/lib/prediction-display";
 
+const NOTIFICATION_ASKED_KEY = "neumas-notification-asked";
+
 function formatRelativeUpdated(iso: string | undefined): string {
   if (!iso) return "just now";
   const t = new Date(iso).getTime();
@@ -63,6 +65,58 @@ const URGENCY_CARD: Record<
 function scanStatusLabel(s: Scan): string {
   if (s.status === "pending" || s.status === "processing") return "processing";
   return s.status;
+}
+
+function NotificationBanner() {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem(NOTIFICATION_ASKED_KEY) === "true") return;
+    setShow(true);
+  }, []);
+
+  if (!show) return null;
+
+  function dismiss() {
+    localStorage.setItem(NOTIFICATION_ASKED_KEY, "true");
+    setShow(false);
+  }
+
+  async function enable() {
+    try {
+      if (typeof Notification !== "undefined") {
+        await Notification.requestPermission();
+      }
+    } finally {
+      localStorage.setItem(NOTIFICATION_ASKED_KEY, "true");
+      setShow(false);
+    }
+  }
+
+  return (
+    <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:mb-6">
+      <p className="text-sm font-medium text-gray-900 sm:text-sm">
+        Get alerts before you run out. Enable notifications.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={enable}
+          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+        >
+          Enable
+        </button>
+        <button
+          type="button"
+          onClick={dismiss}
+          className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Later
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardPage() {
@@ -139,9 +193,11 @@ export default function DashboardPage() {
   const hoursToNext = Math.max(1, 24 - new Date().getHours());
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Overview</h1>
+    <div className="space-y-6">
+      <NotificationBanner />
+
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">Overview</h1>
         <p className="mt-1 text-sm text-gray-500">What you need to do right now</p>
       </div>
 
@@ -149,16 +205,16 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <div className="h-24 animate-pulse rounded-xl bg-gray-100" />
           <div className="h-40 animate-pulse rounded-2xl bg-gray-100" />
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div className="h-28 animate-pulse rounded-xl bg-gray-100" />
             <div className="h-28 animate-pulse rounded-xl bg-gray-100" />
-            <div className="h-28 animate-pulse rounded-xl bg-gray-100" />
+            <div className="h-28 animate-pulse rounded-xl bg-gray-100 sm:block" />
           </div>
         </div>
       ) : (
         <>
           {bannerPred && (
-            <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 sm:mb-6">
               <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" aria-hidden />
               <p className="min-w-0 flex-1 text-sm font-medium text-red-900">
                 You&apos;re likely to run out of{" "}
@@ -169,65 +225,68 @@ export default function DashboardPage() {
               </p>
               <Link
                 href="/dashboard/shopping"
-                className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-red-300 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-100"
               >
                 Add to list →
               </Link>
             </div>
           )}
 
-          <section className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-6">
+          <section className="mb-4 w-full rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:mb-6 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Brain className="h-6 w-6 shrink-0 text-blue-600" aria-hidden />
-                <h3 className="text-lg font-semibold text-gray-900">AI Intelligence Center</h3>
+                <h3 className="text-base font-semibold text-gray-900 sm:text-lg">AI Intelligence Center</h3>
               </div>
-              <span className="text-xs text-blue-400">Updated {updatedLabel}</span>
+              <span className="text-sm text-blue-400 sm:text-xs">Updated {updatedLabel}</span>
             </div>
             <p className="mt-1 text-sm text-blue-700">
               Learning from {analytics?.items_tracked ?? 0} items across {analytics?.scans_total ?? 0}{" "}
               receipts
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <span className="text-xs text-blue-500">Prediction accuracy</span>
+              <span className="text-sm text-blue-500 sm:text-xs">Prediction accuracy</span>
               <div className="h-2 min-w-[120px] flex-1 rounded bg-blue-100">
                 <div
                   className="h-2 rounded bg-blue-500 transition-all duration-1000"
                   style={{ width: `${accuracyPct}%` }}
                 />
               </div>
-              <span className="font-mono text-xs text-blue-700">{accuracyPct}%</span>
+              <span className="font-mono text-sm text-blue-700 sm:text-xs">{accuracyPct}%</span>
             </div>
-            <p className="mt-1 text-xs text-blue-400">Accuracy improves with each receipt scan</p>
-            <p className="mt-2 text-xs text-blue-400">Next prediction update: in {hoursToNext} hours</p>
+            <p className="mt-1 text-sm text-blue-400 sm:text-xs">Accuracy improves with each receipt scan</p>
+            <p className="mt-2 text-sm text-blue-400 sm:text-xs">Next prediction update: in {hoursToNext} hours</p>
           </section>
 
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Items tracked</p>
-              <p className="mt-1 text-3xl font-bold tabular-nums text-gray-900">{analytics?.items_tracked ?? 0}</p>
-              <p className="mt-1 text-xs text-gray-400">From your pantry</p>
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:mb-6 sm:grid-cols-3 sm:gap-4">
+            <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+              <p className="text-sm font-medium uppercase tracking-wider text-gray-400 sm:text-xs">Items tracked</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 sm:text-3xl">
+                {analytics?.items_tracked ?? 0}
+              </p>
+              <p className="mt-1 text-sm text-gray-400 sm:text-xs">From your pantry</p>
             </div>
-            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Predicted savings</p>
-              <p className="mt-1 text-3xl font-bold tabular-nums text-gray-900">
+            <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+              <p className="text-sm font-medium uppercase tracking-wider text-gray-400 sm:text-xs">Predicted savings</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 sm:text-3xl">
                 ${(analytics?.spend_total ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
-              <p className="mt-1 text-xs text-gray-400">Spend tracked (analytics)</p>
+              <p className="mt-1 text-sm text-gray-400 sm:text-xs">Spend tracked (analytics)</p>
             </div>
-            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Next stockout</p>
-              <p className="mt-1 text-3xl font-bold tabular-nums text-gray-900">{nextStockoutLabel}</p>
-              <p className="mt-1 text-xs text-gray-400">Nearest forecast</p>
+            <div className="col-span-2 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:col-span-1 sm:p-5">
+              <p className="text-sm font-medium uppercase tracking-wider text-gray-400 sm:text-xs">Next stockout</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 sm:text-3xl">{nextStockoutLabel}</p>
+              <p className="mt-1 text-sm text-gray-400 sm:text-xs">Nearest forecast</p>
             </div>
           </div>
 
-          <section className="mb-6">
+          <section className="mb-4 sm:mb-6">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-900">
-                Stockout predictions
-              </h2>
-              <Link href="/dashboard/predictions" className="text-sm font-medium text-blue-600 hover:underline">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-900">Stockout predictions</h2>
+              <Link
+                href="/dashboard/predictions"
+                className="inline-flex min-h-[44px] items-center text-sm font-medium text-blue-600 hover:underline"
+              >
                 View all →
               </Link>
             </div>
@@ -253,22 +312,20 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={p.id}
-                      className={`flex flex-wrap items-center gap-4 rounded-xl border p-4 ${u.wrap}`}
+                      className={`flex min-h-[80px] flex-wrap items-center gap-4 rounded-xl border p-4 active:bg-black/[0.02] ${u.wrap}`}
                     >
                       <span className={`h-3 w-3 shrink-0 rounded-full ${u.dot}`} aria-hidden />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {p.inventory_item?.name ?? "Item"}
-                        </p>
-                        <p className="text-xs text-gray-500">{patternLine}</p>
+                        <p className="text-sm font-semibold text-gray-900">{p.inventory_item?.name ?? "Item"}</p>
+                        <p className="text-sm text-gray-500 sm:text-xs">{patternLine}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <span className="font-mono text-sm font-bold text-gray-900">{days} days</span>
-                        <span className="text-xs text-gray-400">{conf}% confidence</span>
+                        <span className="text-sm text-gray-400 sm:text-xs">{conf}% confidence</span>
                       </div>
                       <Link
                         href="/dashboard/shopping"
-                        className="ml-auto text-sm font-medium text-gray-700 underline-offset-4 hover:underline"
+                        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-sm font-medium text-gray-700 underline-offset-4 hover:underline sm:ml-auto"
                       >
                         Add to list
                       </Link>
@@ -280,16 +337,16 @@ export default function DashboardPage() {
           </section>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
               <h3 className="text-sm font-semibold text-gray-900">Recent scans</h3>
               <ul className="mt-3 space-y-2 text-sm">
                 {scans.length === 0 ? (
-                  <li className="text-gray-500">No scans yet</li>
+                  <li className="text-sm text-gray-500">No scans yet</li>
                 ) : (
                   scans.map((s) => (
                     <li
                       key={s.id}
-                      className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-50 pb-2 last:border-0"
+                      className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-50 pb-2 text-sm last:border-0"
                     >
                       <span className="text-gray-600">
                         {new Date(s.created_at).toLocaleDateString(undefined, {
@@ -298,7 +355,7 @@ export default function DashboardPage() {
                         })}
                       </span>
                       <span className="text-gray-900">{s.items_detected} items</span>
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-600">
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-sm capitalize text-gray-600 sm:text-xs">
                         {scanStatusLabel(s)}
                       </span>
                     </li>
@@ -307,13 +364,13 @@ export default function DashboardPage() {
               </ul>
               <Link
                 href="/dashboard/scans/new"
-                className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-sm font-medium text-blue-700 hover:bg-blue-100"
               >
                 + Scan new receipt
               </Link>
             </section>
 
-            <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
               <h3 className="text-sm font-semibold text-gray-900">Shopping list preview</h3>
               {!listPreview ? (
                 <p className="mt-3 text-sm text-gray-500">No shopping list yet</p>
@@ -323,7 +380,7 @@ export default function DashboardPage() {
                     <span className="font-medium">{listPreview.items?.length ?? 0}</span> items ·{" "}
                     <span className="capitalize text-gray-600">{listPreview.status}</span>
                   </p>
-                  <p className="text-gray-500">
+                  <p className="text-sm text-gray-500">
                     Total estimate:{" "}
                     {listPreview.total_estimated_cost != null
                       ? `$${Number(listPreview.total_estimated_cost).toFixed(2)}`
@@ -333,7 +390,7 @@ export default function DashboardPage() {
               )}
               <Link
                 href="/dashboard/shopping"
-                className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700"
               >
                 Generate new list
               </Link>

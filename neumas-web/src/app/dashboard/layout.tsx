@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { listScans } from "@/lib/api/endpoints";
 import { isOnboardingComplete } from "@/lib/onboarding";
 import { useAuthStore, selectIsAuthenticated } from "@/lib/store/auth";
@@ -84,9 +85,10 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
       <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-        <footer className="h-10 px-6 border-t border-gray-100 bg-white flex items-center justify-between text-xs text-gray-500">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <main className="flex-1 overflow-y-auto px-4 pt-4 pb-20 sm:px-6 sm:pt-6 sm:pb-6">{children}</main>
+        <MobileBottomNav />
+        <footer className="hidden h-10 items-center justify-between border-t border-gray-100 bg-white px-6 text-xs text-gray-500 sm:flex">
           <span>Neumas</span>
           <span>
             {workerOk === null ? "Checking status..." : workerOk ? "Systems operational" : "Worker unavailable"}

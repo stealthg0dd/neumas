@@ -36,7 +36,7 @@ export function Sidebar() {
   const displayName = profile?.full_name || profile?.email?.split("@")[0] || "User";
 
   return (
-    <aside className="w-[220px] h-full bg-white border-r border-gray-100 flex flex-col">
+    <aside className="hidden h-full w-[220px] flex-col border-r border-gray-100 bg-white sm:flex">
       <div className="h-16 px-5 flex items-center border-b border-gray-100">
         <span className="text-xl font-semibold text-gray-900">Neumas</span>
       </div>

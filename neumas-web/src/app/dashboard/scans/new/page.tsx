@@ -13,7 +13,6 @@ import {
   Plus,
   RotateCcw,
   Sparkles,
-  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -215,7 +214,7 @@ export default function NewScanPage() {
                 if (f) onFile(f);
               }}
               className={cn(
-                "relative rounded-2xl border-2 border-dashed min-h-[280px] flex flex-col items-center justify-center cursor-pointer transition-colors",
+                "relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-colors sm:min-h-[280px]",
                 dragging
                   ? "border-[#0071a3] bg-[rgba(0,113,163,0.06)]"
                   : "border-[var(--border-accent)] bg-[var(--surface-elevated)]/50 hover:bg-[var(--surface-elevated)]"
@@ -241,14 +240,17 @@ export default function NewScanPage() {
                 />
               ) : (
                 <>
-                  <div className="w-14 h-14 rounded-2xl bg-[rgba(0,113,163,0.1)] flex items-center justify-center mb-4">
-                    <Upload className="w-7 h-7 text-[#0071a3]" />
+                  <div className="mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-[rgba(0,113,163,0.1)] sm:h-14 sm:w-14">
+                    <Camera className="h-10 w-10 text-[#0071a3] sm:h-7 sm:w-7" aria-hidden />
                   </div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">
-                    Drop a receipt or pantry photo
+                  <p className="text-center text-base font-semibold text-[var(--text-primary)] sm:text-sm sm:font-medium">
+                    Tap to photograph receipt
                   </p>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">
-                    or click to browse · JPEG, PNG, WebP
+                  <p className="mt-2 text-center text-sm text-[var(--text-secondary)] sm:mt-1 sm:text-xs">
+                    or upload from files · JPEG, PNG, WebP
+                  </p>
+                  <p className="mt-1 hidden text-center text-xs text-[var(--text-muted)] sm:block">
+                    Drop a file here or click to browse
                   </p>
                 </>
               )}
@@ -256,7 +258,7 @@ export default function NewScanPage() {
 
             <div className="flex flex-wrap gap-2">
               <Button
-                className="flex-1 min-w-[140px] bg-[#0071a3] hover:bg-[#005a82] text-white"
+                className="min-h-[44px] flex-1 min-w-[140px] bg-[#0071a3] text-base hover:bg-[#005a82] sm:text-sm"
                 disabled={!file || busy}
                 onClick={analyze}
               >
@@ -272,8 +274,12 @@ export default function NewScanPage() {
                   </>
                 )}
               </Button>
-              <Button variant="outline" className="border-[var(--border)]" onClick={reset}>
-                <RotateCcw className="w-4 h-4 mr-2" />
+              <Button
+                variant="outline"
+                className="min-h-[44px] min-w-[44px] border-[var(--border)] px-4 text-base sm:text-sm"
+                onClick={reset}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
                 Reset
               </Button>
             </div>

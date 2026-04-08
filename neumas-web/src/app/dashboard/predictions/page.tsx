@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { listPredictions, triggerForecast } from "@/lib/api/endpoints";
@@ -56,6 +57,19 @@ function badgeClass(level: UrgencyLevel): string {
   }
 }
 
+function leftBorderClass(level: UrgencyLevel): string {
+  switch (level) {
+    case "critical":
+      return "border-l-red-500";
+    case "urgent":
+      return "border-l-amber-500";
+    case "soon":
+      return "border-l-yellow-400";
+    default:
+      return "border-l-gray-300";
+  }
+}
+
 export default function PredictionsPage() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +116,7 @@ export default function PredictionsPage() {
         <Button
           type="button"
           size="sm"
-          className="bg-blue-600 text-white hover:bg-blue-700"
+          className="min-h-[44px] bg-blue-600 text-white hover:bg-blue-700 sm:min-h-0"
           disabled={triggering}
           onClick={handleRunForecast}
         >
@@ -162,8 +176,13 @@ export default function PredictionsPage() {
             return (
               <div
                 key={p.id}
-                className="mb-3 rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+                className={`mb-3 w-full rounded-xl border border-gray-100 border-l-4 bg-white p-5 shadow-sm ${leftBorderClass(level)}`}
               >
+                <div className="mb-2 flex items-center justify-center gap-2 text-sm text-gray-400 sm:hidden">
+                  <ChevronLeft className="h-4 w-4 shrink-0 opacity-60" aria-hidden />
+                  <span className="text-sm">Swipe to dismiss</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 opacity-60" aria-hidden />
+                </div>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2">
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${badgeClass(level)}`}>
@@ -191,16 +210,16 @@ export default function PredictionsPage() {
                   />
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Link
                     href="/dashboard/shopping"
-                    className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700 sm:w-auto sm:min-h-0 sm:py-1.5 sm:text-xs"
                   >
                     Add to shopping list
                   </Link>
                   <Link
                     href="/dashboard/shopping"
-                    className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:w-auto sm:min-h-0 sm:py-1.5 sm:text-xs"
                   >
                     Mark as purchased
                   </Link>
