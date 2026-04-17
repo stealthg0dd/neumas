@@ -852,6 +852,15 @@ CREATE TABLE IF NOT EXISTS feature_flags (
   UNIQUE (name, organization_id)
 );
 
+-- Handle rename from org_id → organization_id for existing databases.
+-- RENAME is a no-op if org_id doesn't exist (already renamed or fresh DB).
+-- ADD COLUMN is a no-op if the column already exists.
+-- Must come BEFORE COMMENT ON COLUMN and CREATE INDEX that reference the column.
+DO $$ BEGIN
+  ALTER TABLE feature_flags RENAME COLUMN org_id TO organization_id;
+EXCEPTION WHEN undefined_column THEN NULL; END $$;
+ALTER TABLE feature_flags ADD COLUMN IF NOT EXISTS organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE;
+
 COMMENT ON COLUMN feature_flags.organization_id IS
   'NULL = global default. Org rows override. Query: .or("organization_id.eq.{org},organization_id.is.null").';
 
