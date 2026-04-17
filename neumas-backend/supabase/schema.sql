@@ -132,18 +132,19 @@ CREATE TABLE IF NOT EXISTS organizations (
   updated_at          timestamptz NOT NULL DEFAULT now()
 );
 
-COMMENT ON COLUMN organizations.plan IS
-  'Billing tier: free(50docs/2users/1prop) | pilot(500/10/5) | pro(5000/25/20) | enterprise(unlimited).';
-
-CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-
 -- Backfill new columns for existing databases (no-op on fresh DBs)
+-- Must come BEFORE COMMENT ON COLUMN so the column exists on existing DBs.
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan                text        NOT NULL DEFAULT 'free';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_status text        NOT NULL DEFAULT 'active';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_properties      integer     NOT NULL DEFAULT 1;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_users           integer     NOT NULL DEFAULT 5;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS settings            jsonb       NOT NULL DEFAULT '{}';
+
+COMMENT ON COLUMN organizations.plan IS
+  'Billing tier: free(50docs/2users/1prop) | pilot(500/10/5) | pro(5000/25/20) | enterprise(unlimited).';
+
+CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 
 
 -- ---------------------------------------------------------------------------
@@ -166,14 +167,15 @@ CREATE TABLE IF NOT EXISTS properties (
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_properties_org  ON properties(organization_id);
-CREATE INDEX IF NOT EXISTS idx_properties_type ON properties(type);
-ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
-
 -- Backfill new columns for existing databases
+-- Must come before indexes that reference these columns.
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS type     text    NOT NULL DEFAULT 'restaurant';
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS currency text    NOT NULL DEFAULT 'USD';
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS settings jsonb   NOT NULL DEFAULT '{}';
+
+CREATE INDEX IF NOT EXISTS idx_properties_org  ON properties(organization_id);
+CREATE INDEX IF NOT EXISTS idx_properties_type ON properties(type);
+ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
 
 -- ---------------------------------------------------------------------------
@@ -260,6 +262,18 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   CONSTRAINT chk_inventory_quantity_non_negative CHECK (quantity >= 0)
 );
 
+-- Backfill new columns for existing databases
+-- Must come BEFORE COMMENT ON TABLE and indexes.
+ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS organization_id uuid    REFERENCES organizations(id) ON DELETE CASCADE;
+ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS currency        text    NOT NULL DEFAULT 'USD';
+ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS tags            text[]  NOT NULL DEFAULT '{}';
+-- Back-fill organization_id from parent property (idempotent)
+UPDATE inventory_items ii
+SET organization_id = p.organization_id
+FROM properties p
+WHERE ii.property_id = p.id
+  AND ii.organization_id IS NULL;
+
 COMMENT ON TABLE inventory_items IS
   'Snapshot of current item state. For auditable history, query inventory_movements.';
 
@@ -270,17 +284,6 @@ CREATE INDEX IF NOT EXISTS idx_inventory_barcode  ON inventory_items(barcode) WH
 CREATE INDEX IF NOT EXISTS idx_inventory_sku      ON inventory_items(sku)     WHERE sku     IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_inventory_name_fts ON inventory_items USING gin(to_tsvector('english', name));
 ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
-
--- Backfill new columns for existing databases
-ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS organization_id uuid    REFERENCES organizations(id) ON DELETE CASCADE;
-ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS currency        text    NOT NULL DEFAULT 'USD';
-ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS tags            text[]  NOT NULL DEFAULT '{}';
--- Back-fill organization_id from parent property (idempotent)
-UPDATE inventory_items ii
-SET organization_id = p.organization_id
-FROM properties p
-WHERE ii.property_id = p.id
-  AND ii.organization_id IS NULL;
 
 
 -- ---------------------------------------------------------------------------
@@ -350,6 +353,16 @@ CREATE TABLE IF NOT EXISTS scans (
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 
+-- Backfill new columns for existing databases
+-- Must come BEFORE COMMENT ON COLUMN and indexes that reference organization_id.
+ALTER TABLE scans ADD COLUMN IF NOT EXISTS organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE;
+-- Back-fill organization_id from parent property (idempotent)
+UPDATE scans s
+SET organization_id = p.organization_id
+FROM properties p
+WHERE s.property_id = p.id
+  AND s.organization_id IS NULL;
+
 COMMENT ON COLUMN scans.organization_id IS
   'Denormalized from properties.organization_id. Used by usage_service.get_org_summary().';
 
@@ -359,15 +372,6 @@ CREATE INDEX IF NOT EXISTS idx_scans_user     ON scans(user_id);
 CREATE INDEX IF NOT EXISTS idx_scans_status   ON scans(status);
 CREATE INDEX IF NOT EXISTS idx_scans_created  ON scans(created_at DESC);
 ALTER TABLE scans ENABLE ROW LEVEL SECURITY;
-
--- Backfill new columns for existing databases
-ALTER TABLE scans ADD COLUMN IF NOT EXISTS organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE;
--- Back-fill organization_id from parent property (idempotent)
-UPDATE scans s
-SET organization_id = p.organization_id
-FROM properties p
-WHERE s.property_id = p.id
-  AND s.organization_id IS NULL;
 
 
 -- ---------------------------------------------------------------------------
