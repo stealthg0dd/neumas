@@ -12,12 +12,14 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { login } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import { track, identifyUser, captureUIError } from "@/lib/analytics";
+import { signInWithGoogle } from "@/lib/supabase";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -29,6 +31,20 @@ export default function AuthPage() {
   const router = useRouter();
   const { saveAuth } = useAuthStore();
   const [showPwd, setShowPwd] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  async function handleGoogleSignIn() {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // signInWithGoogle redirects the browser — execution stops here.
+    } catch (err: unknown) {
+      setGoogleLoading(false);
+      const msg = (err as { message?: string })?.message ?? "Google sign-in failed.";
+      toast.error(msg);
+      captureUIError("google_signin", err);
+    }
+  }
 
   const {
     register,

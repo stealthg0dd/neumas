@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase";
 import { googleComplete } from "@/lib/api/endpoints";
 import { saveSession } from "@/lib/auth-session";
 
-export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
@@ -15,12 +14,20 @@ export default function AuthCallbackPage() {
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session) {
         try {
-          // Exchange Supabase JWT for Neumas JWT
-          const loginResp = await googleComplete(session.access_token);
-          saveSession(loginResp);
-          router.replace("/dashboard");
+          // Try to complete Google onboarding (returns 422 if user is new)
+          try {
+            const loginResp = await googleComplete(session.access_token);
+            saveSession(loginResp);
+            router.replace("/dashboard");
+          } catch (err: any) {
+            // If 422, redirect to onboarding with JWT
+            if (err?.response?.status === 422) {
+              router.replace(`/onboard?supabase_jwt=${encodeURIComponent(session.access_token)}`);
+            } else {
+              router.replace("/login?error=oauth_complete_failed");
+            }
+          }
         } catch (err) {
-          // On error, route to login with error message
           router.replace("/login?error=oauth_complete_failed");
         }
       }
@@ -31,9 +38,17 @@ export default function AuthCallbackPage() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         try {
-          const loginResp = await googleComplete(session.access_token);
-          saveSession(loginResp);
-          router.replace("/dashboard");
+          try {
+            const loginResp = await googleComplete(session.access_token);
+            saveSession(loginResp);
+            router.replace("/dashboard");
+          } catch (err: any) {
+            if (err?.response?.status === 422) {
+              router.replace(`/onboard?supabase_jwt=${encodeURIComponent(session.access_token)}`);
+            } else {
+              router.replace("/login?error=oauth_complete_failed");
+            }
+          }
         } catch (err) {
           router.replace("/login?error=oauth_complete_failed");
         }

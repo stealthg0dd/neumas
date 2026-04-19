@@ -26,7 +26,7 @@ const NAV_ITEMS = [
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
   const clearAuth = useAuthStore((s) => s.clearAuth);

@@ -75,13 +75,17 @@ import type {
   GenerateListResponse,
   AnalyticsSummary,
 } from "./types";
-import { LoginResponseSchema } from "./types";
-/** POST /api/auth/google/complete — exchange Supabase JWT for Neumas JWT */
-export async function googleComplete(supabaseAccessToken: string): Promise<LoginResponse> {
-  // This endpoint expects the Supabase JWT as Bearer token, no body
+/**
+ * POST /api/auth/google/complete — exchange Supabase JWT for Neumas JWT
+ * If onboarding, pass org/property/role in body. If not, pass empty body.
+ */
+export async function googleComplete(
+  supabaseAccessToken: string,
+  body?: { org_name: string; property_name: string; role?: string }
+): Promise<LoginResponse> {
   const data = await post<LoginResponse>(
     "/api/auth/google/complete",
-    {},
+    body || {},
     {
       headers: { Authorization: `Bearer ${supabaseAccessToken}` },
     }

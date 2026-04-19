@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Building2,
@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { postScanUpload, getScanStatus } from "@/lib/api/endpoints";
+import { postScanUpload, getScanStatus, googleComplete } from "@/lib/api/endpoints";
 import { setOnboardingComplete } from "@/lib/onboarding";
+import { saveSession } from "@/lib/auth-session";
 import { useAuthStore, selectIsAuthenticated } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -471,12 +472,18 @@ function StepReady({ orgName, onFinish }: { orgName: string; onFinish: () => voi
 
 export default function OnboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isAuth = useAuthStore(selectIsAuthenticated);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
+
+  // If onboarding is triggered by Google OAuth, the Supabase JWT will be passed as a query param
+  const supabaseJwt = searchParams.get("supabase_jwt");
+  const isGoogleOnboarding = Boolean(supabaseJwt);
 
   const [step, setStep] = useState(1);
   const [orgName, setOrgName] = useState("");
   const [outlets, setOutlets] = useState<Outlet[]>([{ name: "", type: "Restaurant" }]);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (hasHydrated && !isAuth) {
@@ -484,9 +491,27 @@ export default function OnboardPage() {
     }
   }, [hasHydrated, isAuth, router]);
 
-  function finish() {
-    setOnboardingComplete();
-    router.replace("/dashboard");
+  async function finish() {
+    if (isGoogleOnboarding && supabaseJwt) {
+      // POST to /api/auth/google/complete with org/property/role
+      setBusy(true);
+      try {
+        const resp = await googleComplete(supabaseJwt, {
+          org_name: orgName,
+          property_name: outlets[0]?.name || "Main Property",
+          role: "admin",
+        });
+        saveSession(resp);
+        setOnboardingComplete();
+        router.replace("/dashboard");
+      } catch (err) {
+        toast.error("Failed to complete Google onboarding. Please try again.");
+        setBusy(false);
+      }
+    } else {
+      setOnboardingComplete();
+      router.replace("/dashboard");
+    }
   }
 
   if (!hasHydrated) {
@@ -497,7 +522,8 @@ export default function OnboardPage() {
     );
   }
 
-  if (!isAuth) return null;
+  // For Google onboarding, skip auth check (user is not yet in DB)
+  if (!isAuth && !isGoogleOnboarding) return null;
 
   return (
     <div className="min-h-screen bg-[#f5f5f7]">
@@ -554,6 +580,11 @@ export default function OnboardPage() {
             />
           )}
           {step === 4 && <StepReady orgName={orgName} onFinish={finish} />}
+          {busy && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-50">
+              <Loader2 className="h-8 w-8 animate-spin text-[#0071a3]" />
+            </div>
+          )}
         </div>
 
         {step < TOTAL_STEPS && (

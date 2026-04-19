@@ -30,9 +30,9 @@ export function PageTracker() {
   const lastPath = useRef<string | null>(null);
 
   useEffect(() => {
-    if (pathname === lastPath.current) return;
+    if (!pathname || pathname === lastPath.current) return;
     lastPath.current = pathname;
-    track("page_viewed", { page_name: getPageName(pathname), path: pathname });
+    track("page_viewed", { page_name: getPageName(pathname || ""), path: pathname });
   }, [pathname]);
 
   return null;
