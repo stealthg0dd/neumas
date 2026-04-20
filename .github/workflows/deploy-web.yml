@@ -100,7 +100,9 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_NEUMAS }}
           NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
         run: |
-          URL=$(vercel deploy --prod --token=$VERCEL_TOKEN --yes 2>&1 | tail -1)
+          # Strip ANSI escape codes and extract deployment URL
+          RAW=$(vercel deploy --prod --token=$VERCEL_TOKEN --yes 2>&1)
+          URL=$(echo "$RAW" | sed 's/\x1b\[[0-9;]*m//g' | grep -Eo 'https://[a-zA-Z0-9._/-]+\.vercel\.app' | tail -1)
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
 
@@ -133,9 +135,10 @@ jobs:
         run: |
           npx @sentry/cli releases new "${{ github.sha }}"
           npx @sentry/cli releases set-commits "${{ github.sha }}" --auto --ignore-missing
+          DEPLOY_URL="${{ secrets.NEUMAS_VERCEL_URL }}"
           npx @sentry/cli releases deploys "${{ github.sha }}" new \
             --env production \
-            --url "${{ steps.deploy.outputs.url }}"
+            --url "${DEPLOY_URL:-https://neumas-web.vercel.app}"
           npx @sentry/cli releases finalize "${{ github.sha }}"
 
       - name: Register heartbeat with agent OS
