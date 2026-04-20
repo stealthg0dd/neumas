@@ -46,6 +46,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Require Vercel GitHub secrets
         env:
@@ -130,7 +132,7 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_NEUMAS_WEB }}
         run: |
           npx @sentry/cli releases new "${{ github.sha }}"
-          npx @sentry/cli releases set-commits "${{ github.sha }}" --auto
+          npx @sentry/cli releases set-commits "${{ github.sha }}" --auto --ignore-missing
           npx @sentry/cli releases deploys "${{ github.sha }}" new \
             --env production \
             --url "${{ steps.deploy.outputs.url }}"
