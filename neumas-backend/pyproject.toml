@@ -101,6 +101,18 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "app/main.py" = ["E402"]        # router imports after Sentry/logging init
 "app/core/celery_app.py" = ["E402"]  # celery task imports after app init
+# Pre-existing: lazy/conditional imports in DB/service modules
+"app/db/models.py" = ["E402", "F821"]
+"app/db/repositories/*.py" = ["E402", "F821"]
+"app/services/alert_service.py" = ["E402"]
+"app/services/catalog_service.py" = ["E402"]
+"app/services/document_service.py" = ["E402"]
+"app/services/inventory_ledger_service.py" = ["E402"]
+"app/services/inventory_service.py" = ["E402"]
+"app/services/report_service.py" = ["E402"]
+"app/services/scan_service.py" = ["E402"]
+"app/services/vendor_service.py" = ["E402"]
+"app/services/auth_service.py" = ["F821"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

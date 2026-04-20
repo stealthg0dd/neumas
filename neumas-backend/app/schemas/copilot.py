@@ -7,11 +7,10 @@ The CopilotToolRequest envelope wraps any tool call with a common header.
 
 from __future__ import annotations
 
-from typing import Any, Literal, Union
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Tool: search_documents
@@ -124,21 +123,21 @@ class GenerateReorderPlanResult(BaseModel):
 # Envelope
 # ---------------------------------------------------------------------------
 
-CopilotToolInput = Union[
-    SearchDocumentsInput,
-    ExplainPredictionInput,
-    CompareVendorsInput,
-    SummarizeOutletRiskInput,
-    GenerateReorderPlanInput,
-]
+CopilotToolInput = (
+    SearchDocumentsInput
+    | ExplainPredictionInput
+    | CompareVendorsInput
+    | SummarizeOutletRiskInput
+    | GenerateReorderPlanInput
+)
 
-CopilotToolOutput = Union[
-    SearchDocumentsResult,
-    ExplainPredictionResult,
-    CompareVendorsResult,
-    OutletRiskSummary,
-    GenerateReorderPlanResult,
-]
+CopilotToolOutput = (
+    SearchDocumentsResult
+    | ExplainPredictionResult
+    | CompareVendorsResult
+    | OutletRiskSummary
+    | GenerateReorderPlanResult
+)
 
 
 class CopilotToolRequest(BaseModel):

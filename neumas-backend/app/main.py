@@ -104,8 +104,8 @@ from app.api.routes import (
     reports,
     scans,
     shopping,
-    vendors,
     vendor_analytics,
+    vendors,
 )
 
 # Safe import for logging module

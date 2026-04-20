@@ -13,7 +13,6 @@ MAX_OFFLINE_QUEUE_AGE_DAYS of the current time.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -97,7 +96,7 @@ class MobileAlertActionRequest(MobileBaseRequest):
 
     @field_validator("snooze_until", mode="after")
     @classmethod
-    def validate_snooze_until(cls, v: datetime | None, values) -> datetime | None:
+    def validate_snooze_until(cls, v: datetime | None, values: object) -> datetime | None:  # noqa: ARG003
         if v is not None and v.tzinfo is None:
             return v.replace(tzinfo=UTC)
         return v

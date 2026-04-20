@@ -2,7 +2,6 @@
 Tests for the inventory ledger (movements) and document model.
 """
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -78,7 +77,6 @@ class TestInventoryLedgerService:
     async def test_duplicate_movement_idempotency(self, tenant: TenantContext):
         """Replaying a task with same idempotency_key does not double-write."""
         from app.services.inventory_ledger_service import InventoryLedgerService
-        from app.db.repositories.inventory_movements import InventoryMovementsRepository
 
         svc = InventoryLedgerService()
         item_id = uuid4()
@@ -108,7 +106,7 @@ class TestInventoryLedgerService:
                 "create",
                 new_callable=AsyncMock,
                 return_value=existing_movement,  # returns existing row, no double-write
-            ) as mock_create:
+            ):
                 result1 = await svc.apply_movement(
                     tenant=tenant,
                     item_id=item_id,
@@ -185,15 +183,17 @@ class TestDocumentService:
         ]
 
         doc_id = uuid4()
-        with patch.object(svc._docs_repo, "create", new_callable=AsyncMock, return_value={"id": str(doc_id), "status": "review"}) as mock_create:
-            with patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]):
-                result = await svc.create_from_scan(
-                    tenant=tenant,
-                    scan_id=scan_id,
-                    document_type="receipt",
-                    raw_extraction={"vendor": "Test Vendor"},
-                    extracted_items=extracted_items,
-                )
+        with (
+            patch.object(svc._docs_repo, "create", new_callable=AsyncMock, return_value={"id": str(doc_id), "status": "review"}) as mock_create,
+            patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]),
+        ):
+            await svc.create_from_scan(
+                tenant=tenant,
+                scan_id=scan_id,
+                document_type="receipt",
+                raw_extraction={"vendor": "Test Vendor"},
+                extracted_items=extracted_items,
+            )
 
         # Should flag for review because one item has confidence 0.50 < 0.75
         create_call = mock_create.call_args
@@ -213,15 +213,17 @@ class TestDocumentService:
         ]
 
         doc_id = uuid4()
-        with patch.object(svc._docs_repo, "create", new_callable=AsyncMock, return_value={"id": str(doc_id), "status": "pending"}) as mock_create:
-            with patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]):
-                await svc.create_from_scan(
-                    tenant=tenant,
-                    scan_id=scan_id,
-                    document_type="receipt",
-                    raw_extraction={},
-                    extracted_items=extracted_items,
-                )
+        with (
+            patch.object(svc._docs_repo, "create", new_callable=AsyncMock, return_value={"id": str(doc_id), "status": "pending"}) as mock_create,
+            patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]),
+        ):
+            await svc.create_from_scan(
+                tenant=tenant,
+                scan_id=scan_id,
+                document_type="receipt",
+                raw_extraction={},
+                extracted_items=extracted_items,
+            )
 
         create_call = mock_create.call_args
         assert create_call.kwargs["review_needed"] is False
