@@ -62,10 +62,3 @@ export default function AuthCallbackPage() {
     </div>
   );
 }
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-[#2563eb] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-[#64748b] text-sm">Signing you in...</p>
-      </div>
-    </div>
-  );
-}
