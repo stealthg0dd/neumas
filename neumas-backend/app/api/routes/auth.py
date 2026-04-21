@@ -6,16 +6,13 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
-from pydantic import ValidationError
 
 from app.api.deps import UserInfo, get_current_user, get_token
 from app.core.logging import get_logger
-from app.core.security import TokenValidationError, decode_jwt
-from app.db.supabase_client import get_async_supabase_admin, get_auth_client
+from app.db.supabase_client import get_async_supabase_admin
 from app.schemas.auth import (
     DigestPreferencesResponse,
     DigestPreferencesUpdate,
-    GoogleCompleteRequest,
     LoginRequest,
     LoginResponse,
     ProfileResponse,
