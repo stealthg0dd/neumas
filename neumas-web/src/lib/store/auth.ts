@@ -12,6 +12,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { jwtDecode } from "jwt-decode";
+import { consumePendingAuthSessionCookie } from "@/lib/auth-bootstrap";
 import type { ProfileResponse } from "@/lib/api/types";
 
 // ── JWT claim shape (Neumas custom claims embedded by the backend) ─────────────
@@ -156,16 +157,22 @@ export const useAuthStore = create<AuthStore>()(
         propertyId: state.propertyId,
       }),
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        if (!state) return;
 
-        if (!state?.token) return;
+        if (!state.token) {
+          const pendingSession = consumePendingAuthSessionCookie();
+          if (pendingSession) {
+            state.saveAuth(pendingSession);
+          }
+        }
+
+        state.setHasHydrated(true);
+
+        if (!state.token) return;
 
         // Clear everything if the token is already expired — prevents
         // stale tokens from reaching the API and causing 401 cascades.
-        if (
-          state.expiresAt != null &&
-          state.expiresAt <= Math.floor(Date.now() / 1000)
-        ) {
+        if (state.expiresAt != null && state.expiresAt <= Math.floor(Date.now() / 1000)) {
           state.clearAuth();
           return;
         }

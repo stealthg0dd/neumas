@@ -1,47 +1,18 @@
-/**
- * Supabase browser client — singleton.
- *
- * Used exclusively for auth operations (signInWithOAuth, exchangeCodeForSession,
- * getSession). All data queries go through the backend API, not directly to
- * Supabase from the browser.
- *
- * The anon key is safe to expose to the browser — it only grants access
- * that is further restricted by Supabase RLS policies.
- */
-
-import { createClient } from "@supabase/supabase-js";
 import { getOAuthRedirectUrl } from "@/lib/app-url";
+import { createClient } from "@/utils/supabase/client";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  // Non-fatal warning — avoids crashing SSR where these may not be resolved yet.
-  console.warn(
-    "[Supabase] NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. " +
-      "Google OAuth will not work until these are configured."
-  );
-}
-
-export const supabase = createClient(
-  supabaseUrl || "https://placeholder.supabase.co",
-  supabaseAnonKey || "placeholder-anon-key-for-build",
-  {
-    auth: {
-      flowType: "pkce",
-      detectSessionInUrl: true,
-      persistSession: true,
-      autoRefreshToken: true,
-      storageKey: "neumas-auth-token",
-      storage: typeof window !== "undefined" ? window.localStorage : undefined,
-    },
-  }
-);
+export const supabase = createClient();
 
 /** Initiate Google OAuth sign-in via Supabase. */
 export async function signInWithGoogle(): Promise<void> {
   const redirectTo = getOAuthRedirectUrl();
+  const supabase = createClient();
 
+  // Supabase dashboard reminder:
+  // In Supabase Dashboard -> Auth -> URL Configuration: add
+  // https://neumasfinal.vercel.app/** and https://*.vercel.app/** and
+  // http://localhost:3000/** as redirect URLs (use ** wildcard). Also add
+  // the same in Google Cloud Console OAuth redirect URIs.
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo },
