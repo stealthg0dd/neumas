@@ -133,13 +133,13 @@ jobs:
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT_NEUMAS_WEB }}
         run: |
-          npx @sentry/cli releases new "${{ github.sha }}"
-          npx @sentry/cli releases set-commits "${{ github.sha }}" --auto --ignore-missing
+          pnpm dlx @sentry/cli releases new "${{ github.sha }}"
+          pnpm dlx @sentry/cli releases set-commits "${{ github.sha }}" --auto --ignore-missing
           DEPLOY_URL="${{ secrets.NEUMAS_VERCEL_URL }}"
-          npx @sentry/cli releases deploys "${{ github.sha }}" new \
+          pnpm dlx @sentry/cli releases deploys "${{ github.sha }}" new \
             --env production \
             --url "${DEPLOY_URL:-https://neumas-web.vercel.app}"
-          npx @sentry/cli releases finalize "${{ github.sha }}"
+          pnpm dlx @sentry/cli releases finalize "${{ github.sha }}"
 
       - name: Register heartbeat with agent OS
         env:
