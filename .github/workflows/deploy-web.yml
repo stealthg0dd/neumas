@@ -100,9 +100,22 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_NEUMAS }}
           NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
         run: |
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID"
+
           # Strip ANSI escape codes and extract deployment URL
-          RAW=$(vercel deploy --prod --token=$VERCEL_TOKEN --yes 2>&1)
+          set +e
+          RAW=$(vercel deploy --prod --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" --yes 2>&1)
+          STATUS=$?
+          set -e
+          echo "$RAW"
           URL=$(echo "$RAW" | sed 's/\x1b\[[0-9;]*m//g' | grep -Eo 'https://[a-zA-Z0-9._/-]+\.vercel\.app' | tail -1)
+          if [ $STATUS -ne 0 ]; then
+            exit $STATUS
+          fi
+          if [ -z "$URL" ]; then
+            echo "::error::Vercel deploy completed without emitting a deployment URL."
+            exit 1
+          fi
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
 
