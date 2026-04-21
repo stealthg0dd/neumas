@@ -14,8 +14,8 @@ from pydantic import BaseModel, EmailStr
 
 from app.api.deps import TenantContext, get_tenant_context
 from app.core.logging import get_logger
-from app.db.repositories.email_logs import EmailLogsRepository
 from app.db.repositories.audit_logs import AuditLogsRepository
+from app.db.repositories.email_logs import EmailLogsRepository
 from app.db.supabase_client import get_async_supabase_admin
 
 logger = get_logger(__name__)

@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Email delivery service for transactional weekly digests.
 """
+
+from __future__ import annotations
 
 from html import escape
 from pathlib import Path
