@@ -244,6 +244,7 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    overscroll-behavior-y: none;
   }
 
   /* Headings inherit brand feel */
@@ -266,6 +267,14 @@
    Utility layer — Glassmorphism, gradients, and brand helpers
    ============================================================================ */
 @layer utilities {
+  .safe-pb {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-pt {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
   /* ── Glassmorphism ───────────────────────────────────────────────────────── */
 
   /* Refined glass — light IoT */

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>$email_title</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f4f7fb;
+      color: #0f172a;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+    .wrapper {
+      width: 100%;
+      padding: 24px 12px;
+      box-sizing: border-box;
+    }
+    .card {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+    }
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
+      color: #ffffff;
+      padding: 28px 28px 24px;
+    }
+    .brand {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin: 0 0 8px;
+    }
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      line-height: 1.2;
+    }
+    .hero p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 15px;
+    }
+    .section {
+      padding: 24px 28px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .section h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      color: #0f172a;
+    }
+    .muted {
+      color: #475569;
+      font-size: 14px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .stat {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .stat-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 14px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: #475569;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .alert-box {
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .alert-critical {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+    .alert-warning {
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #9a3412;
+    }
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .pill-critical {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    .pill-warning {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+    .pill-neutral {
+      background: #e2e8f0;
+      color: #334155;
+    }
+    .cta {
+      text-align: center;
+      padding: 10px 28px 32px;
+    }
+    .cta a {
+      display: inline-block;
+      background: #2563eb;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .footer {
+      padding: 0 28px 28px;
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
+    }
+    @media (max-width: 640px) {
+      .hero, .section, .footer {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+      .stats {
+        grid-template-columns: 1fr;
+      }
+      .hero h1 {
+        font-size: 24px;
+      }
+      th:nth-child(3),
+      td:nth-child(3) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+      <div class="hero">
+        <p class="brand">Neumas</p>
+        <h1>$headline</h1>
+        <p>$subheadline</p>
+      </div>
+
+      <div class="section">
+        <p class="muted">$summary_intro</p>
+        <div class="stats">
+          $summary_cards
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Top vendors by spend</h2>
+        $vendors_section
+      </div>
+
+      <div class="section">
+        <h2>Top categories by spend</h2>
+        $categories_section
+      </div>
+
+      <div class="section">
+        <h2>Stockout alerts</h2>
+        $stockouts_section
+      </div>
+
+      <div class="section">
+        <h2>Predicted stockouts this week</h2>
+        $predictions_section
+      </div>
+
+      <div class="section">
+        <h2>Waste incidents</h2>
+        $waste_section
+      </div>
+
+      <div class="section">
+        <h2>Suggested reorders</h2>
+        $reorders_section
+      </div>
+
+      <div class="cta">
+        <a href="$dashboard_url">View Full Dashboard</a>
+      </div>
+
+      <div class="footer">
+        <p>$footer_copy</p>
+        <p>You are receiving this weekly digest because email reports are enabled for your Neumas account.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

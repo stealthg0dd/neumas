@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -19,10 +19,7 @@ import {
 
 import { useAuthStore } from "@/lib/store/auth";
 import { logout } from "@/lib/api/endpoints";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-// ── Nav items ─────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -37,85 +34,107 @@ const NAV_ITEMS = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-const ADMIN_NAV_ITEMS = [
-  { href: "/dashboard/admin", label: "Admin", icon: Shield },
-];
+const ADMIN_NAV_ITEMS = [{ href: "/dashboard/admin", label: "Admin", icon: Shield }];
 
-// ── Component ──────────────────────────────────────────────────────────────────
+interface SidebarProps {
+  className?: string;
+  onNavigate?: () => void;
+}
 
-export function Sidebar() {
+export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname() || "";
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const isAdmin = profile?.role === "admin";
+  const displayName = profile?.full_name || profile?.email?.split("@")[0] || "User";
 
   async function handleLogout() {
-    try { await logout(); } catch { /* swallow */ }
+    try {
+      await logout();
+    } catch {
+      /* clear client state even if API logout fails */
+    }
     clearAuth();
+    onNavigate?.();
     router.replace("/login");
   }
 
-  const displayName = profile?.full_name || profile?.email?.split("@")[0] || "User";
-
   return (
-    <aside className="hidden h-full w-[220px] flex-col border-r border-gray-100 bg-white sm:flex">
-      <div className="h-16 px-5 flex items-center border-b border-gray-100">
-        <span className="text-xl font-semibold text-gray-900">Neumas</span>
+    <aside
+      className={cn(
+        "flex h-full min-h-0 w-full flex-col bg-white",
+        className
+      )}
+    >
+      <div className="flex h-16 shrink-0 items-center border-b border-gray-100 px-5">
+        <div>
+          <span className="block text-lg font-semibold text-gray-900">Neumas</span>
+          <span className="block text-xs text-gray-400">Shift-ready control center</span>
+        </div>
       </div>
 
-      <nav className="flex-1 py-4 px-3 space-y-1">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 h-10 px-3 rounded-lg text-sm border-l-2 transition-colors",
-                active
-                  ? "border-blue-600 bg-blue-50 text-blue-700"
-                  : "border-transparent text-gray-600 hover:bg-gray-50"
-              )}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span>{label}</span>
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <div className="space-y-1">
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onNavigate}
+                className={cn(
+                  "flex min-h-[44px] items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-colors",
+                  active
+                    ? "border-blue-100 bg-blue-50 text-blue-700"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
+        </div>
 
         {isAdmin && (
-          <>
-            <div className="mx-3 mt-4 mb-2 border-t border-gray-100" />
-            {ADMIN_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(`${href}/`);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex items-center gap-3 h-10 px-3 rounded-lg text-sm border-l-2 transition-colors",
-                    active
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-transparent text-gray-600 hover:bg-gray-50"
-                  )}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{label}</span>
-                </Link>
-              );
-            })}
-          </>
+          <div className="mt-5 border-t border-gray-100 pt-4">
+            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+              Admin
+            </p>
+            <div className="space-y-1">
+              {ADMIN_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href || pathname.startsWith(`${href}/`);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={onNavigate}
+                    className={cn(
+                      "flex min-h-[44px] items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-colors",
+                      active
+                        ? "border-blue-100 bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         )}
       </nav>
 
       <div className="border-t border-gray-100 p-4">
-        <p className="text-sm text-gray-900 font-medium truncate mb-2">{displayName}</p>
+        <p className="truncate text-sm font-medium text-gray-900">{displayName}</p>
+        <p className="truncate text-xs text-gray-400">{profile?.email ?? "Signed in"}</p>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+          className="mt-3 flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="h-4 w-4" />
           <span>Sign out</span>
         </button>
       </div>

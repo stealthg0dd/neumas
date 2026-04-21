@@ -179,6 +179,13 @@ celery_app.conf.update(
             "schedule": crontab(hour=3, minute=0),
             "options": {"queue": "evaluation"},
         },
+        # Dispatch hourly and let the task decide which properties are at
+        # Monday 08:00 in their local timezone.
+        "weekly-digest-dispatch-hourly": {
+            "task": "reports.send_weekly_digest",
+            "schedule": crontab(minute=0),
+            "options": {"queue": "reports"},
+        },
     },
 )
 

@@ -142,6 +142,46 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 
 -- ---------------------------------------------------------------------------
+-- email_logs  (transactional delivery + webhook events)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS email_logs (
+  id                 uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id    uuid        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  property_id        uuid        REFERENCES properties(id) ON DELETE CASCADE,
+  user_id            uuid        REFERENCES users(id) ON DELETE SET NULL,
+  email              text        NOT NULL,
+  template_name      text        NOT NULL,
+  subject            text        NOT NULL,
+  provider           text        NOT NULL DEFAULT 'sendgrid',
+  provider_message_id text,
+  delivery_status    text        NOT NULL DEFAULT 'queued',
+  error_message      text,
+  metadata           jsonb       NOT NULL DEFAULT '{}',
+  sent_at            timestamptz,
+  delivered_at       timestamptz,
+  opened_at          timestamptz,
+  clicked_at         timestamptz,
+  bounced_at         timestamptz,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  updated_at         timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_logs_org         ON email_logs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_email_logs_property    ON email_logs(property_id);
+CREATE INDEX IF NOT EXISTS idx_email_logs_user        ON email_logs(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_email_logs_email       ON email_logs(email);
+CREATE INDEX IF NOT EXISTS idx_email_logs_template    ON email_logs(template_name);
+CREATE INDEX IF NOT EXISTS idx_email_logs_status      ON email_logs(delivery_status);
+CREATE INDEX IF NOT EXISTS idx_email_logs_provider_id ON email_logs(provider_message_id) WHERE provider_message_id IS NOT NULL;
+ALTER TABLE email_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN CREATE TRIGGER trg_email_logs_updated_at
+  BEFORE UPDATE ON email_logs FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+
+-- ---------------------------------------------------------------------------
 -- feature_flags
 -- NULL organization_id = global default. Org rows override global.
 -- ---------------------------------------------------------------------------

@@ -1,5 +1,3 @@
-'use client'
-
 "use client";
 
 import dynamic from "next/dynamic";
@@ -12,6 +10,7 @@ import {
   Package,
   Plus,
   RotateCcw,
+  RotateCw,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,11 +18,7 @@ import { toast } from "sonner";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { itemToCube, type PantryItemCube } from "@/components/three/PantryScene";
-import {
-  batchInventoryUpdate,
-  getScanStatus,
-  postScanUpload,
-} from "@/lib/api/endpoints";
+import { batchInventoryUpdate, getScanStatus, postScanUpload } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -56,6 +51,73 @@ function mapExtracted(raw: Record<string, unknown>, index: number): ExtractedRow
   };
 }
 
+async function fileToImage(file: File): Promise<HTMLImageElement> {
+  const src = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = src;
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Failed to load image"));
+    });
+    return image;
+  } finally {
+    URL.revokeObjectURL(src);
+  }
+}
+
+async function blobToFile(blob: Blob, originalName: string): Promise<File> {
+  const name = originalName.replace(/\.\w+$/, "") || "scan";
+  return new File([blob], `${name}.jpg`, { type: "image/jpeg" });
+}
+
+async function prepareMobileScanFile(file: File, rotation: number, zoom: number): Promise<File> {
+  const image = await fileToImage(file);
+  const rotate90 = Math.abs(rotation % 180) === 90;
+  const sourceWidth = rotate90 ? image.height : image.width;
+  const targetWidth = Math.min(1600, sourceWidth);
+  const targetHeight = Math.round(targetWidth * 1.25);
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas unavailable");
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, targetWidth, targetHeight);
+  ctx.save();
+  ctx.translate(targetWidth / 2, targetHeight / 2);
+  ctx.rotate((rotation * Math.PI) / 180);
+
+  const baseWidth = rotate90 ? image.height : image.width;
+  const baseHeight = rotate90 ? image.width : image.height;
+  const scale = Math.max(targetWidth / baseWidth, targetHeight / baseHeight) * zoom;
+  ctx.drawImage(
+    image,
+    (-image.width * scale) / 2,
+    (-image.height * scale) / 2,
+    image.width * scale,
+    image.height * scale
+  );
+  ctx.restore();
+
+  let quality = 0.9;
+  let blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", quality)
+  );
+
+  while (blob && blob.size > 2 * 1024 * 1024 && quality > 0.45) {
+    quality -= 0.1;
+    blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", quality)
+    );
+  }
+
+  if (!blob) throw new Error("Image processing failed");
+  return blobToFile(blob, file.name);
+}
+
 export default function NewScanPage() {
   const propertyId = useAuthStore((s) => s.propertyId);
 
@@ -66,6 +128,10 @@ export default function NewScanPage() {
   const [scanId, setScanId] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ExtractedRow[]>([]);
   const [cubes, setCubes] = useState<PantryItemCube[]>([]);
+  const [rotation, setRotation] = useState(0);
+  const [zoom, setZoom] = useState(1.05);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [preparedSize, setPreparedSize] = useState<number | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -78,6 +144,10 @@ export default function NewScanPage() {
     setExtracted([]);
     setCubes([]);
     setBusy(false);
+    setRotation(0);
+    setZoom(1.05);
+    setUploadProgress(0);
+    setPreparedSize(null);
   }, [preview]);
 
   const onFile = useCallback(
@@ -86,8 +156,8 @@ export default function NewScanPage() {
         toast.error("Please upload an image (JPEG, PNG, WebP).");
         return;
       }
-      if (f.size > 10 * 1024 * 1024) {
-        toast.error("Image must be under 10 MB.");
+      if (f.size > 12 * 1024 * 1024) {
+        toast.error("Image must be under 12 MB.");
         return;
       }
       reset();
@@ -106,16 +176,23 @@ export default function NewScanPage() {
     if (!file) return;
 
     setBusy(true);
+    setUploadProgress(0);
     setExtracted([]);
     setCubes([]);
+
     try {
-      const res = await postScanUpload(file, "receipt");
+      const prepared = await prepareMobileScanFile(file, rotation, zoom);
+      setPreparedSize(prepared.size);
+      const res = await postScanUpload(prepared, "receipt", setUploadProgress);
       const sid = res.scan_id ?? res.id ?? null;
       setScanId(sid);
+      setUploadProgress(100);
       toast.success("Scan queued — analyzing…");
     } catch (err) {
       captureUIError("scan_post", err);
+      toast.error("Failed to upload receipt.");
       setBusy(false);
+      setUploadProgress(0);
     }
   };
 
@@ -183,18 +260,18 @@ export default function NewScanPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="mx-auto max-w-6xl space-y-6 pb-12">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+        <h1 className="text-[clamp(1.5rem,6vw,2rem)] font-bold tracking-tight text-[var(--text-primary)]">
           New scan
         </h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Upload a receipt — watch items fill your pantry in 3D.
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          Capture a receipt on shift, optimize it on-device, and sync inventory in seconds.
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 items-start">
-        <GlassCard className="p-6">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <GlassCard className="p-4 sm:p-6">
           <div className="space-y-4">
             <div
               role="button"
@@ -214,7 +291,7 @@ export default function NewScanPage() {
                 if (f) onFile(f);
               }}
               className={cn(
-                "relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-colors sm:min-h-[280px]",
+                "relative flex min-h-[320px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed transition-colors sm:min-h-[420px]",
                 dragging
                   ? "border-[#0071a3] bg-[rgba(0,113,163,0.06)]"
                   : "border-[var(--border-accent)] bg-[var(--surface-elevated)]/50 hover:bg-[var(--surface-elevated)]"
@@ -225,6 +302,7 @@ export default function NewScanPage() {
                 id="scan-file"
                 type="file"
                 accept="image/*"
+                capture="environment"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -232,67 +310,127 @@ export default function NewScanPage() {
                 }}
               />
               {preview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={preview}
-                  alt="Preview"
-                  className="absolute inset-3 rounded-xl object-cover w-[calc(100%-24px)] h-[calc(100%-24px)]"
-                />
+                <div className="absolute inset-0 bg-black">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={preview}
+                    alt="Receipt preview"
+                    className="h-full w-full object-cover transition-transform"
+                    style={{ transform: `rotate(${rotation}deg) scale(${zoom})` }}
+                  />
+                  <div className="absolute inset-x-4 top-4 rounded-2xl border border-white/70 bg-black/35 px-3 py-2 text-xs text-white backdrop-blur">
+                    Crop frame is centered and optimized to under 2 MB before upload.
+                  </div>
+                </div>
               ) : (
                 <>
-                  <div className="mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-[rgba(0,113,163,0.1)] sm:h-14 sm:w-14">
-                    <Camera className="h-10 w-10 text-[#0071a3] sm:h-7 sm:w-7" aria-hidden />
+                  <div className="mb-4 flex h-[88px] w-[88px] items-center justify-center rounded-3xl bg-[rgba(0,113,163,0.1)]">
+                    <Camera className="h-10 w-10 text-[#0071a3]" aria-hidden />
                   </div>
-                  <p className="text-center text-base font-semibold text-[var(--text-primary)] sm:text-sm sm:font-medium">
-                    Tap to photograph receipt
+                  <p className="text-center text-lg font-semibold text-[var(--text-primary)]">
+                    Tap to open your camera
                   </p>
-                  <p className="mt-2 text-center text-sm text-[var(--text-secondary)] sm:mt-1 sm:text-xs">
-                    or upload from files · JPEG, PNG, WebP
-                  </p>
-                  <p className="mt-1 hidden text-center text-xs text-[var(--text-muted)] sm:block">
-                    Drop a file here or click to browse
+                  <p className="mt-2 text-center text-sm text-[var(--text-secondary)]">
+                    Mobile uses the rear camera first. Desktop can still drag and drop.
                   </p>
                 </>
               )}
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => setRotation((value) => value - 90)}
+                disabled={!file || busy}
+                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium text-[var(--text-primary)] disabled:opacity-50"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Rotate left
+              </button>
+              <button
+                type="button"
+                onClick={() => setRotation((value) => value + 90)}
+                disabled={!file || busy}
+                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium text-[var(--text-primary)] disabled:opacity-50"
+              >
+                <RotateCw className="h-4 w-4" />
+                Rotate right
+              </button>
+              <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--text-primary)]">
+                <span className="whitespace-nowrap">Crop / zoom</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="1.8"
+                  step="0.05"
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  disabled={!file || busy}
+                  className="w-full accent-[#0071a3]"
+                />
+              </label>
+            </div>
+
+            {(busy || uploadProgress > 0) && (
+              <div className="rounded-2xl border border-[var(--border)] bg-white p-3">
+                <div className="mb-2 flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                  <span>{scanId ? "Processing receipt" : "Uploading receipt"}</span>
+                  <span className="font-mono">{uploadProgress}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-elevated)]">
+                  <div
+                    className="h-full rounded-full bg-[#0071a3] transition-all"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
               <Button
-                className="min-h-[44px] flex-1 min-w-[140px] bg-[#0071a3] text-base hover:bg-[#005a82] sm:text-sm"
+                className="min-h-[44px] min-w-[140px] flex-1 bg-[#0071a3] text-base text-white hover:bg-[#005a82] sm:text-sm"
                 disabled={!file || busy}
                 onClick={analyze}
               >
                 {busy ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Analyzing…
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading…
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Analyze
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Analyze receipt
                   </>
                 )}
               </Button>
               <Button
                 variant="outline"
-                className="min-h-[44px] min-w-[44px] border-[var(--border)] px-4 text-base sm:text-sm"
+                className="min-h-[44px] border-[var(--border)] px-4 text-base sm:text-sm"
                 onClick={reset}
               >
-                <RotateCcw className="mr-2 h-4 w-4" />
                 Reset
               </Button>
+            </div>
+
+            <div className="text-xs text-[var(--text-muted)]">
+              {file && (
+                <p>
+                  Original: {(file.size / (1024 * 1024)).toFixed(2)} MB
+                  {preparedSize ? ` · Optimized: ${(preparedSize / (1024 * 1024)).toFixed(2)} MB` : " · Will compress before upload"}
+                </p>
+              )}
             </div>
           </div>
         </GlassCard>
 
-        <GlassCard className="p-0 overflow-hidden">
-          <div className="px-5 pt-5 pb-2 flex items-center justify-between">
+        <GlassCard className="overflow-hidden p-0">
+          <div className="flex items-center justify-between px-5 pt-5 pb-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-              <Camera className="w-4 h-4 text-[#0071a3]" />
+              <Camera className="h-4 w-4 text-[#0071a3]" />
               Live pantry preview
             </div>
-            <span className="text-xs text-[var(--text-muted)] font-[family-name:var(--font-neumas-mono)]">
+            <span className="text-xs font-[family-name:var(--font-neumas-mono)] text-[var(--text-muted)]">
               drag to rotate
             </span>
           </div>
@@ -308,7 +446,7 @@ export default function NewScanPage() {
             className="space-y-4"
           >
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">Detected items</h2>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               {extracted.map((row, i) => (
                 <motion.div
                   key={row.id}
@@ -318,19 +456,19 @@ export default function NewScanPage() {
                 >
                   <GlassCard hover={false} className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--surface-elevated)] flex items-center justify-center shrink-0">
-                        <Package className="w-5 h-5 text-[#0071a3]" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-elevated)]">
+                        <Package className="h-5 w-5 text-[#0071a3]" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[var(--text-primary)] truncate">{row.name}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-[var(--text-primary)]">{row.name}</p>
                         <p className="text-xs text-[var(--text-secondary)]">
                           {row.quantity} {row.unit} · {row.category}
                         </p>
-                        <p className="text-xs font-[family-name:var(--font-neumas-mono)] text-[var(--text-muted)] mt-1">
+                        <p className="mt-1 text-xs font-[family-name:var(--font-neumas-mono)] text-[var(--text-muted)]">
                           {Math.round(row.confidence * 100)}% confidence
                         </p>
                       </div>
-                      <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] shrink-0 cursor-pointer">
+                      <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-[var(--text-secondary)]">
                         <input
                           type="checkbox"
                           checked={row.add}
@@ -349,18 +487,18 @@ export default function NewScanPage() {
               ))}
             </div>
             <Button
-              className="w-full sm:w-auto bg-[#0071a3] hover:bg-[#005a82] text-white"
+              className="w-full bg-[#0071a3] text-white hover:bg-[#005a82] sm:w-auto"
               onClick={saveAll}
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="mr-2 h-4 w-4" />
               Save all
             </Button>
             <p className="text-xs text-[var(--text-muted)]">
-              <Link href="/dashboard/inventory" className="text-[#0071a3] font-medium">
+              <Link href="/dashboard/inventory" className="font-medium text-[#0071a3]">
                 View inventory
               </Link>{" "}
               ·{" "}
-              <Link href="/dashboard/scans" className="text-[#0071a3] font-medium">
+              <Link href="/dashboard/scans" className="font-medium text-[#0071a3]">
                 Scan history
               </Link>
             </p>

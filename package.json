@@ -1,0 +1,10 @@
+{
+  "name": "neumas-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "workspaces": [
+    "neumas-web",
+    "neumas-web-vite",
+    "neumas-backend"
+  ]
+}

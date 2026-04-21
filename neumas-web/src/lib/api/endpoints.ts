@@ -53,6 +53,8 @@ function normalizeInventoryListPayload(
   return data as InventoryListResponse;
 }
 import type {
+  DigestPreferencesResponse,
+  DigestPreferencesUpdateRequest,
   LoginRequest,
   LoginResponse,
   SignupRequest,
@@ -75,6 +77,7 @@ import type {
   GenerateListResponse,
   AnalyticsSummary,
 } from "./types";
+import { normalizeShoppingItem } from "./types";
 /**
  * POST /api/auth/google/complete — exchange Supabase JWT for Neumas JWT
  * If onboarding, pass org/property/role in body. If not, pass empty body.
@@ -120,6 +123,18 @@ export async function logout(): Promise<void> {
   await post<void>("/api/auth/logout");
 }
 
+/** GET /api/auth/preferences/digest */
+export async function getDigestPreferences(): Promise<DigestPreferencesResponse> {
+  return get<DigestPreferencesResponse>("/api/auth/preferences/digest");
+}
+
+/** PATCH /api/auth/preferences/digest */
+export async function updateDigestPreferences(
+  payload: DigestPreferencesUpdateRequest
+): Promise<DigestPreferencesResponse> {
+  return patch<DigestPreferencesResponse>("/api/auth/preferences/digest", payload);
+}
+
 /** POST /api/auth/refresh */
 export async function refreshToken(refreshToken: string): Promise<{
   access_token: string;
@@ -138,13 +153,20 @@ export async function refreshToken(refreshToken: string): Promise<{
 export async function uploadScan(
   file: File,
   scanType: "receipt" | "barcode" | "full",
+  onProgress?: (progress: number) => void,
 ): Promise<ScanQueuedResponse> {
   const form = new FormData();
   form.append("file", file);
-  form.append("scan_type", scanType);
+  form.append("scan_type", scanType === "full" ? "receipt" : scanType);
 
   const res = await apiClient.post<ScanQueuedResponse>("/api/scan/upload", form, {
     headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (event) => {
+      if (!onProgress) return;
+      const total = event.total ?? file.size;
+      const next = total > 0 ? Math.min(100, Math.round((event.loaded / total) * 100)) : 0;
+      onProgress(next);
+    },
   });
   return res.data;
 }
@@ -227,7 +249,8 @@ export async function batchInventoryUpdate(
 /** POST /api/scan — multipart (alias of upload path) */
 export async function postScanUpload(
   file: File,
-  scanType: "receipt" | "barcode" | "full"
+  scanType: "receipt" | "barcode" | "full",
+  onProgress?: (progress: number) => void,
 ): Promise<ScanQueuedResponse> {
   const form = new FormData();
   form.append("file", file);
@@ -235,6 +258,12 @@ export async function postScanUpload(
 
   const res = await apiClient.post<ScanQueuedResponse>("/api/scan", form, {
     headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (event) => {
+      if (!onProgress) return;
+      const total = event.total ?? file.size;
+      const next = total > 0 ? Math.min(100, Math.round((event.loaded / total) * 100)) : 0;
+      onProgress(next);
+    },
   });
   return res.data;
 }
@@ -313,7 +342,11 @@ export async function listShoppingLists(params?: {
 
 /** GET /api/shopping-list/{listId} */
 export async function getShoppingList(listId: string): Promise<ShoppingListDetail> {
-  return get<ShoppingListDetail>(`/api/shopping-list/${listId}`);
+  const data = await get<ShoppingListDetail>(`/api/shopping-list/${listId}`);
+  return {
+    ...data,
+    items: Array.isArray(data.items) ? data.items.map(normalizeShoppingItem) : [],
+  };
 }
 
 /** POST /api/shopping-list/generate — enqueue Celery job */
@@ -686,4 +719,3 @@ export async function getReorderRecommendations(params?: {
 }): Promise<ReorderRecommendation[]> {
   return get<ReorderRecommendation[]>("/api/inventory/reorder-recommendations", params);
 }
-

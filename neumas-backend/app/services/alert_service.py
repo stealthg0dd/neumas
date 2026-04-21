@@ -48,6 +48,16 @@ class AlertService:
             .execute()
         )
         items = items_resp.data or []
+        existing_open = await self._repo.list(
+            tenant,
+            state="open",
+            limit=max(200, len(items) * 4 or 50),
+        )
+        existing_pairs = {
+            (str(alert.get("item_id")), str(alert.get("alert_type")))
+            for alert in existing_open
+            if alert.get("item_id") and alert.get("alert_type")
+        }
 
         created: list[dict[str, Any]] = []
 
@@ -55,16 +65,9 @@ class AlertService:
             item_id = UUID(item["id"])
             qty = float(item["quantity"] or 0)
             par = float(item.get("par_level") or 0)
+            item_key = str(item_id)
 
-            # Only create an alert if no open alert of the same type exists
-            existing = await self._repo.list(
-                tenant,
-                state="open",
-                limit=1,
-            )
-            existing_types = {e["alert_type"] for e in existing if e.get("item_id") == str(item_id)}
-
-            if qty == 0 and "out_of_stock" not in existing_types:
+            if qty == 0 and (item_key, "out_of_stock") not in existing_pairs:
                 alert = await self._repo.create(
                     tenant,
                     alert_type="out_of_stock",
@@ -76,8 +79,9 @@ class AlertService:
                 )
                 if alert:
                     created.append(alert)
+                    existing_pairs.add((item_key, "out_of_stock"))
 
-            elif par > 0 and qty <= par and "low_stock" not in existing_types:
+            elif par > 0 and qty <= par and (item_key, "low_stock") not in existing_pairs:
                 alert = await self._repo.create(
                     tenant,
                     alert_type="low_stock",
@@ -89,6 +93,7 @@ class AlertService:
                 )
                 if alert:
                     created.append(alert)
+                    existing_pairs.add((item_key, "low_stock"))
 
         if created:
             logger.info(

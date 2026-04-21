@@ -9,6 +9,22 @@ import { googleComplete } from "@/lib/api/endpoints";
 import { saveSession } from "@/lib/auth-session";
 import type { Session } from "@supabase/supabase-js";
 
+function getCallbackStorageKey(session: Session): string {
+  return `neumas-oauth-callback:${session.user.id}:${session.expires_at ?? "no-exp"}`;
+}
+
+function extractDetailMessage(detail: unknown): string | null {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const first = detail[0];
+    if (typeof first === "string") return first;
+    if (first && typeof first === "object" && "msg" in first) {
+      return String((first as { msg: unknown }).msg);
+    }
+  }
+  return null;
+}
+
 export default function AuthCallbackPage() {
   const router = useRouter();
   // Prevent double-processing when both onAuthStateChange and getSession fire
@@ -19,10 +35,20 @@ export default function AuthCallbackPage() {
 
     async function handleSession(session: Session) {
       if (handled.current) return;
+      const storageKey = getCallbackStorageKey(session);
+      if (typeof window !== "undefined" && sessionStorage.getItem(storageKey) === "done") {
+        handled.current = true;
+        router.replace("/dashboard");
+        return;
+      }
+
       handled.current = true;
       if (fallbackTimer) clearTimeout(fallbackTimer);
 
       try {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(storageKey, "pending");
+        }
         console.info("[auth/callback] completing Google OAuth", {
           userId: session.user.id,
           email: session.user.email ?? null,
@@ -32,20 +58,29 @@ export default function AuthCallbackPage() {
         });
         const loginResp = await googleComplete(session.access_token);
         saveSession(loginResp);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(storageKey, "done");
+        }
         toast.success("Welcome to Neumas!");
         router.replace("/dashboard");
       } catch (err: unknown) {
         const error = err as AxiosError<{ detail?: unknown }>;
         const status = error.response?.status;
         const detail = error.response?.data?.detail;
+        const detailMessage = extractDetailMessage(detail);
 
         console.error("[auth/callback] googleComplete failed", {
           status,
           detail,
+          detailMessage,
           message: error.message,
         });
 
-        if (status === 422 && detail === "onboarding_required") {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem(storageKey);
+        }
+
+        if (status === 422 && detailMessage === "onboarding_required") {
           // New user — backend signalled onboarding_required
           router.replace(
             `/onboard?supabase_jwt=${encodeURIComponent(session.access_token)}`

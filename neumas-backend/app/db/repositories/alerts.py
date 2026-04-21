@@ -123,11 +123,13 @@ class AlertsRepository:
     async def count_open(self, tenant: TenantContext) -> int:
         """Count open alerts for the tenant."""
         client = await get_async_supabase_admin()
-        resp = await (
+        query = (
             client.table("alerts")
             .select("id", count="exact")
             .eq("org_id", str(tenant.org_id))
             .eq("state", "open")
-            .execute()
         )
+        if tenant.property_id:
+            query = query.eq("property_id", str(tenant.property_id))
+        resp = await query.execute()
         return resp.count or 0

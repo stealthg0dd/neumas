@@ -126,6 +126,21 @@ class ProfileResponse(BaseModel):
     role: str
 
 
+class DigestPreferencesResponse(BaseModel):
+    """User digest email preferences."""
+
+    email_digest_enabled: bool = True
+    timezone: str = "UTC"
+    property_timezone: str = "UTC"
+
+
+class DigestPreferencesUpdate(BaseModel):
+    """Partial update for digest preferences."""
+
+    email_digest_enabled: bool | None = None
+    timezone: str | None = None
+
+
 class LoginResponse(BaseModel):
     """Login response with JWT and profile."""
 

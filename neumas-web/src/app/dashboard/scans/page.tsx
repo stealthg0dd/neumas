@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 
-import { uploadScan, getScanStatus } from "@/lib/api/endpoints";
+import { batchInventoryUpdate, getScanStatus, uploadScan } from "@/lib/api/endpoints";
 import type { ScanStatus } from "@/lib/api/types";
 import { useAuthStore } from "@/lib/store/auth";
 import { track, captureUIError } from "@/lib/analytics";
@@ -113,13 +113,13 @@ function DropZone({
   }
 
   function validate(file: File) {
-    const allowed = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
     if (!allowed.includes(file.type)) {
-      toast.error("Unsupported file type. Use JPEG, PNG, WebP, HEIC, or PDF.");
+      toast.error("Unsupported file type. Use JPEG, PNG, WebP, or HEIC.");
       return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error("File too large. Maximum 20 MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File too large. Maximum 10 MB.");
       return;
     }
     onFile(file);
@@ -141,7 +141,7 @@ function DropZone({
           : "border-border/40 bg-surface-1/50 hover:border-border/70 hover:bg-surface-1",
       ].join(" ")}
     >
-      <input ref={inputRef} type="file" className="hidden" accept="image/*,.pdf" onChange={handleInput} />
+      <input ref={inputRef} type="file" className="hidden" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handleInput} />
 
       <motion.div
         animate={dragging ? { y: -8 } : { y: 0 }}
@@ -159,7 +159,7 @@ function DropZone({
           or <span className="text-cyan-400 font-medium">click to browse</span>
         </p>
         <p className="text-xs text-muted-foreground/60 mt-2">
-          JPEG · PNG · WebP · HEIC · PDF · max 20 MB
+          JPEG · PNG · WebP · HEIC · max 10 MB
         </p>
       </div>
     </motion.div>
@@ -182,6 +182,8 @@ export default function ScansPage() {
   const [extracted, setExtracted]       = useState<ExtractedItem[]>([]);
   const [errorMsg, setErrorMsg]         = useState<string>("");
   const [dragging, setDragging]         = useState(false);
+  const [savingToInventory, setSavingToInventory] = useState(false);
+  const [savedToInventory, setSavedToInventory] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -200,6 +202,7 @@ export default function ScansPage() {
     setProgress(0);
     setExtracted([]);
     setErrorMsg("");
+    setSavedToInventory(false);
 
     // Generate preview URL
     if (f.type.startsWith("image/")) {
@@ -304,6 +307,44 @@ export default function ScansPage() {
     setScanStatus(null);
     setExtracted([]);
     setErrorMsg("");
+    setSavingToInventory(false);
+    setSavedToInventory(false);
+  }
+
+  async function addAllToInventory() {
+    const pid = propertyId ?? useAuthStore.getState().propertyId;
+    if (!pid) {
+      toast.error("Property ID not found. Please log out and log in again.");
+      return;
+    }
+    if (extracted.length === 0) {
+      toast.error("No extracted items to add.");
+      return;
+    }
+
+    setSavingToInventory(true);
+    try {
+      await batchInventoryUpdate(
+        extracted.map((item) => ({
+          property_id: pid,
+          item_name: item.name,
+          new_qty: item.quantity,
+          unit: item.unit || "unit",
+          trigger_prediction: true,
+        }))
+      );
+      toast.success(`Added ${extracted.length} items to inventory.`);
+      setSavedToInventory(true);
+      track("inventory_updated", {
+        action: "add",
+        item_count: extracted.length,
+      });
+    } catch (err) {
+      captureUIError("scan_inventory_save", err);
+      toast.error("Failed to add extracted items to inventory.");
+    } finally {
+      setSavingToInventory(false);
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -475,10 +516,15 @@ export default function ScansPage() {
 
             <button
               className="w-full h-11 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-              onClick={() => toast.success("All items added to inventory!")}
+              onClick={addAllToInventory}
+              disabled={savingToInventory || savedToInventory}
             >
               <Plus className="w-4 h-4" />
-              Add all to inventory
+              {savingToInventory
+                ? "Adding to inventory…"
+                : savedToInventory
+                ? "Added to inventory"
+                : "Add all to inventory"}
             </button>
           </motion.div>
         )}
@@ -487,7 +533,7 @@ export default function ScansPage() {
       {/* Recent scans hint (idle) */}
       {uploadState === "idle" && (
         <p className="text-center text-xs text-muted-foreground">
-          Supported formats: JPEG, PNG, WebP, HEIC, PDF ·{" "}
+          Supported formats: JPEG, PNG, WebP, HEIC ·{" "}
           <Link href="/dashboard/scans/history" className="text-cyan-500 hover:text-cyan-400">
             View scan history
           </Link>

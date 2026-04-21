@@ -1,17 +1,15 @@
-'use client'
-
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  User, Building2, Shield, Copy, Check, LogOut, KeyRound,
+  User, Building2, Shield, Copy, Check, LogOut, KeyRound, Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 import { useAuthStore } from "@/lib/store/auth";
-import { logout } from "@/lib/api/endpoints";
+import { getDigestPreferences, logout, updateDigestPreferences } from "@/lib/api/endpoints";
 import { Input } from "@/components/ui/input";
 import { track, resetAnalytics } from "@/lib/analytics";
 
@@ -104,6 +102,39 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState(profile?.full_name ?? "");
   const [saving, setSaving]           = useState(false);
   const [loggingOut, setLoggingOut]   = useState(false);
+  const [digestEnabled, setDigestEnabled] = useState(true);
+  const [timezone, setTimezone] = useState("UTC");
+  const [propertyTimezone, setPropertyTimezone] = useState("UTC");
+  const [loadingDigestPrefs, setLoadingDigestPrefs] = useState(true);
+  const [savingDigestPrefs, setSavingDigestPrefs] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDigestPreferences() {
+      try {
+        const prefs = await getDigestPreferences();
+        if (cancelled) return;
+        setDigestEnabled(prefs.email_digest_enabled);
+        setTimezone(prefs.timezone);
+        setPropertyTimezone(prefs.property_timezone);
+      } catch {
+        if (!cancelled) {
+          toast.error("Failed to load weekly digest preferences.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingDigestPrefs(false);
+        }
+      }
+    }
+
+    void loadDigestPreferences();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSave() {
     setSaving(true);
@@ -111,6 +142,24 @@ export default function SettingsPage() {
     await new Promise((r) => setTimeout(r, 600));
     setSaving(false);
     toast.success("Display name saved.");
+  }
+
+  async function handleSaveDigestPreferences() {
+    setSavingDigestPrefs(true);
+    try {
+      const prefs = await updateDigestPreferences({
+        email_digest_enabled: digestEnabled,
+        timezone: timezone.trim() || propertyTimezone || "UTC",
+      });
+      setDigestEnabled(prefs.email_digest_enabled);
+      setTimezone(prefs.timezone);
+      setPropertyTimezone(prefs.property_timezone);
+      toast.success("Weekly digest preferences saved.");
+    } catch {
+      toast.error("Failed to save weekly digest preferences.");
+    } finally {
+      setSavingDigestPrefs(false);
+    }
   }
 
   async function handleLogout() {
@@ -174,6 +223,54 @@ export default function SettingsPage() {
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               )}
               {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </Section>
+
+        <Section icon={Mail} title="Weekly email digest" accentClass="bg-emerald-500/20 text-emerald-400">
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4 rounded-xl border border-border/40 bg-surface-1/60 p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Email me a weekly property digest</p>
+                <p className="text-xs text-muted-foreground">
+                  Sends a summary every Monday at 8 AM in your selected timezone.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={digestEnabled}
+                  disabled={loadingDigestPrefs || savingDigestPrefs}
+                  onChange={(e) => setDigestEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-border/60"
+                />
+                Enabled
+              </label>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground font-medium">Digest timezone</label>
+              <Input
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                disabled={loadingDigestPrefs || savingDigestPrefs}
+                placeholder="America/New_York"
+                className="h-9 text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground/60">
+                Property default: {propertyTimezone}. Use an IANA timezone like America/New_York or Europe/London.
+              </p>
+            </div>
+
+            <button
+              onClick={handleSaveDigestPreferences}
+              disabled={loadingDigestPrefs || savingDigestPrefs}
+              className="h-9 px-5 rounded-lg bg-emerald-500 text-white text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {(loadingDigestPrefs || savingDigestPrefs) && (
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              )}
+              {loadingDigestPrefs ? "Loading…" : savingDigestPrefs ? "Saving…" : "Save digest settings"}
             </button>
           </div>
         </Section>

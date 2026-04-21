@@ -83,13 +83,13 @@ class ShoppingListsRepository:
         property_id: UUID,
         tenant: "TenantContext",
     ) -> dict[str, Any] | None:
-        """Get the most recent active shopping list for a property."""
+        """Get the most recent non-completed shopping list for a property."""
         try:
             response = await (
                 self.client.table(self.table)
                 .select("*")
                 .eq("property_id", str(property_id))
-                .eq("status", "active")
+                .in_("status", ["draft", "approved", "ordered"])
                 .order("created_at", desc=True)
                 .limit(1)
                 .execute()

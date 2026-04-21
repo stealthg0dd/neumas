@@ -10,6 +10,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { getOAuthRedirectUrl } from "@/lib/app-url";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -39,10 +40,7 @@ export const supabase = createClient(
 
 /** Initiate Google OAuth sign-in via Supabase. */
 export async function signInWithGoogle(): Promise<void> {
-  const redirectTo =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/auth/callback`
-      : "/auth/callback";
+  const redirectTo = getOAuthRedirectUrl();
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",

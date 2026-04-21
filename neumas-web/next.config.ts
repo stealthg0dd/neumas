@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import { getCanonicalAppUrl } from "./src/lib/app-url";
 
 const DEFAULT_BACKEND_URL = "https://neumas-production.up.railway.app";
 
@@ -17,6 +18,8 @@ const BACKEND_URL =
   normalizeAbsoluteUrl(process.env.NEXT_PUBLIC_API_URL) ??
   DEFAULT_BACKEND_URL;
 
+const CANONICAL_APP_URL = getCanonicalAppUrl();
+
 const nextConfig: NextConfig = {
   reactStrictMode: false, // Disable double-invoke in dev; remove once re-render loop is confirmed fixed
   // Produce a standalone build for Docker/Railway deployments.
@@ -27,6 +30,12 @@ const nextConfig: NextConfig = {
       { source: "/inventory", destination: "/dashboard/inventory", permanent: false },
       { source: "/scans/new", destination: "/dashboard/scans/new", permanent: false },
       { source: "/scans", destination: "/dashboard/scans", permanent: false },
+      {
+        source: "/auth/callback",
+        has: [{ type: "host", value: "neumasfinal.vercel.app" }],
+        destination: `${CANONICAL_APP_URL}/auth/callback`,
+        permanent: false,
+      },
     ];
   },
   async rewrites() {

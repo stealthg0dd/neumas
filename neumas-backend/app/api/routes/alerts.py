@@ -31,6 +31,11 @@ async def list_alerts(
     page_size: int = 20,
 ) -> dict:
     offset = (page - 1) * page_size
+    if tenant.property_id and state in (None, "open"):
+        try:
+            await _alert_service.evaluate_inventory(tenant)
+        except Exception as e:
+            logger.warning("Failed to refresh alerts before list", error=str(e))
     alerts = await _alert_service.list_alerts(
         tenant, state=state, alert_type=alert_type, limit=page_size, offset=offset
     )

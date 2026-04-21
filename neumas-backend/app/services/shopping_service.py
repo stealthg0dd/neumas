@@ -142,7 +142,7 @@ class ShoppingService:
             id=UUID(active_list["id"]),
             property_id=property_id,
             name=active_list.get("name", "Shopping List"),
-            status=active_list.get("status", "active"),
+            status=active_list.get("status", "draft"),
             items=items,
             total_items=total_items,
             total_estimated_cost=total_estimated,

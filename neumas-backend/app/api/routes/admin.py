@@ -10,10 +10,11 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from app.api.deps import TenantContext, get_tenant_context
 from app.core.logging import get_logger
+from app.db.repositories.email_logs import EmailLogsRepository
 from app.db.repositories.audit_logs import AuditLogsRepository
 from app.db.supabase_client import get_async_supabase_admin
 
@@ -21,6 +22,7 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 _audit_repo = AuditLogsRepository()
+_email_logs_repo = EmailLogsRepository()
 
 
 # ---------------------------------------------------------------------------
@@ -224,3 +226,69 @@ async def usage_metrics(tenant: AdminTenant) -> dict:
         "open_alerts": alerts_resp.count or 0,
     }
 
+
+# ---------------------------------------------------------------------------
+# Weekly digest reporting
+# ---------------------------------------------------------------------------
+
+
+class SendDigestRequest(BaseModel):
+    property_id: UUID
+    recipient_email: EmailStr | None = None
+    week_start: str | None = None
+    week_end: str | None = None
+    force: bool = True
+
+
+@router.post("/reports/send-digest", summary="Trigger weekly digest send for a property")
+async def send_digest(
+    body: SendDigestRequest,
+    tenant: AdminTenant,
+) -> dict:
+    require_admin_role(tenant)
+
+    try:
+        from app.tasks.report_tasks import send_weekly_digest as send_weekly_digest_task
+
+        task = send_weekly_digest_task.apply_async(
+            kwargs={
+                "property_id": str(body.property_id),
+                "week_start": body.week_start,
+                "week_end": body.week_end,
+                "force": body.force,
+                "recipient_email": body.recipient_email,
+            },
+            queue="reports",
+        )
+    except Exception as exc:
+        logger.error("Failed to enqueue weekly digest task", error=str(exc), property_id=str(body.property_id))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to enqueue weekly digest")
+
+    return {
+        "queued": True,
+        "task_id": task.id,
+        "property_id": str(body.property_id),
+        "recipient_email": body.recipient_email,
+    }
+
+
+@router.get("/reports/email-logs", summary="List weekly digest delivery logs")
+async def list_email_logs(
+    tenant: AdminTenant,
+    property_id: UUID | None = None,
+    delivery_status: str | None = None,
+    email: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict:
+    require_admin_role(tenant)
+    logs = await _email_logs_repo.list_logs(
+        org_id=str(tenant.org_id),
+        property_id=str(property_id) if property_id else None,
+        delivery_status=delivery_status,
+        email=email,
+        template_name="weekly_digest",
+        limit=limit,
+        offset=offset,
+    )
+    return {"logs": logs, "count": len(logs), "limit": limit, "offset": offset}

@@ -94,20 +94,20 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f7]">
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-5 px-1 py-2 sm:space-y-6 sm:px-2 lg:px-8">
         {/* Page header */}
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-[22px] font-bold tracking-tight text-gray-900">
+            <h1 className="text-[clamp(1.5rem,6vw,2.25rem)] font-bold tracking-tight text-gray-900">
               Command center
             </h1>
-            <p className="mt-0.5 text-[13px] text-gray-400">
+            <p className="mt-1 text-[13px] text-gray-400 sm:text-sm">
               Your operation at a glance — updated {updatedLabel}
             </p>
           </div>
           <button
             onClick={loadData}
-            className="flex items-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-4 py-2 text-[12px] font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
+            className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-black/[0.06] bg-white px-4 py-2 text-[12px] font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50 sm:self-auto"
           >
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

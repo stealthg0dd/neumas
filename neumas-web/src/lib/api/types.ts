@@ -49,6 +49,17 @@ export interface SignupResponse {
   profile: ProfileResponse;
 }
 
+export interface DigestPreferencesResponse {
+  email_digest_enabled: boolean;
+  timezone: string;
+  property_timezone: string;
+}
+
+export interface DigestPreferencesUpdateRequest {
+  email_digest_enabled?: boolean;
+  timezone?: string;
+}
+
 // ============================================================================
 // Inventory
 // ============================================================================

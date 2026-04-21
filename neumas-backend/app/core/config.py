@@ -118,6 +118,11 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = Field(default="", description="Anthropic API key")
     GOOGLE_API_KEY: str = Field(default="", description="Google AI (Gemini) API key")
 
+    # Email delivery
+    SENDGRID_API_KEY: str = Field(default="", description="SendGrid API key for transactional email")
+    FROM_EMAIL: str = Field(default="", description="Verified sender email for Neumas reports")
+    FROM_NAME: str = Field(default="Neumas Reports", description="Friendly sender name for digest emails")
+
     # JWT Settings
     JWT_ALGORITHM: str = Field(default="HS256", description="JWT algorithm")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(

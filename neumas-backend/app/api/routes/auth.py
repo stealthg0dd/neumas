@@ -10,8 +10,10 @@ from pydantic import ValidationError
 from app.api.deps import UserInfo, get_current_user, get_token
 from app.core.logging import get_logger
 from app.core.security import TokenValidationError, decode_jwt
-from app.db.supabase_client import get_auth_client
+from app.db.supabase_client import get_async_supabase_admin, get_auth_client
 from app.schemas.auth import (
+    DigestPreferencesResponse,
+    DigestPreferencesUpdate,
     GoogleCompleteRequest,
     LoginRequest,
     LoginResponse,
@@ -141,6 +143,102 @@ async def get_me(
         property_id=user.default_property_id,
         property_name="",
         role=user.role,
+    )
+
+
+@router.get(
+    "/preferences/digest",
+    response_model=DigestPreferencesResponse,
+    summary="Get weekly digest preferences",
+)
+async def get_digest_preferences(
+    user: Annotated[UserInfo, Depends(get_current_user)],
+) -> DigestPreferencesResponse:
+    client = await get_async_supabase_admin()
+    user_row = await (
+        client.table("users")
+        .select("*")
+        .eq("id", str(user.id))
+        .single()
+        .execute()
+    )
+    preferences = (user_row.data or {}).get("preferences") or {}
+    raw_property_id = (
+        (user_row.data or {}).get("default_property_id")
+        or (user_row.data or {}).get("default_property")
+    )
+
+    property_timezone = "UTC"
+    if raw_property_id:
+        property_row = await (
+            client.table("properties")
+            .select("timezone")
+            .eq("id", str(raw_property_id))
+            .single()
+            .execute()
+        )
+        property_timezone = (property_row.data or {}).get("timezone") or "UTC"
+
+    return DigestPreferencesResponse(
+        email_digest_enabled=bool(preferences.get("email_digest_enabled", True)),
+        timezone=preferences.get("timezone") or property_timezone,
+        property_timezone=property_timezone,
+    )
+
+
+@router.patch(
+    "/preferences/digest",
+    response_model=DigestPreferencesResponse,
+    summary="Update weekly digest preferences",
+)
+async def update_digest_preferences(
+    body: DigestPreferencesUpdate,
+    user: Annotated[UserInfo, Depends(get_current_user)],
+) -> DigestPreferencesResponse:
+    client = await get_async_supabase_admin()
+    user_response = await (
+        client.table("users")
+        .select("*")
+        .eq("id", str(user.id))
+        .single()
+        .execute()
+    )
+    if not user_response.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    current_preferences = user_response.data.get("preferences") or {}
+    updated_preferences = {**current_preferences}
+    if body.email_digest_enabled is not None:
+        updated_preferences["email_digest_enabled"] = body.email_digest_enabled
+    if body.timezone is not None:
+        updated_preferences["timezone"] = body.timezone
+
+    await (
+        client.table("users")
+        .update({"preferences": updated_preferences})
+        .eq("id", str(user.id))
+        .execute()
+    )
+
+    raw_property_id = (
+        user_response.data.get("default_property_id")
+        or user_response.data.get("default_property")
+    )
+    property_timezone = "UTC"
+    if raw_property_id:
+        property_row = await (
+            client.table("properties")
+            .select("timezone")
+            .eq("id", str(raw_property_id))
+            .single()
+            .execute()
+        )
+        property_timezone = (property_row.data or {}).get("timezone") or "UTC"
+
+    return DigestPreferencesResponse(
+        email_digest_enabled=bool(updated_preferences.get("email_digest_enabled", True)),
+        timezone=updated_preferences.get("timezone") or property_timezone,
+        property_timezone=property_timezone,
     )
 
 

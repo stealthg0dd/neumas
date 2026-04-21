@@ -1,8 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { PWARegistration } from "@/components/pwa-registration";
+import { getCanonicalAppUrl } from "@/lib/app-url";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-neumas-sans",
@@ -38,7 +40,7 @@ const jsonLd = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://neumasfinal.vercel.app"),
+  metadataBase: new URL(getCanonicalAppUrl()),
   title: {
     default: "Neumas — Your Grocery Autopilot",
     template: "%s | Neumas",
@@ -75,6 +77,19 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
   },
   robots: { index: true, follow: true },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Neumas",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0066FF",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -93,7 +108,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         <ErrorBoundary>
-          <Providers>{children}</Providers>
+          <Providers>
+            <PWARegistration />
+            {children}
+          </Providers>
         </ErrorBoundary>
       </body>
     </html>
