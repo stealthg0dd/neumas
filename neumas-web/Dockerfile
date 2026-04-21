@@ -1,21 +1,22 @@
 # =============================================================================
-# Neumas Web — Dockerfile
-# Node 20 Alpine, multi-stage, standalone Next.js output
+# Neumas Web — Dockerfile (Fixed for pnpm & dynamic port mapping)
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Stage 1: deps — install production node_modules only
+# Stage 1: deps — install production node_modules using pnpm
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS deps
 
 # libc6-compat is needed for some native Node.js bindings on Alpine
 RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm
 
 WORKDIR /app
 
 # Copy manifests and install *production* deps
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --legacy-peer-deps
+# Using pnpm-lock.yaml as the source of truth
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile --prod
 
 # -----------------------------------------------------------------------------
 # Stage 2: builder — full install + next build
@@ -23,12 +24,13 @@ RUN npm ci --omit=dev --legacy-peer-deps
 FROM node:20-alpine AS builder
 
 RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Copy manifests and full install (includes devDeps needed for the build)
-COPY package.json package-lock.json* ./
-RUN npm ci --legacy-peer-deps
+# Copy manifests and full install
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
 # Copy application source
 COPY . .
@@ -37,7 +39,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build — produces .next/standalone and .next/static
-RUN npm run build
+RUN pnpm run build
 
 # -----------------------------------------------------------------------------
 # Stage 3: runner — minimal image with standalone output
@@ -48,6 +50,7 @@ RUN apk add --no-cache libc6-compat wget
 
 WORKDIR /app
 
+# Set defaults, but allow override via ENV
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
@@ -60,19 +63,19 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy the standalone server bundle
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
-# Copy static assets (not included in standalone)
+# Copy static assets and public directory
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy public directory
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 
+# Expose the default port
 EXPOSE 3000
 
-# Health check — polls /api/health every 30 s
+# Health check — Modified to use the dynamic PORT variable
+# This fixes the Railway "Service Unavailable" error
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-  CMD wget -qO- http://localhost:3000/api/health || exit 1
+  CMD wget -qO- http://localhost:${PORT}/api/health || exit 1
 
-# Start the standalone Next.js server
+# Start the standalone Next.js server using the dynamic port
 CMD ["node", "server.js"]
