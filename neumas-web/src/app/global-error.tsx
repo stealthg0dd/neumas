@@ -27,9 +27,23 @@ export default function GlobalError({
   const [traceId, setTraceId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (error.name === "ChunkLoadError") {
+      window.location.reload();
+      return;
+    }
     const eventId = Sentry.captureException(error);
     setTraceId(eventId ?? null);
   }, [error]);
+
+  if (error.name === "ChunkLoadError") {
+    return (
+      <html lang="en" className="dark">
+        <body className="min-h-screen flex items-center justify-center bg-[oklch(0.08_0.005_240)] text-[oklch(0.95_0.005_240)] px-4">
+          <p className="text-sm text-[oklch(0.65_0.01_240)]">Updating&hellip;</p>
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="en" className="dark">

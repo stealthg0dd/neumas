@@ -659,6 +659,10 @@ class AuthService:
                 if not prop_resp.data:
                     raise ValueError("Failed to create property for existing Google user")
                 prop = prop_resp.data[0]
+                # Back-fill default_property_id so /me stops returning 403
+                await admin_client.table("users").update({
+                    "default_property_id": str(prop["id"]),
+                }).eq("id", str(user["id"])).execute()
 
             return ProfileResponse(
                 user_id=user_id,
@@ -697,6 +701,7 @@ class AuthService:
                 "auth_id": auth_id,
                 "email": email.lower(),
                 "org_id": str(org_id),
+                "default_property_id": str(property_id),
                 "role": role,
                 "is_active": True,
             }).execute()

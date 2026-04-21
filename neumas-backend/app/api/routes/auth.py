@@ -5,7 +5,6 @@ Authentication routes.
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
-from fastapi.responses import JSONResponse
 
 from app.api.deps import UserInfo, get_current_user, get_token
 from app.core.logging import get_logger
@@ -243,32 +242,78 @@ async def update_digest_preferences(
 
 @router.post(
     "/google/complete",
-    deprecated=True,
-    summary="Complete Google OAuth profile",
-    description=(
-        "Deprecated route. Moved to Next.js /auth/callback for PKCE cookie support."
-    ),
+    response_model=LoginResponse,
+    summary="Complete Google OAuth onboarding",
+    description="Provision Neumas DB records for a Google OAuth user and return a session.",
 )
-async def complete_google_signup(
+async def complete_google_oauth(
     response: Response,
     token: Annotated[str, Depends(get_token)],
     raw_payload: Annotated[dict[str, Any] | None, Body()] = None,
-) -> JSONResponse:
+) -> LoginResponse:
     """
-    Deprecated route.
+    Called by the onboarding page after a Google OAuth user provides their
+    org and property name.  Verifies the Supabase JWT, provisions backend
+    records if they don't exist, and returns a LoginResponse so the frontend
+    can immediately save the session and navigate to the dashboard.
+    """
+    # -- Verify Supabase JWT and extract identity -------------------------------
+    auth_id: str | None = None
+    email: str = ""
+    try:
+        auth_client = await get_async_supabase_admin()
+        if auth_client:
+            auth_response = await auth_client.auth.get_user(token)
+            if auth_response.user:
+                auth_id = str(auth_response.user.id)
+                email = auth_response.user.email or ""
+    except Exception:
+        pass
 
-    Moved to Next.js /auth/callback for PKCE cookie support.
-    """
-    logger.warning(
-        "Deprecated Google OAuth completion endpoint called",
-        payload_keys=sorted((raw_payload or {}).keys()),
-        token_length=len(token),
-    )
-    return JSONResponse(
-        status_code=status.HTTP_410_GONE,
-        content={
-            "detail": "Moved to Next.js /auth/callback for PKCE cookie support"
-        },
+    # Fallback: decode JWT locally (works when SUPABASE_JWT_SECRET is set)
+    if not auth_id:
+        try:
+            from app.core.security import decode_jwt
+            payload = decode_jwt(token)
+            auth_id = payload.get("sub", "")
+            email = payload.get("email", "")
+        except Exception as exc:
+            logger.warning("google/complete: token validation failed", error=str(exc))
+
+    if not auth_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    # -- Provision backend records if needed -----------------------------------
+    body = raw_payload or {}
+    default_org = email.split("@")[0].replace(".", " ").title() + " Organization" if email else "My Organization"
+    org_name = (body.get("org_name") or "").strip() or default_org
+    property_name = (body.get("property_name") or "").strip() or "Main Property"
+    role: str = body.get("role") or "admin"
+
+    try:
+        profile = await auth_service.complete_google_signup(
+            auth_id=auth_id,
+            email=email,
+            org_name=org_name,
+            property_name=property_name,
+            role=role,
+        )
+    except Exception as exc:
+        logger.error("google/complete: provisioning failed", auth_id=auth_id, error=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to complete sign-up. Please try again.",
+        )
+
+    logger.info("google/complete: user provisioned", auth_id=auth_id, email=email)
+    return LoginResponse(
+        access_token=token,
+        expires_in=3600,
+        refresh_token=None,
+        profile=profile,
     )
 
 

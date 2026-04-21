@@ -1,9 +1,8 @@
-'use client'
-
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,12 +27,22 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthForm />
+    </Suspense>
+  );
+}
+
+function AuthForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { saveAuth } = useAuthStore();
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const hasSession = useAuthStore(selectHasSession);
   const [showPwd, setShowPwd] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const oauthError = searchParams?.get("error") === "oauth_complete_failed";
 
   useEffect(() => {
     if (hasHydrated && hasSession) {
@@ -93,6 +102,12 @@ export default function AuthPage() {
               <div className="text-2xl font-bold text-[#0071a3] tracking-tight">Neumas</div>
               <h1 className="text-xl font-bold text-[var(--text-primary)]">Sign in to Neumas</h1>
             </div>
+
+            {oauthError && (
+              <p className="text-xs text-[#ff3b30] text-center rounded-lg bg-[#fff1f0] px-3 py-2 border border-[#ff3b30]/20">
+                Sign-in failed. Please try again.
+              </p>
+            )}
 
             <button
               type="button"
@@ -200,3 +215,4 @@ export default function AuthPage() {
     </div>
   );
 }
+

@@ -22,9 +22,23 @@ export default function RouteError({
   const [traceId, setTraceId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (error.name === "ChunkLoadError") {
+      window.location.reload();
+      return;
+    }
     const eventId = Sentry.captureException(error);
     setTraceId(eventId ?? null);
   }, [error]);
+
+  if (error.name === "ChunkLoadError") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-xl border border-border bg-card p-8 shadow-lg text-center space-y-4">
+          <p className="text-sm text-muted-foreground">Updating&hellip;</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">

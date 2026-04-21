@@ -59,7 +59,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (hasHydrated && !hasSession) {
-      router.replace("/login");
+      router.replace("/auth");
     }
   }, [hasHydrated, hasSession, router]);
 
