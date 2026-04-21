@@ -31,11 +31,12 @@ function stripTrailingSlash(value: string): string {
 }
 
 function getBrowserBaseUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (configured?.startsWith("/")) {
-    return stripTrailingSlash(configured) || "/";
-  }
-  return "/api";
+  // All endpoint paths already include the /api/ prefix (e.g. "/api/scan",
+  // "/api/auth/me"). Using an empty baseURL lets the browser send them to the
+  // current origin; Next.js rewrites /api/* to the Railway backend.
+  // A non-empty baseURL like "/api" would cause Axios to combine it with the
+  // path into "/api/api/scan" — the double-prefix 404 bug.
+  return "";
 }
 
 function getServerBaseUrl(): string {
