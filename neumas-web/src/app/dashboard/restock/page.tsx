@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import {
   exportVendorOrder,
+  getDigestPreferences,
   getRestockPreview,
   recomputeBurnRate,
   setAutoReorder,
@@ -14,8 +15,8 @@ import type { RestockPreviewResponse, RestockVendorGroup } from "@/lib/api/types
 import { Button } from "@/components/ui/button";
 import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
 
-function currency(value: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value || 0);
+function currency(value: number, currencyCode: string): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode || "USD" }).format(value || 0);
 }
 
 export default function RestockPage() {
@@ -26,6 +27,26 @@ export default function RestockPage() {
   const [runoutThresholdDays, setRunoutThresholdDays] = useState(7);
   const [autoCalculateReorder, setAutoCalculateReorder] = useState(false);
   const [safetyBuffer, setSafetyBuffer] = useState(0);
+  const [preferredCurrency, setPreferredCurrency] = useState("USD");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPrefs() {
+      try {
+        const prefs = await getDigestPreferences();
+        if (!cancelled) {
+          setPreferredCurrency((prefs.preferred_currency || "USD").toUpperCase());
+          setSafetyBuffer(prefs.safety_buffer_days ?? 0);
+        }
+      } catch {
+        if (!cancelled) setPreferredCurrency("USD");
+      }
+    }
+    void loadPrefs();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fetchPreview = useCallback(async (days: number, isRefresh = false) => {
     try {
@@ -106,6 +127,10 @@ export default function RestockPage() {
         window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank", "noopener,noreferrer");
       }
 
+      if (payload.currency_code && payload.currency_code !== preferredCurrency) {
+        setPreferredCurrency(payload.currency_code);
+      }
+
       toast.success("Order summary generated. Use print-to-PDF from the downloaded file.");
     } catch {
       toast.error("Unable to generate vendor order export.");
@@ -146,7 +171,7 @@ export default function RestockPage() {
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <p className="text-xs text-gray-500">Estimated total</p>
-          <p className="mt-1 text-xl font-semibold text-gray-900">{currency(totals.cost)}</p>
+          <p className="mt-1 text-xl font-semibold text-gray-900">{currency(totals.cost, preferredCurrency)}</p>
         </div>
       </div>
 
@@ -204,7 +229,7 @@ export default function RestockPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-500">Estimated PO total</p>
-                  <p className="text-lg font-semibold text-gray-900">{currency(group.total_estimated_cost)}</p>
+                  <p className="text-lg font-semibold text-gray-900">{currency(group.total_estimated_cost, preferredCurrency)}</p>
                 </div>
               </div>
 
@@ -228,7 +253,7 @@ export default function RestockPage() {
                         <td className="px-2 py-2">{item.average_daily_usage}</td>
                         <td className="px-2 py-2">{item.runout_days} days</td>
                         <td className="px-2 py-2">{item.needed_quantity} {item.unit}</td>
-                        <td className="px-2 py-2">{currency(item.estimated_cost)}</td>
+                        <td className="px-2 py-2">{currency(item.estimated_cost, preferredCurrency)}</td>
                       </tr>
                     ))}
                   </tbody>

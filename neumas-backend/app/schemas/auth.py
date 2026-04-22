@@ -132,6 +132,8 @@ class DigestPreferencesResponse(BaseModel):
     email_digest_enabled: bool = True
     timezone: str = "UTC"
     property_timezone: str = "UTC"
+    safety_buffer_days: int = 3
+    preferred_currency: str = "USD"
 
 
 class DigestPreferencesUpdate(BaseModel):
@@ -139,6 +141,8 @@ class DigestPreferencesUpdate(BaseModel):
 
     email_digest_enabled: bool | None = None
     timezone: str | None = None
+    safety_buffer_days: int | None = Field(default=None, ge=0, le=60)
+    preferred_currency: str | None = Field(default=None, min_length=3, max_length=3)
 
 
 class LoginResponse(BaseModel):

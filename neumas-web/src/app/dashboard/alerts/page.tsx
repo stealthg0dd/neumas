@@ -33,6 +33,7 @@ const ALERT_TYPES = [
   { value: "", label: "All types" },
   { value: "low_stock", label: "Low stock" },
   { value: "out_of_stock", label: "Out of stock" },
+  { value: "predicted_stockout", label: "Predicted stockout" },
   { value: "expiry_risk", label: "Expiry risk" },
   { value: "unusual_price_increase", label: "Price spike" },
   { value: "no_recent_scan", label: "No recent scan" },
@@ -362,7 +363,8 @@ export default function AlertsPage() {
                 : "Your inventory levels are healthy. We'll alert you immediately if anything needs attention."
               : "Nothing here right now."
           }
-          secondaryCta={typeFilter || severityFilter ? { label: "Clear filters", href: "#" } : undefined}
+          cta={stateFilter === "open" ? { label: "Go to restock", href: "/dashboard/restock" } : undefined}
+          secondaryCta={typeFilter || severityFilter ? { label: "Go to predictions", href: "/dashboard/predictions" } : undefined}
         />
       ) : (
         <AnimatePresence initial={false}>

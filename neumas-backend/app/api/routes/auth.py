@@ -181,6 +181,8 @@ async def get_digest_preferences(
         email_digest_enabled=bool(preferences.get("email_digest_enabled", True)),
         timezone=preferences.get("timezone") or property_timezone,
         property_timezone=property_timezone,
+        safety_buffer_days=int(preferences.get("safety_buffer_days", 3) or 3),
+        preferred_currency=str(preferences.get("preferred_currency", "USD") or "USD").upper(),
     )
 
 
@@ -210,6 +212,10 @@ async def update_digest_preferences(
         updated_preferences["email_digest_enabled"] = body.email_digest_enabled
     if body.timezone is not None:
         updated_preferences["timezone"] = body.timezone
+    if body.safety_buffer_days is not None:
+        updated_preferences["safety_buffer_days"] = body.safety_buffer_days
+    if body.preferred_currency is not None:
+        updated_preferences["preferred_currency"] = body.preferred_currency.upper()
 
     await (
         client.table("users")
@@ -237,6 +243,8 @@ async def update_digest_preferences(
         email_digest_enabled=bool(updated_preferences.get("email_digest_enabled", True)),
         timezone=updated_preferences.get("timezone") or property_timezone,
         property_timezone=property_timezone,
+        safety_buffer_days=int(updated_preferences.get("safety_buffer_days", 3) or 3),
+        preferred_currency=str(updated_preferences.get("preferred_currency", "USD") or "USD").upper(),
     )
 
 

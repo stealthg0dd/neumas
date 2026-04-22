@@ -13,6 +13,8 @@ import { getDigestPreferences, logout, updateDigestPreferences } from "@/lib/api
 import { Input } from "@/components/ui/input";
 import { track, resetAnalytics } from "@/lib/analytics";
 
+const CURRENCIES = ["USD", "SGD", "AUD", "JPY", "HKD", "INR", "THB", "MYR", "IDR", "VND"];
+
 // ── Animation variants ────────────────────────────────────────────────────────
 
 const container = {
@@ -105,6 +107,8 @@ export default function SettingsPage() {
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [timezone, setTimezone] = useState("UTC");
   const [propertyTimezone, setPropertyTimezone] = useState("UTC");
+  const [safetyBufferDays, setSafetyBufferDays] = useState(3);
+  const [preferredCurrency, setPreferredCurrency] = useState("USD");
   const [loadingDigestPrefs, setLoadingDigestPrefs] = useState(true);
   const [savingDigestPrefs, setSavingDigestPrefs] = useState(false);
 
@@ -118,6 +122,8 @@ export default function SettingsPage() {
         setDigestEnabled(prefs.email_digest_enabled);
         setTimezone(prefs.timezone);
         setPropertyTimezone(prefs.property_timezone);
+        setSafetyBufferDays(prefs.safety_buffer_days ?? 3);
+        setPreferredCurrency((prefs.preferred_currency ?? "USD").toUpperCase());
       } catch {
         if (!cancelled) {
           toast.error("Failed to load weekly digest preferences.");
@@ -150,10 +156,14 @@ export default function SettingsPage() {
       const prefs = await updateDigestPreferences({
         email_digest_enabled: digestEnabled,
         timezone: timezone.trim() || propertyTimezone || "UTC",
+        safety_buffer_days: Math.max(0, Math.min(60, Math.round(safetyBufferDays))),
+        preferred_currency: preferredCurrency.toUpperCase(),
       });
       setDigestEnabled(prefs.email_digest_enabled);
       setTimezone(prefs.timezone);
       setPropertyTimezone(prefs.property_timezone);
+      setSafetyBufferDays(prefs.safety_buffer_days ?? 3);
+      setPreferredCurrency((prefs.preferred_currency ?? "USD").toUpperCase());
       toast.success("Weekly digest preferences saved.");
     } catch {
       toast.error("Failed to save weekly digest preferences.");
@@ -227,7 +237,7 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <Section icon={Mail} title="Weekly email digest" accentClass="bg-emerald-500/20 text-emerald-400">
+        <Section icon={Mail} title="Notifications & procurement defaults" accentClass="bg-emerald-500/20 text-emerald-400">
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4 rounded-xl border border-border/40 bg-surface-1/60 p-4">
               <div className="space-y-1">
@@ -259,6 +269,45 @@ export default function SettingsPage() {
               />
               <p className="text-[11px] text-muted-foreground/60">
                 Property default: {propertyTimezone}. Use an IANA timezone like America/New_York or Europe/London.
+              </p>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-border/40 bg-surface-1/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm font-medium text-foreground">Default safety buffer</label>
+                <span className="text-sm font-semibold text-emerald-400">{safetyBufferDays} days</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={30}
+                step={1}
+                value={safetyBufferDays}
+                disabled={loadingDigestPrefs || savingDigestPrefs}
+                onChange={(e) => setSafetyBufferDays(Number(e.target.value))}
+                className="w-full accent-emerald-500"
+              />
+              <p className="text-[11px] text-muted-foreground/70">
+                Used as the default lead-time buffer for predictive restock and export recommendations.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground font-medium">Preferred currency</label>
+              <select
+                value={preferredCurrency}
+                disabled={loadingDigestPrefs || savingDigestPrefs}
+                onChange={(e) => setPreferredCurrency(e.target.value.toUpperCase())}
+                className="h-9 w-full rounded-md border border-border/40 bg-background px-3 text-sm text-foreground"
+              >
+                {CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground/60">
+                Applied to restock exports and procurement summaries across your command center.
               </p>
             </div>
 

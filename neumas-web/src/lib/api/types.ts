@@ -53,11 +53,33 @@ export interface DigestPreferencesResponse {
   email_digest_enabled: boolean;
   timezone: string;
   property_timezone: string;
+  safety_buffer_days: number;
+  preferred_currency: string;
 }
 
 export interface DigestPreferencesUpdateRequest {
   email_digest_enabled?: boolean;
   timezone?: string;
+  safety_buffer_days?: number;
+  preferred_currency?: string;
+}
+
+export interface PropertyStockHealth {
+  property_id: string;
+  name: string;
+  region: string | null;
+  country: string | null;
+  low_stock: number;
+  out_of_stock: number;
+  predicted_stockout: number;
+  risk_score: number;
+  status: "green" | "amber" | "red";
+}
+
+export interface OrgPropertyStockHealthResponse {
+  organization_id: string;
+  red_count: number;
+  properties: PropertyStockHealth[];
 }
 
 // ============================================================================
@@ -212,6 +234,8 @@ export interface VendorOrderExportResponse {
   email_body: string;
   total_estimated_cost: number | null;
   item_count: number | null;
+  currency_code?: string | null;
+  currency_symbol?: string | null;
 }
 
 // ============================================================================
@@ -451,6 +475,7 @@ export interface AnalyticsSummary {
   predictions_count:  number;
   scans_total:        number;
   spend_history:      SpendHistoryPoint[];
+  inventory_value_history?: Array<{ date: string; value: number }>;
   confidence_history: ConfidenceHistoryPoint[];
   category_breakdown: CategoryBreakdownPoint[];
   urgency_breakdown:  UrgencyBreakdown;

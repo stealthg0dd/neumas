@@ -5,7 +5,7 @@ Analytics routes — real computed metrics from live data.
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter
@@ -16,6 +16,7 @@ from app.db.repositories.inventory import get_inventory_repository
 from app.db.repositories.predictions import get_predictions_repository
 from app.db.repositories.scans import get_scans_repository
 from app.db.repositories.shopping_lists import get_shopping_lists_repository
+from app.db.supabase_client import get_async_supabase_admin
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -32,6 +33,60 @@ def _fmt_date(iso: str) -> str:
 
 def _dt_to_label(dt: datetime) -> str:
     return dt.strftime("%b %d").replace(" 0", " ").strip()
+
+
+async def _record_inventory_value_snapshot(
+    tenant: TenantContext,
+    inventory_items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Upsert today's inventory value and return recent snapshot history."""
+    if not tenant.property_id:
+        return []
+
+    total_value = 0.0
+    for item in inventory_items:
+        total_value += float(item.get("quantity") or 0) * float(item.get("cost_per_unit") or 0)
+
+    client = await get_async_supabase_admin()
+    today = date.today().isoformat()
+    await (
+        client.table("inventory_value_snapshots")
+        .upsert(
+            {
+                "organization_id": str(tenant.org_id),
+                "property_id": str(tenant.property_id),
+                "snapshot_date": today,
+                "inventory_value": round(total_value, 2),
+            },
+            on_conflict="organization_id,property_id,snapshot_date",
+        )
+        .execute()
+    )
+
+    since = (date.today() - timedelta(days=13)).isoformat()
+    history_resp = await (
+        client.table("inventory_value_snapshots")
+        .select("snapshot_date,inventory_value")
+        .eq("organization_id", str(tenant.org_id))
+        .eq("property_id", str(tenant.property_id))
+        .gte("snapshot_date", since)
+        .order("snapshot_date")
+        .execute()
+    )
+    rows = history_resp.data or []
+
+    by_date = {str(r.get("snapshot_date")): float(r.get("inventory_value") or 0) for r in rows}
+    points: list[dict[str, Any]] = []
+    for i in range(14):
+        d = date.today() - timedelta(days=13 - i)
+        key = d.isoformat()
+        points.append(
+            {
+                "date": _dt_to_label(datetime.combine(d, datetime.min.time(), tzinfo=UTC)),
+                "value": round(by_date.get(key, 0.0), 2),
+            }
+        )
+    return points
 
 
 @router.get("/summary")
@@ -197,6 +252,11 @@ async def get_analytics_summary(
 
     urgency_breakdown = {k: urgency_map[k] for k in ("critical", "urgent", "soon", "later")}
 
+    inventory_value_history = await _record_inventory_value_snapshot(
+        tenant=tenant,
+        inventory_items=inventory_items,
+    )
+
     return {
         "spend_total":          round(spend_total, 2),
         "avg_confidence_pct":   avg_confidence_pct,
@@ -204,6 +264,7 @@ async def get_analytics_summary(
         "predictions_count":    len(predictions),
         "scans_total":          len(scans),
         "spend_history":        spend_history,
+        "inventory_value_history": inventory_value_history,
         "confidence_history":   confidence_history,
         "category_breakdown":   category_breakdown,
         "urgency_breakdown":    urgency_breakdown,

@@ -303,6 +303,8 @@ class VendorOrderExportResponse(BaseModel):
     email_body: str
     total_estimated_cost: Decimal | None = None
     item_count: int | None = None
+    currency_code: str | None = None
+    currency_symbol: str | None = None
 
 
 class InventorySearchRequest(BaseModel):

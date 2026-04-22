@@ -12,6 +12,7 @@ Each check is idempotent — no duplicate open alerts are created for the
 same item+type combination.
 """
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -43,7 +44,9 @@ class AlertService:
 
         items_resp = await (
             client.table("inventory_items")
-            .select("id, name, quantity, par_level, unit, updated_at")
+            .select(
+                "id, name, quantity, par_level, unit, updated_at, average_daily_usage, safety_buffer"
+            )
             .eq("property_id", prop_filter)
             .execute()
         )
@@ -94,6 +97,50 @@ class AlertService:
                 if alert:
                     created.append(alert)
                     existing_pairs.add((item_key, "low_stock"))
+
+            avg_daily_usage = float(item.get("average_daily_usage") or 0)
+            safety_buffer_days = float(item.get("safety_buffer") or 0)
+
+            # Predictive restock trigger: fire when projected stockout is within the
+            # configured safety buffer window.
+            if (
+                avg_daily_usage > 0
+                and qty > 0
+                and (item_key, "predicted_stockout") not in existing_pairs
+            ):
+                days_until_stockout = qty / avg_daily_usage
+                if days_until_stockout <= max(1.0, safety_buffer_days):
+                    predicted_date = (
+                        datetime.now(UTC) + timedelta(days=max(days_until_stockout, 0))
+                    ).date()
+                    severity = (
+                        "critical"
+                        if days_until_stockout <= 1
+                        else "high"
+                        if days_until_stockout <= 3
+                        else "medium"
+                    )
+                    alert = await self._repo.create(
+                        tenant,
+                        alert_type="predicted_stockout",
+                        severity=severity,
+                        title=f"{item['name']} predicted to stock out soon",
+                        body=(
+                            f"Projected depletion in {max(0, int(round(days_until_stockout)))} day(s) "
+                            f"around {predicted_date.isoformat()}."
+                        ),
+                        item_id=item_id,
+                        metadata={
+                            "quantity": qty,
+                            "average_daily_usage": avg_daily_usage,
+                            "safety_buffer_days": safety_buffer_days,
+                            "days_until_stockout": round(days_until_stockout, 2),
+                            "predicted_stockout_date": predicted_date.isoformat(),
+                        },
+                    )
+                    if alert:
+                        created.append(alert)
+                        existing_pairs.add((item_key, "predicted_stockout"))
 
         if created:
             logger.info(

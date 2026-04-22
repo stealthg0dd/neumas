@@ -21,6 +21,55 @@ def _to_float(value: Any, default: float = 0.0) -> float:
 class RestockService:
     """Burn-rate analytics and predictive restock orchestration."""
 
+    async def _resolve_currency_context(self, tenant: TenantContext) -> tuple[str, str]:
+        """Resolve preferred currency code/symbol for current user/property."""
+        client = await get_async_supabase_admin()
+        code = "USD"
+
+        try:
+            user_resp = await (
+                client.table("users")
+                .select("preferences")
+                .eq("id", str(tenant.user_id))
+                .single()
+                .execute()
+            )
+            prefs = (user_resp.data or {}).get("preferences") or {}
+            preferred = str(prefs.get("preferred_currency") or "").strip().upper()
+            if preferred:
+                code = preferred
+        except Exception:
+            logger.debug("Preferred currency unavailable from user preferences")
+
+        if code == "USD" and tenant.property_id:
+            try:
+                prop_resp = await (
+                    client.table("properties")
+                    .select("currency")
+                    .eq("id", str(tenant.property_id))
+                    .single()
+                    .execute()
+                )
+                prop_currency = str((prop_resp.data or {}).get("currency") or "").strip().upper()
+                if prop_currency:
+                    code = prop_currency
+            except Exception:
+                logger.debug("Property currency unavailable, using USD")
+
+        symbol = {
+            "USD": "$",
+            "SGD": "S$",
+            "AUD": "A$",
+            "JPY": "JPY ",
+            "HKD": "HK$",
+            "INR": "INR ",
+            "THB": "THB ",
+            "MYR": "RM ",
+            "IDR": "IDR ",
+            "VND": "VND ",
+        }.get(code, f"{code} ")
+        return code, symbol
+
     async def recompute_burn_rates(
         self,
         tenant: TenantContext,
@@ -230,6 +279,11 @@ class RestockService:
         vendor_id: str,
         runout_threshold_days: int = 7,
     ) -> dict[str, Any]:
+        currency_code, currency_symbol = await self._resolve_currency_context(tenant)
+
+        def _money(value: float) -> str:
+            return f"{currency_symbol}{value:.2f}"
+
         preview = await self.get_vendor_restock_preview(
             tenant=tenant,
             runout_threshold_days=runout_threshold_days,
@@ -241,6 +295,8 @@ class RestockService:
                 "html": "",
                 "email_subject": "",
                 "email_body": "No restock items currently required for this vendor.",
+                "currency_code": currency_code,
+                "currency_symbol": currency_symbol,
             }
 
         vendor = vendor_group["vendor"]
@@ -249,7 +305,7 @@ class RestockService:
             rows.append(
                 f"<tr><td>{item['name']}</td><td>{item['needed_quantity']} {item['unit']}</td>"
                 f"<td>{item['current_quantity']}</td><td>{item['average_daily_usage']}</td>"
-                f"<td>${item['unit_cost']:.2f}</td><td>${item['estimated_cost']:.2f}</td></tr>"
+                f"<td>{_money(item['unit_cost'])}</td><td>{_money(item['estimated_cost'])}</td></tr>"
             )
         html = (
             "<html><head><style>body{font-family:Arial,sans-serif;}"
@@ -262,7 +318,7 @@ class RestockService:
             "<th>Daily Usage</th><th>Unit Cost</th><th>Est. Cost</th></tr></thead><tbody>"
             + "".join(rows)
             + "</tbody></table>"
-            f"<h3>Total Estimated Cost: ${vendor_group['total_estimated_cost']:.2f}</h3>"
+            f"<h3>Total Estimated Cost: {_money(vendor_group['total_estimated_cost'])} ({currency_code})</h3>"
             "</body></html>"
         )
 
@@ -274,11 +330,11 @@ class RestockService:
         ]
         for item in vendor_group["items"]:
             email_lines.append(
-                f"- {item['name']}: {item['needed_quantity']} {item['unit']} (est. ${item['estimated_cost']:.2f})"
+                f"- {item['name']}: {item['needed_quantity']} {item['unit']} (est. {_money(item['estimated_cost'])})"
             )
         email_lines.extend([
             "",
-            f"Total estimated cost: ${vendor_group['total_estimated_cost']:.2f}",
+            f"Total estimated cost: {_money(vendor_group['total_estimated_cost'])} ({currency_code})",
             "",
             "Best regards,",
             "Neumas Procurement",
@@ -292,4 +348,6 @@ class RestockService:
             "email_body": "\n".join(email_lines),
             "total_estimated_cost": vendor_group["total_estimated_cost"],
             "item_count": len(vendor_group["items"]),
+            "currency_code": currency_code,
+            "currency_symbol": currency_symbol,
         }

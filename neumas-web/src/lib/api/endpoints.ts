@@ -84,6 +84,7 @@ import type {
   GenerateListRequest,
   GenerateListResponse,
   AnalyticsSummary,
+  OrgPropertyStockHealthResponse,
   VendorOrderExportResponse,
 } from "./types";
 import { normalizeShoppingItem } from "./types";
@@ -412,6 +413,11 @@ export async function markItemPurchased(
 /** GET /api/analytics/summary */
 export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
   return get<AnalyticsSummary>("/api/analytics/summary");
+}
+
+/** GET /api/admin/properties/stock-health */
+export async function getOrgPropertyStockHealth(): Promise<OrgPropertyStockHealthResponse> {
+  return get<OrgPropertyStockHealthResponse>("/api/admin/properties/stock-health");
 }
 
 // ============================================================================

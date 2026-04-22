@@ -6,6 +6,7 @@ All endpoints require role == "admin" (enforced by require_admin_role dependency
 """
 
 import contextlib
+from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
@@ -294,6 +295,99 @@ async def get_stats(tenant: AdminTenant) -> dict:
         "total_scans_24h":       len(scans),
         "total_low_stock_items": low_stock_count,
         "computed_at":           datetime.now(UTC).isoformat(),
+    }
+
+
+@router.get("/properties/stock-health", summary="Org-wide per-property stock health")
+async def get_property_stock_health(tenant: AdminTenant) -> dict:
+    """
+    Returns a dense org overview for command-center rendering.
+
+    Each property includes low/out-of-stock and predicted-stockout risk counts,
+    plus a status bucket where "red" indicates high immediate risk.
+    """
+    require_admin_role(tenant)
+    client = await get_async_supabase_admin()
+
+    props_resp = await (
+        client.table("properties")
+        .select("id,name")
+        .eq("organization_id", str(tenant.org_id))
+        .order("name")
+        .execute()
+    )
+    properties = props_resp.data or []
+    if not properties:
+        return {"properties": [], "red_count": 0, "organization_id": str(tenant.org_id)}
+
+    prop_ids = [p["id"] for p in properties]
+
+    items_resp = await (
+        client.table("inventory_items")
+        .select("property_id,quantity,reorder_point,par_level")
+        .in_("property_id", prop_ids)
+        .eq("is_active", True)
+        .execute()
+    )
+    alerts_resp = await (
+        client.table("alerts")
+        .select("property_id,alert_type,state")
+        .in_("property_id", prop_ids)
+        .eq("state", "open")
+        .execute()
+    )
+
+    low_by_property: dict[str, int] = defaultdict(int)
+    out_by_property: dict[str, int] = defaultdict(int)
+    for row in items_resp.data or []:
+        pid = str(row.get("property_id") or "")
+        if not pid:
+            continue
+        qty = float(row.get("quantity") or 0)
+        reorder_point = float(row.get("reorder_point") or row.get("par_level") or 0)
+        if qty <= 0:
+            out_by_property[pid] += 1
+        elif reorder_point > 0 and qty <= reorder_point:
+            low_by_property[pid] += 1
+
+    predicted_by_property: dict[str, int] = defaultdict(int)
+    for row in alerts_resp.data or []:
+        if row.get("alert_type") != "predicted_stockout":
+            continue
+        pid = str(row.get("property_id") or "")
+        if pid:
+            predicted_by_property[pid] += 1
+
+    payload: list[dict] = []
+    red_count = 0
+    for prop in properties:
+        pid = str(prop["id"])
+        low_stock = low_by_property.get(pid, 0)
+        out_of_stock = out_by_property.get(pid, 0)
+        predicted_stockout = predicted_by_property.get(pid, 0)
+        risk_score = (out_of_stock * 3) + (predicted_stockout * 2) + low_stock
+        status = "red" if risk_score >= 6 or out_of_stock >= 2 else "amber" if risk_score > 0 else "green"
+        if status == "red":
+            red_count += 1
+
+        payload.append(
+            {
+                "property_id": pid,
+                "name": prop.get("name") or "Unknown",
+                "region": None,
+                "country": None,
+                "low_stock": low_stock,
+                "out_of_stock": out_of_stock,
+                "predicted_stockout": predicted_stockout,
+                "risk_score": risk_score,
+                "status": status,
+            }
+        )
+
+    return {
+        "organization_id": str(tenant.org_id),
+        "red_count": red_count,
+        "properties": payload,
     }
 
 

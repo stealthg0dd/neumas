@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Camera, Home, Menu } from "lucide-react";
+import { Bell, Camera, Home, Settings, TrendingUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -20,14 +20,20 @@ const NAV_ITEMS = [
     isActive: (pathname: string) => pathname.startsWith("/dashboard/scans"),
   },
   {
+    label: "Predict",
+    icon: TrendingUp,
+    href: "/dashboard/predictions",
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/predictions"),
+  },
+  {
     label: "Alerts",
     icon: Bell,
     href: "/dashboard/alerts",
     isActive: (pathname: string) => pathname.startsWith("/dashboard/alerts"),
   },
   {
-    label: "More",
-    icon: Menu,
+    label: "Settings",
+    icon: Settings,
     href: "/dashboard/settings",
     isActive: (pathname: string) =>
       pathname.startsWith("/dashboard/settings") ||
@@ -48,7 +54,7 @@ export function MobileBottomNav() {
       style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
       aria-label="Mobile navigation"
     >
-      <div className="grid grid-cols-4 gap-1 px-2 pt-2">
+      <div className="grid grid-cols-5 gap-1 px-2 pt-2">
         {NAV_ITEMS.map((item) => {
           const active = item.isActive(pathname);
           return (
