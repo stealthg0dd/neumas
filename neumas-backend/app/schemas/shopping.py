@@ -47,6 +47,7 @@ class ShoppingListResponse(ShoppingListBase):
     approved_by_id: UUID | None
     created_at: datetime
     updated_at: datetime
+    item_count: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -224,6 +225,9 @@ class GenerateListRequest(BaseModel):
         max_length=100,
         description="Preferred store for price lookup",
     )
+    include_critical_only: bool = False
+    min_days_threshold: int | None = Field(default=None, ge=1, le=30)
+    budget_limit: Decimal | None = Field(default=None, ge=0)
 
 
 class GenerateListResponse(BaseModel):

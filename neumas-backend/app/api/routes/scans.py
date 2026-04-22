@@ -15,6 +15,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from pydantic import BaseModel
 
 from app.api.deps import TenantContext, get_tenant_context, require_property
 from app.core.logging import get_logger
@@ -30,6 +31,10 @@ router = APIRouter()
 
 # Service instance
 scan_service = ScanService()
+
+
+class ScanRerunRequest(BaseModel):
+    hint: str
 
 
 @router.post(
@@ -151,6 +156,30 @@ async def get_scan(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve scan",
+        )
+
+
+@router.post(
+    "/{scan_id}/rerun",
+    summary="Re-run scan with operator hint",
+)
+async def rerun_scan(
+    scan_id: UUID,
+    body: ScanRerunRequest,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> dict[str, str]:
+    try:
+        return await scan_service.rerun_with_hint(scan_id, tenant, body.hint)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error("Failed to rerun scan", scan_id=str(scan_id), error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to queue scan rerun",
         )
 
 

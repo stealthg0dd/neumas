@@ -45,6 +45,7 @@ class ShoppingAgent:
         budget_limit: Decimal | None = None,
         exclude_categories: list[UUID] | None = None,
         group_by_store: bool = False,
+        include_critical_only: bool = False,
     ) -> dict[str, Any]:
         """
         Generate an intelligent shopping list from predictions.
@@ -140,6 +141,13 @@ class ShoppingAgent:
                 items_to_add,
                 group_by_store=group_by_store,
             )
+
+        if include_critical_only:
+            items_to_add = [
+                item
+                for item in items_to_add
+                if item.get("urgency_bucket") == "critical" or item.get("priority") == "critical"
+            ]
 
         # 4. Group by urgency
         items_by_urgency = self._group_by_urgency(items_to_add)

@@ -42,6 +42,8 @@ import type {
 } from "@/lib/api/types";
 import { useAuthStore } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
+import { formatCurrency } from "@/lib/currency";
+import { ExecutiveBriefing } from "@/components/dashboard/insights/ExecutiveBriefing";
 
 const EMPTY_SUMMARY: AnalyticsSummary = {
   spend_total: 0,
@@ -58,11 +60,7 @@ const EMPTY_SUMMARY: AnalyticsSummary = {
 type TrendPoint = { date: string; value: number };
 
 function formatMoney(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatCurrency(value, "USD");
 }
 
 function newestScanLabel(scans: Scan[]): string {
@@ -288,6 +286,36 @@ export default function DashboardPage() {
               Continue journey
               <ArrowRight className="h-4 w-4" />
             </Link>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <ExecutiveBriefing />
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Recommended Next Move</h3>
+                <p className="text-xs text-gray-500">The most urgent step in the scan to shopping loop.</p>
+              </div>
+              <Sparkles className="h-4 w-4 text-sky-700" />
+            </div>
+            {predictions[0] ? (
+              <div className="mt-4 space-y-2">
+                <p className="text-lg font-semibold text-gray-900">
+                  {predictions[0].item_name ?? predictions[0].inventory_item?.name ?? "Inventory item"}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {predictions[0].recommended_action ?? "Review this item"} in{" "}
+                  {predictions[0].time_horizon_days ?? "?"} day(s), confidence {Math.round((predictions[0].confidence ?? 0) * 100)}%.
+                </p>
+                <Link href="/dashboard/shopping" className="inline-flex items-center gap-2 rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800">
+                  Build shopping list
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-gray-500">Run a fresh forecast to populate operational recommendations.</p>
+            )}
           </div>
         </div>
       </div>

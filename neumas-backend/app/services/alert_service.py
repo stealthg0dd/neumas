@@ -27,6 +27,8 @@ logger = get_logger(__name__)
 class AlertService:
     """Service for alert management and reorder evaluation."""
 
+    NO_RECENT_SCAN_DAYS = 7
+
     def __init__(self) -> None:
         self._repo = AlertsRepository()
 
@@ -61,6 +63,10 @@ class AlertService:
             for alert in existing_open
             if alert.get("item_id") and alert.get("alert_type")
         }
+        has_no_recent_scan = any(
+            alert.get("alert_type") == "no_recent_scan"
+            for alert in existing_open
+        )
 
         created: list[dict[str, Any]] = []
 
@@ -142,6 +148,38 @@ class AlertService:
                         created.append(alert)
                         existing_pairs.add((item_key, "predicted_stockout"))
 
+        try:
+            latest_scan_resp = await (
+                client.table("scans")
+                .select("created_at")
+                .eq("property_id", prop_filter)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            latest_scan = (latest_scan_resp.data or [None])[0]
+            if latest_scan and latest_scan.get("created_at"):
+                last_scan_at = datetime.fromisoformat(
+                    str(latest_scan["created_at"]).replace("Z", "+00:00")
+                )
+                days_since_scan = max(0, (datetime.now(UTC) - last_scan_at).days)
+                if days_since_scan >= self.NO_RECENT_SCAN_DAYS and not has_no_recent_scan:
+                    alert = await self._repo.create(
+                        tenant,
+                        alert_type="no_recent_scan",
+                        severity="medium" if days_since_scan < 14 else "high",
+                        title="No recent scan activity detected",
+                        body=f"No scans have landed in {days_since_scan} day(s). Baselines may be stale.",
+                        metadata={
+                            "last_scan_at": latest_scan["created_at"],
+                            "days_since_scan": days_since_scan,
+                        },
+                    )
+                    if alert:
+                        created.append(alert)
+        except Exception:
+            logger.debug("Latest scan lookup unavailable during alert evaluation")
+
         if created:
             logger.info(
                 "Alerts created from inventory evaluation",
@@ -155,12 +193,20 @@ class AlertService:
         tenant: TenantContext,
         state: str | None = None,
         alert_type: str | None = None,
+        severity: str | None = None,
+        sort_by: str = "created_at_desc",
         limit: int = 50,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        return await self._repo.list(
-            tenant, state=state, alert_type=alert_type, limit=limit, offset=offset
+        alerts = await self._repo.list(
+            tenant,
+            state=state,
+            alert_type=alert_type,
+            severity=severity,
+            limit=limit,
+            offset=offset,
         )
+        return await self._enrich_alerts(tenant, alerts, sort_by=sort_by)
 
     async def get_alert(
         self, tenant: TenantContext, alert_id: UUID
@@ -188,3 +234,68 @@ class AlertService:
 
     async def count_open(self, tenant: TenantContext) -> int:
         return await self._repo.count_open(tenant)
+
+    async def _enrich_alerts(
+        self,
+        tenant: TenantContext,
+        alerts: list[dict[str, Any]],
+        sort_by: str,
+    ) -> list[dict[str, Any]]:
+        client = await get_async_supabase_admin()
+        item_ids = [str(alert["item_id"]) for alert in alerts if alert.get("item_id")]
+        item_names: dict[str, str] = {}
+        if item_ids:
+            item_resp = await (
+                client.table("inventory_items")
+                .select("id,name")
+                .in_("id", item_ids)
+                .execute()
+            )
+            item_names = {
+                str(row["id"]): row.get("name") or "Item"
+                for row in (item_resp.data or [])
+            }
+
+        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        enriched: list[dict[str, Any]] = []
+        for alert in alerts:
+            metadata = alert.get("metadata") or {}
+            enriched.append(
+                {
+                    **alert,
+                    "item_name": item_names.get(str(alert.get("item_id"))) if alert.get("item_id") else None,
+                    "recommended_action": self._recommended_action(alert.get("alert_type")),
+                    "baseline_context": self._baseline_context(alert.get("alert_type"), metadata),
+                    "last_scan_at": metadata.get("last_scan_at"),
+                }
+            )
+
+        if sort_by == "severity":
+            enriched.sort(
+                key=lambda alert: (
+                    severity_order.get(str(alert.get("severity")), 99),
+                    str(alert.get("created_at") or ""),
+                )
+            )
+        else:
+            enriched.sort(key=lambda alert: str(alert.get("created_at") or ""), reverse=True)
+
+        return enriched
+
+    def _recommended_action(self, alert_type: Any) -> str:
+        return {
+            "out_of_stock": "Restock immediately and review the latest shopping list.",
+            "low_stock": "Top up this item before the next scan cycle.",
+            "predicted_stockout": "Add this item to the next reorder batch based on projected runout.",
+            "no_recent_scan": "Run a fresh receipt scan to refresh inventory and forecasts.",
+        }.get(str(alert_type), "Review this alert and decide whether intervention is needed.")
+
+    def _baseline_context(self, alert_type: Any, metadata: dict[str, Any]) -> str | None:
+        if str(alert_type) == "no_recent_scan":
+            days = metadata.get("days_since_scan")
+            return f"Last scan was {days} day(s) ago." if days is not None else None
+        if metadata.get("par_level") is not None and metadata.get("quantity") is not None:
+            return f"On hand {metadata['quantity']} against baseline {metadata['par_level']}."
+        if metadata.get("days_until_stockout") is not None:
+            return f"Projected stockout in {metadata['days_until_stockout']} day(s)."
+        return None

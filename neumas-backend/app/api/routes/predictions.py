@@ -2,6 +2,7 @@
 Predictions routes.
 """
 
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -104,6 +105,33 @@ async def list_predictions(
         # gracefully instead of crashing on .filter() of undefined.
         logger.error("Failed to list predictions", error=str(e))
         return []
+
+    now = datetime.now(UTC)
+    normalized_rows: list[dict] = []
+    for row in rows:
+        prediction_date = row.get("prediction_date")
+        days_until_runout = None
+        if prediction_date:
+            try:
+                runout_at = datetime.fromisoformat(str(prediction_date).replace("Z", "+00:00"))
+                days_until_runout = max(0, (runout_at - now).days)
+            except Exception:
+                days_until_runout = None
+
+        normalized_rows.append(
+            {
+                **row,
+                "item_name": (row.get("inventory_item") or {}).get("name"),
+                "days_until_runout": days_until_runout,
+                "time_horizon_days": days_until_runout,
+                "recommended_action": (
+                    "Add to shopping list"
+                    if days_until_runout is not None and days_until_runout <= 14
+                    else "Monitor"
+                ),
+            }
+        )
+    rows = normalized_rows
 
     # Optional urgency filter (stored in stockout_risk_level column)
     if urgency:

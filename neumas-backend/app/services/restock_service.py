@@ -7,6 +7,7 @@ from typing import Any
 from app.api.deps import TenantContext
 from app.core.logging import get_logger
 from app.db.supabase_client import get_async_supabase_admin
+from app.utils.currency import currency_symbol, format_currency
 
 logger = get_logger(__name__)
 
@@ -56,18 +57,7 @@ class RestockService:
             except Exception:
                 logger.debug("Property currency unavailable, using USD")
 
-        symbol = {
-            "USD": "$",
-            "SGD": "S$",
-            "AUD": "A$",
-            "JPY": "JPY ",
-            "HKD": "HK$",
-            "INR": "INR ",
-            "THB": "THB ",
-            "MYR": "RM ",
-            "IDR": "IDR ",
-            "VND": "VND ",
-        }.get(code, f"{code} ")
+        symbol = currency_symbol(code)
         return code, symbol
 
     async def recompute_burn_rates(
@@ -282,7 +272,7 @@ class RestockService:
         currency_code, currency_symbol = await self._resolve_currency_context(tenant)
 
         def _money(value: float) -> str:
-            return f"{currency_symbol}{value:.2f}"
+            return format_currency(value, currency_code)
 
         preview = await self.get_vendor_restock_preview(
             tenant=tenant,

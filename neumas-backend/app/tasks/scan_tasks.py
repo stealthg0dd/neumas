@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from app.core.celery_app import neumas_task
+from app.core.celery_app import celery_app, neumas_task
 from app.core.logging import get_logger, log_business_event
 
 logger = get_logger(__name__)
@@ -92,6 +92,7 @@ def process_scan(
     user_id: str,
     image_url: str,
     scan_type: str = "receipt",
+    user_hint: str | None = None,
 ) -> dict[str, Any]:
     """
     Process a receipt scan through the full AI pipeline.
@@ -140,6 +141,7 @@ def process_scan(
             user_id=user_id,
             image_url=image_url,
             scan_type=scan_type,
+            user_hint=user_hint,
         )
     )
 
@@ -152,6 +154,8 @@ async def _process_scan_async(
     image_url: str,
     scan_type: str,
     org_id: str = "",
+    user_hint: str | None = None,
+    force_reprocess: bool = False,
 ) -> dict[str, Any]:
     """
     Async implementation of the full scan pipeline.
@@ -195,7 +199,11 @@ async def _process_scan_async(
         .single()
         .execute()
     )
-    if existing_resp.data and existing_resp.data.get("status") == "completed":
+    if (
+        existing_resp.data
+        and existing_resp.data.get("status") == "completed"
+        and not force_reprocess
+    ):
         logger.info(
             "Scan already completed -- skipping pipeline",
             scan_id=scan_id,
@@ -248,6 +256,7 @@ async def _process_scan_async(
         vision_result = await vision_agent.analyze_receipt(
             image_url=image_url,
             scan_type=scan_type,
+            user_hint=user_hint,
         )
         stage_details["ocr_ms"] = int((time.perf_counter() - stage_started) * 1000)
 
@@ -348,6 +357,7 @@ async def _process_scan_async(
             "items":            extracted_items,
             "receipt_metadata": receipt_meta,
             "confidence":       vision_confidence,
+            "user_hint":        user_hint,
         }
 
         await supabase.table("scans").update({
@@ -491,6 +501,14 @@ async def _process_scan_async(
             total_ms=total_ms,
             errors=len(result["errors"]),
         )
+
+        try:
+            celery_app.send_task(
+                "app.tasks.inventory_tasks.create_daily_snapshots",
+                queue="neumas_default",
+            )
+        except Exception as exc:
+            logger.warning("Failed to enqueue inventory snapshot task", scan_id=scan_id, error=str(exc))
 
         # =================================================================
         # Step 8 -- Write structured audit log entry
@@ -976,6 +994,7 @@ async def _backfill_inventory_vendor_links_async(
 def reprocess_scan(
     self,
     scan_id: str,
+    user_hint: str | None = None,
 ) -> dict[str, Any]:
     """
     Re-run the full pipeline for an existing scan.
@@ -996,12 +1015,13 @@ def reprocess_scan(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-    return loop.run_until_complete(_reprocess_scan_async(self, scan_id))
+    return loop.run_until_complete(_reprocess_scan_async(self, scan_id, user_hint=user_hint))
 
 
 async def _reprocess_scan_async(
     task: Any,
     scan_id: str,
+    user_hint: str | None = None,
 ) -> dict[str, Any]:
     """Fetch the original scan record and re-run the pipeline."""
     from app.db.supabase_client import get_async_supabase_admin
@@ -1043,4 +1063,6 @@ async def _reprocess_scan_async(
         user_id=user_id,
         image_url=image_url,
         scan_type=scan_type,
+        user_hint=user_hint,
+        force_reprocess=True,
     )

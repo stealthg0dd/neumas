@@ -452,6 +452,24 @@ class ScanService:
             created_at=scan.get("created_at"),
         )
 
+    async def rerun_with_hint(
+        self,
+        scan_id: UUID,
+        tenant: TenantContext,
+        hint: str,
+    ) -> dict[str, str]:
+        scans_repo = await get_scans_repository()
+        scan = await scans_repo.get_by_id(tenant, scan_id)
+
+        if not scan:
+            logger.warning("Scan not found", scan_id=str(scan_id))
+            raise ValueError(f"Scan {scan_id} not found")
+
+        from app.tasks.scan_tasks import _reprocess_scan_async
+
+        asyncio.create_task(_reprocess_scan_async(task=None, scan_id=str(scan_id), user_hint=hint))
+        return {"scan_id": str(scan_id), "status": "queued", "hint": hint}
+
     async def list_scans(
         self,
         tenant: TenantContext,

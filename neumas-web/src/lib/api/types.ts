@@ -261,6 +261,19 @@ export interface Scan {
   created_at: string;
 }
 
+export interface ExecutiveBriefingResponse {
+  period_days: number;
+  generated_at: string;
+  bullets: string[];
+  log_count: number;
+}
+
+export interface ScanRerunResponse {
+  scan_id: string;
+  status: string;
+  hint: string;
+}
+
 export interface ScanQueuedResponse {
   scan_id: string;
   id?: string; // alias used by some backend versions
@@ -319,6 +332,10 @@ export interface Prediction {
   inventory_item: { id: string; name: string } | null;
   /** Present on stockout predictions from API when serialized */
   features_used?: PredictionFeaturesUsed | Record<string, unknown> | null;
+  item_name?: string | null;
+  days_until_runout?: number | null;
+  time_horizon_days?: number | null;
+  recommended_action?: string | null;
 }
 
 export interface ForecastQueuedResponse {
@@ -381,6 +398,7 @@ export interface ShoppingList {
   approved_by_id: string | null;
   created_at: string;
   updated_at: string;
+  item_count?: number | null;
 }
 
 export interface ShoppingListDetail extends ShoppingList {

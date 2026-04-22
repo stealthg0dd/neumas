@@ -27,6 +27,8 @@ async def list_alerts(
     tenant: Annotated[TenantContext, Depends(get_tenant_context)],
     state: str | None = None,
     alert_type: str | None = None,
+    severity: str | None = None,
+    sort_by: str = "created_at_desc",
     page: int = 1,
     page_size: int = 20,
 ) -> dict:
@@ -37,7 +39,13 @@ async def list_alerts(
         except Exception as e:
             logger.warning("Failed to refresh alerts before list", error=str(e))
     alerts = await _alert_service.list_alerts(
-        tenant, state=state, alert_type=alert_type, limit=page_size, offset=offset
+        tenant,
+        state=state,
+        alert_type=alert_type,
+        severity=severity,
+        sort_by=sort_by,
+        limit=page_size,
+        offset=offset,
     )
     count = await _alert_service.count_open(tenant)
     return {"alerts": alerts, "open_count": count, "page": page, "page_size": page_size}

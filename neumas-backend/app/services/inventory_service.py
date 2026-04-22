@@ -12,6 +12,7 @@ from app.api.deps import TenantContext
 from app.core.celery_app import celery_app
 from app.core.logging import get_logger
 from app.db.repositories.inventory import get_inventory_repository
+from app.db.supabase_client import get_async_supabase_admin
 from app.schemas.inventory import (
     InventoryItemCreate,
     InventoryItemResponse,
@@ -66,6 +67,54 @@ def _item_response(item: dict[str, Any]) -> InventoryItemResponse:
 
 class InventoryService:
     """Service for inventory management operations."""
+
+    async def create_daily_snapshots(self) -> dict[str, Any]:
+        """Persist inventory valuation snapshots for all active properties."""
+        client = await get_async_supabase_admin()
+        inv_resp = await (
+            client.table("inventory_items")
+            .select("organization_id,property_id,quantity,cost_per_unit")
+            .eq("is_active", True)
+            .execute()
+        )
+        items = inv_resp.data or []
+
+        grouped: dict[tuple[str, str], dict[str, Any]] = {}
+        for item in items:
+            org_id = str(item.get("organization_id") or "")
+            property_id = str(item.get("property_id") or "")
+            if not org_id or not property_id:
+                continue
+
+            key = (org_id, property_id)
+            snapshot = grouped.setdefault(
+                key,
+                {
+                    "organization_id": org_id,
+                    "property_id": property_id,
+                    "total_value": Decimal("0"),
+                    "item_count": 0,
+                },
+            )
+            snapshot["total_value"] += Decimal(str(item.get("quantity") or 0)) * Decimal(
+                str(item.get("cost_per_unit") or 0)
+            )
+            snapshot["item_count"] += 1
+
+        payload = [
+            {
+                "organization_id": snapshot["organization_id"],
+                "property_id": snapshot["property_id"],
+                "total_value": str(snapshot["total_value"].quantize(Decimal("0.01"))),
+                "item_count": snapshot["item_count"],
+            }
+            for snapshot in grouped.values()
+        ]
+        if payload:
+            await client.table("inventory_snapshots").insert(payload).execute()
+
+        logger.info("Created daily inventory snapshots", snapshot_count=len(payload))
+        return {"snapshots_created": len(payload)}
 
     async def get_property_inventory(
         self,

@@ -86,6 +86,8 @@ import type {
   AnalyticsSummary,
   OrgPropertyStockHealthResponse,
   VendorOrderExportResponse,
+  ExecutiveBriefingResponse,
+  ScanRerunResponse,
 } from "./types";
 import { normalizeShoppingItem } from "./types";
 /**
@@ -190,6 +192,14 @@ export async function getScanStatus(scanId: string): Promise<ScanStatusResponse>
 /** GET /api/scan/{scanId} */
 export async function getScan(scanId: string): Promise<Scan> {
   return get<Scan>(`/api/scan/${scanId}`);
+}
+
+/** POST /api/scan/{scanId}/rerun */
+export async function rerunScanWithHint(
+  scanId: string,
+  hint: string
+): Promise<ScanRerunResponse> {
+  return post<ScanRerunResponse>(`/api/scan/${scanId}/rerun`, { hint });
 }
 
 /** GET /api/scan/ */
@@ -439,6 +449,10 @@ export interface Alert {
   resolved_at: string | null;
   resolved_by_id: string | null;
   created_at: string;
+  item_name?: string | null;
+  recommended_action?: string | null;
+  baseline_context?: string | null;
+  last_scan_at?: string | null;
 }
 
 export interface AlertsResponse {
@@ -452,10 +466,17 @@ export interface AlertsResponse {
 export async function listAlerts(params?: {
   state?: string;
   alert_type?: string;
+  severity?: string;
+  sort_by?: string;
   page?: number;
   page_size?: number;
 }): Promise<AlertsResponse> {
   return get<AlertsResponse>("/api/alerts/", params);
+}
+
+/** GET /api/insights/executive-briefing */
+export async function getExecutiveBriefing(): Promise<ExecutiveBriefingResponse> {
+  return get<ExecutiveBriefingResponse>("/api/insights/executive-briefing");
 }
 
 /** GET /api/alerts/{alertId} */

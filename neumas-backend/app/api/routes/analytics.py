@@ -48,42 +48,36 @@ async def _record_inventory_value_snapshot(
         total_value += float(item.get("quantity") or 0) * float(item.get("cost_per_unit") or 0)
 
     client = await get_async_supabase_admin()
-    today = date.today().isoformat()
-    await (
-        client.table("inventory_value_snapshots")
-        .upsert(
-            {
-                "organization_id": str(tenant.org_id),
-                "property_id": str(tenant.property_id),
-                "snapshot_date": today,
-                "inventory_value": round(total_value, 2),
-            },
-            on_conflict="organization_id,property_id,snapshot_date",
-        )
-        .execute()
-    )
-
-    since = (date.today() - timedelta(days=13)).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=13)).isoformat()
     history_resp = await (
-        client.table("inventory_value_snapshots")
-        .select("snapshot_date,inventory_value")
+        client.table("inventory_snapshots")
+        .select("created_at,total_value")
         .eq("organization_id", str(tenant.org_id))
         .eq("property_id", str(tenant.property_id))
-        .gte("snapshot_date", since)
-        .order("snapshot_date")
+        .gte("created_at", since)
+        .order("created_at")
         .execute()
     )
     rows = history_resp.data or []
 
-    by_date = {str(r.get("snapshot_date")): float(r.get("inventory_value") or 0) for r in rows}
+    by_date = {}
+    for row in rows:
+        created_at = str(row.get("created_at") or "")
+        if not created_at:
+            continue
+        day_key = created_at[:10]
+        by_date[day_key] = float(row.get("total_value") or 0)
     points: list[dict[str, Any]] = []
     for i in range(14):
         d = date.today() - timedelta(days=13 - i)
         key = d.isoformat()
+        value = by_date.get(key)
+        if value is None and key == date.today().isoformat():
+            value = round(total_value, 2)
         points.append(
             {
                 "date": _dt_to_label(datetime.combine(d, datetime.min.time(), tzinfo=UTC)),
-                "value": round(by_date.get(key, 0.0), 2),
+                "value": round(value or 0.0, 2),
             }
         )
     return points

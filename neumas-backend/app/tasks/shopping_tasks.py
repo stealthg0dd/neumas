@@ -26,6 +26,9 @@ def generate_shopping_list(
     property_id: str,
     user_id: str,
     preferred_store: str | None = None,
+    include_critical_only: bool = False,
+    min_days_threshold: int | None = None,
+    budget_limit: str | None = None,
 ) -> dict[str, Any]:
     """
     Generate a shopping list for a property.
@@ -52,11 +55,12 @@ def generate_shopping_list(
             name=None,
             include_low_stock=True,
             include_predictions=True,
-            days_ahead=7,
-            budget_limit=None,
+            days_ahead=min_days_threshold or 7,
+            budget_limit=budget_limit,
             exclude_categories=None,
             group_by_store=False,
             optimize_budget=True,
+            include_critical_only=include_critical_only,
         )
     )
 

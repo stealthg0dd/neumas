@@ -62,6 +62,9 @@ class ShoppingService:
                 str(request.property_id),
                 str(tenant.user_id),
                 request.preferred_store,
+                request.include_critical_only,
+                request.min_days_threshold,
+                str(request.budget_limit) if request.budget_limit is not None else None,
             ],
             queue="neumas.shopping",
         )

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   AlertCircle,
   Camera,
@@ -73,6 +74,7 @@ function ScanRow({ scan }: { scan: Scan }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+      <Link href={`/dashboard/scans/${scan.id}`}>
       <GlassCard className="p-4">
         <div className="flex items-start gap-3">
           <div className={cn("mt-0.5 shrink-0", cfg.iconClass)}>
@@ -136,6 +138,7 @@ function ScanRow({ scan }: { scan: Scan }) {
           </div>
         </div>
       </GlassCard>
+      </Link>
     </motion.div>
   );
 }
@@ -255,9 +258,9 @@ export default function ScansHistoryPage() {
           <p className="font-medium text-[var(--text-primary)]">No scans yet</p>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
             Upload a receipt from the{" "}
-            <a href="/dashboard/scans/new" className="font-medium text-[#0071a3] hover:underline">
+            <Link href="/dashboard/scans/new" className="font-medium text-[#0071a3] hover:underline">
               New scan
-            </a>{" "}
+            </Link>{" "}
             page to get started.
           </p>
         </GlassCard>

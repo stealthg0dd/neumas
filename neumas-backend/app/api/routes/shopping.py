@@ -28,6 +28,15 @@ shopping_service = ShoppingService()
 
 
 def _to_list_summary(row: dict) -> ShoppingListResponse:
+    item_count = None
+    raw_items = row.get("items")
+    if isinstance(raw_items, list) and raw_items:
+        first = raw_items[0]
+        if isinstance(first, dict) and "count" in first:
+            item_count = int(first.get("count") or 0)
+    elif isinstance(raw_items, list):
+        item_count = len(raw_items)
+
     return ShoppingListResponse(
         id=UUID(row["id"]),
         property_id=UUID(row["property_id"]),
@@ -42,6 +51,7 @@ def _to_list_summary(row: dict) -> ShoppingListResponse:
         approved_by_id=UUID(row["approved_by_id"]) if row.get("approved_by_id") else None,
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
+        item_count=item_count,
     )
 
 

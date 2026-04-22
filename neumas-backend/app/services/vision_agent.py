@@ -87,6 +87,7 @@ class VisionAgent:
         self,
         image_url: str,
         scan_type: str = "receipt",
+        user_hint: str | None = None,
     ) -> dict[str, Any]:
         """
         Analyze a receipt image and extract items.
@@ -111,7 +112,7 @@ class VisionAgent:
                 return self._error_response("Failed to fetch image from URL")
 
             # Call Claude Vision API
-            result = await self._call_claude_vision(image_data)
+            result = await self._call_claude_vision(image_data, user_hint=user_hint)
 
             if "error" in result:
                 return result
@@ -172,6 +173,7 @@ class VisionAgent:
     async def _call_claude_vision(
         self,
         image_data: dict[str, str],
+        user_hint: str | None = None,
     ) -> dict[str, Any]:
         """
         Call Claude 3.5 Sonnet Vision API.
@@ -186,7 +188,10 @@ class VisionAgent:
         """
         if settings.DEV_MODE:
             from app.services.dev_stubs import stub_vision
-            return stub_vision(image_data)
+            result = stub_vision(image_data)
+            if user_hint:
+                result["hint_used"] = user_hint
+            return result
 
         # Lazy import Anthropic to avoid import issues if not installed
         try:
@@ -203,6 +208,11 @@ class VisionAgent:
             # API call — the synchronous Anthropic() client would freeze all
             # concurrent requests for the duration of the LLM round-trip.
             client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+            hint_text = (
+                f"\n\nOperator hint: {user_hint.strip()}. Use this to correct likely OCR mistakes."
+                if user_hint and user_hint.strip()
+                else ""
+            )
 
             # Build the message with image
             try:
@@ -225,7 +235,11 @@ class VisionAgent:
                                     },
                                     {
                                         "type": "text",
-                                        "text": "Extract all items from this receipt image. Follow the normalization rules carefully.",
+                                        "text": (
+                                            "Extract all items from this receipt image. "
+                                            "Follow the normalization rules carefully."
+                                            f"{hint_text}"
+                                        ),
                                     },
                                 ],
                             }

@@ -216,6 +216,9 @@ export default function PredictionsPage() {
                   <span>Pattern: {patternLabel}</span>
                   <span>Last inventory update: {daysSince === "—" ? "—" : `${daysSince} days ago`}</span>
                 </div>
+                <p className="mt-2 text-sm text-gray-700">
+                  Action: {p.recommended_action ?? "Review this item"} over the next {p.time_horizon_days ?? days} day(s).
+                </p>
 
                 <div className="mt-3 h-1 rounded bg-gray-100">
                   <div

@@ -47,6 +47,11 @@ const SEVERITIES = [
   { value: "low", label: "Low" },
 ];
 
+const SORT_OPTIONS = [
+  { value: "created_at_desc", label: "Newest first" },
+  { value: "severity", label: "Highest severity" },
+];
+
 function MobileAlertCard({
   alert,
   actionId,
@@ -125,6 +130,12 @@ function MobileAlertCard({
             </div>
             <p className="mt-2 text-sm font-semibold text-gray-900">{alert.title}</p>
             <p className="mt-1 text-sm leading-6 text-gray-600">{alert.body}</p>
+            {alert.item_name && <p className="mt-2 text-xs font-medium text-gray-700">Item: {alert.item_name}</p>}
+            {alert.recommended_action && <p className="mt-1 text-sm text-gray-700">Action: {alert.recommended_action}</p>}
+            {alert.baseline_context && <p className="mt-1 text-xs text-gray-500">{alert.baseline_context}</p>}
+            {alert.last_scan_at && (
+              <p className="mt-1 text-xs text-gray-400">Last scan: {new Date(alert.last_scan_at).toLocaleString()}</p>
+            )}
             <p className="mt-2 text-xs text-gray-400">
               {new Date(alert.created_at).toLocaleString()}
             </p>
@@ -164,6 +175,7 @@ export default function AlertsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sortBy, setSortBy] = useState("created_at_desc");
   const [notificationPermission, setNotificationPermission] = useState<
     NotificationPermission | "unsupported"
   >("unsupported");
@@ -181,6 +193,8 @@ export default function AlertsPage() {
       const resp = await listAlerts({
         state: stateFilter === "all" ? undefined : stateFilter,
         alert_type: typeFilter || undefined,
+        severity: severityFilter || undefined,
+        sort_by: sortBy,
         page_size: 50,
       });
       setData(resp);
@@ -190,15 +204,13 @@ export default function AlertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [stateFilter, typeFilter]);
+  }, [severityFilter, sortBy, stateFilter, typeFilter]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const visibleAlerts = (data?.alerts ?? []).filter(
-    (a) => !severityFilter || a.severity === severityFilter
-  );
+  const visibleAlerts = data?.alerts ?? [];
 
   async function handleSnooze(alert: Alert) {
     setActionId(alert.id);
@@ -324,6 +336,18 @@ export default function AlertsPage() {
             ))}
           </select>
 
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="min-h-[44px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
           {(typeFilter || severityFilter) && (
             <button
               onClick={() => {
@@ -403,6 +427,12 @@ export default function AlertsPage() {
                         </div>
                         <p className="mt-1 font-medium text-gray-900">{alert.title}</p>
                         <p className="mt-0.5 text-sm text-gray-600">{alert.body}</p>
+                        {alert.item_name && <p className="mt-2 text-xs font-medium text-gray-700">Item: {alert.item_name}</p>}
+                        {alert.recommended_action && <p className="mt-1 text-sm text-gray-700">Action: {alert.recommended_action}</p>}
+                        {alert.baseline_context && <p className="mt-1 text-xs text-gray-500">{alert.baseline_context}</p>}
+                        {alert.last_scan_at && (
+                          <p className="mt-1 text-xs text-gray-400">Last scan: {new Date(alert.last_scan_at).toLocaleString()}</p>
+                        )}
                         <p className="mt-1 text-xs text-gray-400">
                           {new Date(alert.created_at).toLocaleString()}
                         </p>

@@ -361,6 +361,40 @@ class TestAlertService:
         repo.create.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_no_recent_scan_generates_alert(self, tenant: TenantContext):
+        """A stale property with no recent scans emits a no_recent_scan alert."""
+        from datetime import UTC, datetime, timedelta
+
+        from app.services.alert_service import AlertService
+
+        svc = AlertService()
+        repo = AsyncMock()
+        repo.list.return_value = []
+        repo.create.return_value = {"id": str(uuid4()), "alert_type": "no_recent_scan"}
+
+        inventory_query = MagicMock()
+        inventory_query.select.return_value.eq.return_value.execute = AsyncMock(return_value=MagicMock(data=[]))
+
+        scan_query = MagicMock()
+        scan_query.select.return_value.eq.return_value.order.return_value.limit.return_value.execute = AsyncMock(
+            return_value=MagicMock(
+                data=[{"created_at": (datetime.now(UTC) - timedelta(days=10)).isoformat()}]
+            )
+        )
+
+        mock_client = MagicMock()
+        mock_client.table.side_effect = lambda name: {"inventory_items": inventory_query, "scans": scan_query}[name]
+
+        with (
+            patch.object(svc, "_repo", repo),
+            patch("app.services.alert_service.get_async_supabase_admin", new=AsyncMock(return_value=mock_client)),
+        ):
+            await svc.evaluate_inventory(tenant)
+
+        created_types = [call.kwargs.get("alert_type", "") for call in repo.create.call_args_list]
+        assert "no_recent_scan" in created_types
+
+    @pytest.mark.asyncio
     async def test_resolve_transitions_state(self, tenant: TenantContext):
         """Resolving an alert transitions state to resolved."""
         from app.services.alert_service import AlertService

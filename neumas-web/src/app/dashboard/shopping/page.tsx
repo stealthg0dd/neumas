@@ -3,24 +3,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  ShoppingCart, Plus, Sparkles, Clock, Package,
-  DollarSign, CheckCircle2, ChevronRight, X,
-  Sliders,
+  ShoppingCart, Sparkles, Clock, Package,
+  DollarSign, CheckCircle2, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
-import { listShoppingLists, generateShoppingList } from "@/lib/api/endpoints";
+import { listPredictions, listShoppingLists, generateShoppingList } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
-import type { ShoppingList, ShoppingListStatus } from "@/lib/api/types";
+import type { Prediction, ShoppingList, ShoppingListStatus } from "@/lib/api/types";
 import { track, captureUIError } from "@/lib/analytics";
+import { formatCurrency } from "@/lib/currency";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
 
 // ── Status config ──────────────────────────────────────────────────────────────
@@ -83,17 +81,16 @@ function ListCard({ list, index }: { list: ShoppingList; index: number }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-border/30">
           <div className="flex items-center gap-2">
             <Package className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              {/* item_count not in schema, use placeholder */}
-              <span className="text-foreground font-medium">—</span> items
-            </span>
-          </div>
+              <span className="text-xs text-muted-foreground">
+                <span className="text-foreground font-medium">{list.item_count ?? "—"}</span> items
+              </span>
+            </div>
           <div className="flex items-center gap-2">
             <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
               <span className="text-foreground font-medium">
                 {list.total_estimated_cost != null
-                  ? `$${list.total_estimated_cost.toFixed(2)}`
+                  ? formatCurrency(list.total_estimated_cost, "USD")
                   : "—"}
               </span> est.
             </span>
@@ -249,7 +246,6 @@ const FILTERS: Array<{ value: ShoppingListStatus | "all"; label: string }> = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ShoppingPage() {
-  const router     = useRouter();
   const propertyId = useAuthStore((s) => s.propertyId);
 
   const [lists,       setLists]       = useState<ShoppingList[]>([]);
@@ -258,19 +254,20 @@ export default function ShoppingPage() {
   const [genLoading,  setGenLoading]  = useState(false);
   const [filter,      setFilter]      = useState<ShoppingListStatus | "all">("all");
   const [error,       setError]       = useState<string | null>(null);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
 
   // Ref-stable fetch so we can call it from handleGenerate without adding it
   // to any effect dependency array (avoids indirect re-render loops).
   const fetchListsRef = useRef<() => Promise<void>>(async () => {});
 
   async function fetchLists() {
-    // Always read the latest propertyId at call time via getState()
-    const pid = propertyId ?? useAuthStore.getState().propertyId;
     setLoading(true);
     setError(null);
     try {
       const data = await listShoppingLists();
       setLists(Array.isArray(data) ? data : []);
+      const predictionData = await listPredictions({ limit: 5 }).catch(() => []);
+      setPredictions(predictionData);
     } catch (err) {
       setError("We couldn't load shopping lists.");
       captureUIError("load_shopping_lists", err);
@@ -351,6 +348,19 @@ export default function ShoppingPage() {
           Generate list
         </button>
       </div>
+
+      {predictions[0] && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">Recommended reorder</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">
+            {predictions[0].item_name ?? predictions[0].inventory_item?.name ?? "Inventory item"}
+          </p>
+          <p className="mt-1 text-sm text-slate-700">
+            {predictions[0].recommended_action ?? "Add this item to the next shopping list"} within{" "}
+            {predictions[0].time_horizon_days ?? "?"} day(s), confidence {Math.round((predictions[0].confidence ?? 0) * 100)}%.
+          </p>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-1.5 flex-wrap">

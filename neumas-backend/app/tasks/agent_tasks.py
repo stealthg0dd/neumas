@@ -42,6 +42,7 @@ def generate_shopping_list(
     exclude_categories: list[str] | None = None,
     group_by_store: bool = False,
     optimize_budget: bool = True,
+    include_critical_only: bool = False,
 ) -> dict[str, Any]:
     """
     Generate a shopping list from predictions and inventory.
@@ -95,6 +96,7 @@ def generate_shopping_list(
             exclude_categories=exclude_categories,
             group_by_store=group_by_store,
             optimize_budget=optimize_budget,
+            include_critical_only=include_critical_only,
         )
     )
 
@@ -111,6 +113,7 @@ async def _generate_shopping_list_async(
     exclude_categories: list[str] | None,
     group_by_store: bool,
     optimize_budget: bool,
+    include_critical_only: bool = False,
 ) -> dict[str, Any]:
     """Async implementation of shopping list generation."""
     results = {
@@ -168,6 +171,7 @@ async def _generate_shopping_list_async(
                 budget_limit=budget_decimal,
                 exclude_categories=category_uuids,
                 group_by_store=group_by_store,
+                include_critical_only=include_critical_only,
             )
             results["shopping_list"] = shopping_result.get("shopping_list")
             results["generation_summary"] = shopping_result.get("generation_summary")

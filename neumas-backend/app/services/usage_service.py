@@ -105,6 +105,7 @@ class UsageService:
         breakdown = llm_summary.get("by_feature", {})
 
         return {
+            "org_id": org_id,
             "organization_id": org_id,
             "period_days": days,
             "period_start": since.isoformat(),

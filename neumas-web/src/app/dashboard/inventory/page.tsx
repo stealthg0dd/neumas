@@ -34,11 +34,13 @@ import {
 import {
   adjustQuantity,
   deleteInventoryItem,
+  getDigestPreferences,
   listInventoryItems,
   listPredictions,
 } from "@/lib/api/endpoints";
 import type { InventoryItem, Prediction } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
+import { formatCurrency } from "@/lib/currency";
 import { confidenceToPercent, getFeatures } from "@/lib/prediction-display";
 import { daysUntilExpiry, expiryTone, getExpiryIso } from "@/lib/inventory-dates";
 import { cn } from "@/lib/utils";
@@ -47,13 +49,15 @@ import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
 type FilterKey = "all" | "expiring" | "low" | "category";
 type SortKey = "name" | "expiry" | "recent";
 
-function downloadInventoryCSV(items: InventoryItem[]) {
-  const headers = ["Name", "Category", "Quantity", "Unit", "SKU", "Status", "Reorder Point", "Updated At"];
+function downloadInventoryCSV(items: InventoryItem[], currencyCode: string) {
+  const headers = ["Name", "Category", "Quantity", "Unit", "Unit Cost", "Total Value", "SKU", "Status", "Reorder Point", "Updated At"];
   const rows = items.map((item) => [
     item.name,
     item.category?.name ?? "",
     item.quantity,
     item.unit,
+    item.cost_per_unit != null ? formatCurrency(item.cost_per_unit, currencyCode) : "",
+    item.cost_per_unit != null ? formatCurrency(item.quantity * item.cost_per_unit, currencyCode) : "",
     item.sku ?? "",
     item.stock_status ?? "",
     item.reorder_point ?? item.min_quantity ?? "",
@@ -220,6 +224,7 @@ function InventoryMobileCard({
 }
 
 export default function InventoryPage() {
+  const [preferredCurrency, setPreferredCurrency] = useState("USD");
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -238,6 +243,12 @@ export default function InventoryPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [mobileVisibleCount, setMobileVisibleCount] = useState(MOBILE_BATCH_SIZE);
   const mobileSentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    void getDigestPreferences()
+      .then((prefs) => setPreferredCurrency((prefs.preferred_currency || "USD").toUpperCase()))
+      .catch(() => setPreferredCurrency("USD"));
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 300);
@@ -414,7 +425,7 @@ export default function InventoryPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => downloadInventoryCSV(processed)}
+            onClick={() => downloadInventoryCSV(processed, preferredCurrency)}
             disabled={processed.length === 0}
             className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-elevated)] disabled:opacity-40"
           >

@@ -7,15 +7,25 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.api.deps import TenantContext, get_tenant_context
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.supabase_client import get_async_supabase_admin
+from app.services.executive_briefing_service import ExecutiveBriefingService
 
 logger = get_logger(__name__)
 
 router = APIRouter()
+briefing_service = ExecutiveBriefingService()
+
+
+@router.get("/executive-briefing")
+async def executive_briefing(
+    tenant: TenantContext = Depends(get_tenant_context),
+) -> dict[str, Any]:
+    return await briefing_service.get_briefing(tenant, days=7)
 
 
 @router.get("/posts")

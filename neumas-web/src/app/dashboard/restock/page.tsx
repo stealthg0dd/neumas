@@ -14,9 +14,10 @@ import {
 import type { RestockPreviewResponse, RestockVendorGroup } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
+import { formatCurrency } from "@/lib/currency";
 
 function currency(value: number, currencyCode: string): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode || "USD" }).format(value || 0);
+  return formatCurrency(value, currencyCode || "USD");
 }
 
 export default function RestockPage() {
