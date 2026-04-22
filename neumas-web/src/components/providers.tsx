@@ -8,11 +8,24 @@ import { Toaster } from "sonner";
 import { initPostHog } from "@/lib/analytics";
 import { PageTracker } from "@/components/analytics/PageTracker";
 
+// Refresh every 4.5 min — safely inside the 5-min Supabase cache TTL window.
+const TOKEN_REFRESH_INTERVAL_MS = 270_000;
+
 export function Providers({ children }: { children: React.ReactNode }) {
   // Initialise PostHog once on the client. initPostHog() is idempotent and
   // guards against server-side execution.
   useEffect(() => {
     initPostHog();
+  }, []);
+
+  // Proactively refresh the access token before it expires.
+  useEffect(() => {
+    const id = setInterval(() => {
+      import("@/lib/auth-session").then(({ rehydrateSession }) => {
+        void rehydrateSession();
+      });
+    }, TOKEN_REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
   }, []);
 
   return (

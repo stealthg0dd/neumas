@@ -237,10 +237,14 @@ export const useAuthStore = create<AuthStore>()(
             return;
           }
 
-          // Clear everything if the token is already expired — prevents
-          // stale tokens from reaching the API and causing 401 cascades.
+          // Token is expired — attempt a silent refresh before giving up.
+          // Dynamic import avoids a circular dependency (auth-session imports this store).
           if (state.expiresAt != null && state.expiresAt <= Math.floor(Date.now() / 1000)) {
-            state.clearAuth();
+            const { attemptRefresh } = await import("@/lib/auth-session");
+            const refreshed = await attemptRefresh();
+            if (!refreshed) {
+              state.clearAuth();
+            }
             state.setHasHydrated(true);
             return;
           }

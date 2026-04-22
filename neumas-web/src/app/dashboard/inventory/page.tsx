@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Download,
   Pencil,
   Search,
   Trash2,
@@ -45,6 +46,30 @@ import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
 
 type FilterKey = "all" | "expiring" | "low" | "category";
 type SortKey = "name" | "expiry" | "recent";
+
+function downloadInventoryCSV(items: InventoryItem[]) {
+  const headers = ["Name", "Category", "Quantity", "Unit", "SKU", "Status", "Reorder Point", "Updated At"];
+  const rows = items.map((item) => [
+    item.name,
+    item.category?.name ?? "",
+    item.quantity,
+    item.unit,
+    item.sku ?? "",
+    item.stock_status ?? "",
+    item.reorder_point ?? item.min_quantity ?? "",
+    item.updated_at,
+  ]);
+  const csv = [headers, ...rows]
+    .map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `inventory-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const PAGE_SIZE = 12;
 const MOBILE_BATCH_SIZE = 10;
@@ -386,15 +411,26 @@ export default function InventoryPage() {
             {total} items · <span className="font-mono tabular-nums">{processed.length}</span> shown
           </p>
         </div>
-        <Link
-          href="/dashboard/scans/new"
-          className={cn(
-            buttonVariants({ variant: "default", size: "lg" }),
-            "min-h-[44px] bg-[#0071a3] text-white shrink-0 border-0 hover:bg-[#005a82]"
-          )}
-        >
-          Add via scan
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => downloadInventoryCSV(processed)}
+            disabled={processed.length === 0}
+            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-elevated)] disabled:opacity-40"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
+          <Link
+            href="/dashboard/scans/new"
+            className={cn(
+              buttonVariants({ variant: "default", size: "lg" }),
+              "min-h-[44px] bg-[#0071a3] text-white shrink-0 border-0 hover:bg-[#005a82]"
+            )}
+          >
+            Add via scan
+          </Link>
+        </div>
       </div>
 
       <GlassCard className="sticky top-0 z-20 p-4 md:static">

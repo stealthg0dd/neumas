@@ -20,6 +20,42 @@ from app.core.logging import get_logger, log_business_event
 
 logger = get_logger(__name__)
 
+# ── Unit-of-measure normalisation table ───────────────────────────────────────
+_UNIT_MAP: dict[str, str] = {
+    # Count / each
+    "ct": "unit", "ea": "unit", "each": "unit",
+    "pcs": "unit", "pc": "unit", "piece": "unit", "pieces": "unit",
+    # Case / box
+    "cs": "case", "case": "case", "cases": "case", "box": "box",
+    # Weight – imperial
+    "lb": "lb", "lbs": "lb", "pound": "lb", "pounds": "lb",
+    "oz": "oz", "ounce": "oz", "ounces": "oz",
+    # Weight – metric
+    "kg": "kg", "kgs": "kg", "kilogram": "kg", "kilograms": "kg",
+    "g": "g", "gm": "g", "gr": "g", "gram": "g", "grams": "g",
+    # Volume – metric
+    "ml": "ml", "milliliter": "ml", "milliliters": "ml",
+    "l": "l", "ltr": "l", "litre": "l", "litres": "l",
+    "liter": "l", "liters": "l",
+    # Volume – imperial
+    "fl oz": "fl oz", "floz": "fl oz",
+    # Packaging
+    "doz": "dozen", "dozen": "dozen", "dzn": "dozen",
+    "btl": "bottle", "bottle": "bottle", "bottles": "bottle",
+    "bag": "bag", "bags": "bag",
+    "pack": "pack", "packs": "pack", "pkt": "pack",
+    "can": "can", "cans": "can",
+    "roll": "roll", "rolls": "roll",
+}
+
+
+def _normalize_unit(raw: str | None) -> str:
+    """Normalise a free-text unit string to a canonical form."""
+    if not raw:
+        return "unit"
+    u = raw.strip().lower()
+    return _UNIT_MAP.get(u, u) or "unit"
+
 
 # =============================================================================
 # Category -> DB-normalised name mapping (from VisionAgent output)
@@ -240,9 +276,45 @@ async def _process_scan_async(
             )
 
         # =================================================================
-        # Step 3 -- Persist raw + processed results in scans table
+        # Step 2b -- Duplicate receipt check (invoice + vendor combo)
         # =================================================================
         ms_after_vision = int((time.perf_counter() - wall_start) * 1000)
+
+        if receipt_meta:
+            dup_id = await _check_receipt_duplicate(supabase, property_id, receipt_meta, scan_id)
+            if dup_id:
+                logger.warning(
+                    "Duplicate receipt detected — skipping inventory upsert",
+                    scan_id=scan_id,
+                    duplicate_of=dup_id,
+                )
+                await supabase.table("scans").update({
+                    "status":             "completed",
+                    "items_detected":     0,
+                    "confidence_score":   str(vision_confidence),
+                    "processing_time_ms": ms_after_vision,
+                    "completed_at":       datetime.now(UTC).isoformat(),
+                    "raw_results": {
+                        "llm_provider": vision_result.get("llm_provider"),
+                        "llm_model":    vision_result.get("llm_model"),
+                        "duplicate_of_scan_id": dup_id,
+                    },
+                    "processed_results": {
+                        "items":            extracted_items,
+                        "receipt_metadata": receipt_meta,
+                        "duplicate":        True,
+                        "duplicate_of_scan_id": dup_id,
+                        "confidence":       vision_confidence,
+                    },
+                }).eq("id", scan_id).execute()
+                result["status"] = "completed"
+                result["duplicate_of"] = dup_id
+                result["items_upserted"] = 0
+                return result
+
+        # =================================================================
+        # Step 3 -- Persist raw + processed results in scans table
+        # =================================================================
 
         # raw_results: full LLM response including usage metadata
         raw_results: dict[str, Any] = {
@@ -432,6 +504,46 @@ async def _process_scan_async(
 # Helpers
 # =============================================================================
 
+async def _check_receipt_duplicate(
+    supabase: Any,
+    property_id: str,
+    receipt_meta: dict[str, Any],
+    current_scan_id: str,
+) -> str | None:
+    """
+    Returns the scan_id of the first completed scan that has the same
+    invoice_number + vendor_name combination, or None if no duplicate exists.
+    Only checked when both fields are non-empty.
+    """
+    invoice_number = (receipt_meta.get("invoice_number") or "").strip()
+    vendor_name    = (receipt_meta.get("vendor_name") or "").strip()
+
+    if not invoice_number or not vendor_name:
+        return None
+
+    try:
+        resp = await (
+            supabase.table("scans")
+            .select("id, processed_results")
+            .eq("property_id", property_id)
+            .eq("status", "completed")
+            .neq("id", current_scan_id)
+            .execute()
+        )
+        for row in (resp.data or []):
+            pr   = row.get("processed_results") or {}
+            meta = pr.get("receipt_metadata") or {}
+            if (
+                (meta.get("invoice_number") or "").strip().lower() == invoice_number.lower()
+                and (meta.get("vendor_name") or "").strip().lower() == vendor_name.lower()
+            ):
+                return str(row["id"])
+    except Exception as exc:
+        logger.warning("Duplicate receipt check failed (non-fatal)", error=str(exc))
+
+    return None
+
+
 async def _mark_failed(supabase: Any, scan_id: str, error_msg: str) -> None:
     """Set scan status to failed and persist the error message."""
     await supabase.table("scans").update({
@@ -461,7 +573,7 @@ async def _upsert_inventory_item(
         return None
 
     qty_to_add = float(item.get("quantity") or 1)
-    unit       = str(item.get("unit") or "unit")
+    unit       = _normalize_unit(item.get("unit"))
 
     # Look for existing item by name (case-insensitive)
     existing_resp = await (

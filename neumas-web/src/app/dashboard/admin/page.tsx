@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Download,
   FileText,
   Filter,
   Gauge,
@@ -737,6 +738,30 @@ function PropertiesTab() {
   );
 }
 
+// ─── CSV helpers ──────────────────────────────────────────────────────────────
+
+function downloadAuditCSV(entries: AuditEntry[]) {
+  const headers = ["Action", "Resource Type", "Resource ID", "Actor ID", "Role", "When"];
+  const rows = entries.map((e) => [
+    e.action,
+    e.resource_type,
+    e.resource_id ?? "",
+    e.actor_id ?? "system",
+    e.actor_role ?? "",
+    e.created_at ?? "",
+  ]);
+  const csv = [headers, ...rows]
+    .map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ─── 5. Audit & Support tab ───────────────────────────────────────────────────
 
 const AUDIT_EVENT_TYPES = [
@@ -795,12 +820,21 @@ function AuditTab() {
         title="Audit log"
         subtitle={`${n(total)} total events — live visibility into all system actions`}
         action={
-          <button
-            onClick={() => load(page, resourceFilter)}
-            className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-[12px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => downloadAuditCSV(filtered)}
+              disabled={filtered.length === 0}
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-[12px] font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
+            >
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+            <button
+              onClick={() => load(page, resourceFilter)}
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-[12px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+          </div>
         }
       />
 

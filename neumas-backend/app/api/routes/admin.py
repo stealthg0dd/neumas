@@ -6,6 +6,7 @@ All endpoints require role == "admin" (enforced by require_admin_role dependency
 """
 
 import contextlib
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -224,6 +225,75 @@ async def usage_metrics(tenant: AdminTenant) -> dict:
         "inventory_items": items_resp.count or 0,
         "scans": scans_resp.count or 0,
         "open_alerts": alerts_resp.count or 0,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Performance & health statistics
+# ---------------------------------------------------------------------------
+
+
+@router.get("/stats", summary="Performance and health statistics for admin dashboard")
+async def get_stats(tenant: AdminTenant) -> dict:
+    """
+    Returns:
+    - avg_processing_ms_24h: average scan processing time in the last 24 hours
+    - success_count_24h / failure_count_24h: scan outcome counts
+    - total_low_stock_items: inventory items at or below reorder_point for this org
+    """
+    require_admin_role(tenant)
+    client = await get_async_supabase_admin()
+    cutoff = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
+
+    # Collect all property IDs for this org
+    props_resp = await (
+        client.table("properties")
+        .select("id")
+        .eq("organization_id", str(tenant.org_id))
+        .execute()
+    )
+    prop_ids = [p["id"] for p in (props_resp.data or [])]
+
+    # Scan metrics in last 24 h
+    if prop_ids:
+        scans_resp = await (
+            client.table("scans")
+            .select("status, processing_time_ms")
+            .in_("property_id", prop_ids)
+            .gte("created_at", cutoff)
+            .execute()
+        )
+        scans = scans_resp.data or []
+    else:
+        scans = []
+
+    completed = [s for s in scans if s.get("status") == "completed"]
+    failed    = [s for s in scans if s.get("status") == "failed"]
+    ms_values = [s["processing_time_ms"] for s in completed if s.get("processing_time_ms") is not None]
+    avg_ms    = int(sum(ms_values) / len(ms_values)) if ms_values else None
+
+    # Low-stock items for this org
+    items_resp = await (
+        client.table("inventory_items")
+        .select("quantity, reorder_point")
+        .eq("organization_id", str(tenant.org_id))
+        .eq("is_active", True)
+        .execute()
+    )
+    low_stock_count = sum(
+        1 for item in (items_resp.data or [])
+        if item.get("quantity") is not None
+        and item.get("reorder_point") is not None
+        and float(item["quantity"]) <= float(item["reorder_point"])
+    )
+
+    return {
+        "avg_processing_ms_24h": avg_ms,
+        "success_count_24h":     len(completed),
+        "failure_count_24h":     len(failed),
+        "total_scans_24h":       len(scans),
+        "total_low_stock_items": low_stock_count,
+        "computed_at":           datetime.now(UTC).isoformat(),
     }
 
 
