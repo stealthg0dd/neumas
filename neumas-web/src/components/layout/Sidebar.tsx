@@ -57,7 +57,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
     }
     clearAuth();
     onNavigate?.();
-    router.replace("/login");
+    router.replace("/auth");
   }
 
   return (
