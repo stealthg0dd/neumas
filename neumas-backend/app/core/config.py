@@ -106,6 +106,16 @@ class Settings(BaseSettings):
     REDISPORT: str = Field(default="6379", description="Railway Redis port (kept as str to survive unresolved Railway var-refs)")
     REDISPASSWORD: str = Field(default="", description="Railway Redis password")
     REDISUSER: str = Field(default="default", description="Railway Redis user")
+    REDIS_PASSWORD: str = Field(
+        default="",
+        validation_alias=AliasChoices("REDIS_PASSWORD", "REDISPASSWORD"),
+        description="Railway Redis password (plugin naming)",
+    )
+    REDIS_USER: str = Field(
+        default="default",
+        validation_alias=AliasChoices("REDIS_USER", "REDISUSER"),
+        description="Railway Redis username (plugin naming)",
+    )
 
     # Internal admin (insights generation, maintenance hooks)
     ADMIN_SECRET_KEY: str = Field(
@@ -216,11 +226,13 @@ class Settings(BaseSettings):
         """
         from urllib.parse import quote_plus
 
+        from urllib.parse import quote_plus, urlparse, urlunparse
+
         host = self._safe_env("REDISHOST", "")
         if host:
             port = self._safe_env("REDISPORT", "6379")
-            username = self._safe_env("REDISUSER", "default")
-            raw_password = self._safe_env("REDISPASSWORD", "")
+            username = self._safe_env("REDISUSER", self.REDIS_USER or "default")
+            raw_password = self._safe_env("REDISPASSWORD", self.REDIS_PASSWORD or "")
             password = quote_plus(raw_password) if raw_password else ""
             if password:
                 if username:
@@ -238,6 +250,14 @@ class Settings(BaseSettings):
         # on private networking where TLS termination is handled upstream.
         if url.startswith("rediss://"):
             url = "redis://" + url[len("rediss://"):]
+
+        parsed = urlparse(url)
+        if parsed.password and not parsed.username:
+            default_user = self.REDIS_USER or "default"
+            netloc = f"{default_user}:{quote_plus(parsed.password)}@{parsed.hostname}"
+            if parsed.port:
+                netloc = f"{netloc}:{parsed.port}"
+            url = urlunparse(parsed._replace(netloc=netloc))
         return url
 
     @property

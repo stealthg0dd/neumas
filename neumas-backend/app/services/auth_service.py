@@ -789,7 +789,7 @@ class AuthService:
             user_id = UUID(user_resp.data[0]["id"])
             logger.info("Google signup: user record created", user_id=str(user_id))
 
-        except Exception as exc:
+        except Exception:
             logger.error("Google signup failed", auth_id=auth_id)
             if created_property_id is not None:
                 try:
