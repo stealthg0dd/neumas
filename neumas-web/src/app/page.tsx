@@ -66,6 +66,23 @@ export default function RootPage() {
       <StructuredData data={getHomepageSchemas()} />
       <AuthRedirectIfLoggedIn />
       <h1 className="sr-only">Neumas grocery intelligence and household autopilot</h1>
+      <section className="sr-only" aria-label="Neumas public homepage summary">
+        <p>
+          Neumas is an AI grocery and inventory intelligence platform for households in Singapore
+          and Southeast Asia.
+        </p>
+        <h2>Capture</h2>
+        <p>Capture receipts and household grocery purchases with a mobile-first upload flow.</p>
+        <h2>Understand</h2>
+        <p>Understand pantry state, retailer history, spend, and consumption patterns.</p>
+        <h2>Act</h2>
+        <p>Act on stockout predictions, smart shopping lists, and practical household recommendations.</p>
+        <h2>Frequently Asked Questions</h2>
+        <p>
+          Public Neumas pages explain the product while authenticated dashboards and household data
+          remain private.
+        </p>
+      </section>
       <LandingPage />
     </>
   );

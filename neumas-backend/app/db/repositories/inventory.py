@@ -21,8 +21,8 @@ Even with RLS enforced at the database level, we filter in application
 code for defense-in-depth security.
 """
 
-from decimal import Decimal
 import re
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 

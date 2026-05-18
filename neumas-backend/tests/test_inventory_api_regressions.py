@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -12,7 +12,7 @@ from app.main import app
 
 
 def _sample_item(*, property_id: str, item_id: str | None = None) -> dict:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     return {
         "id": item_id or str(uuid4()),
         "property_id": property_id,
@@ -83,7 +83,7 @@ async def test_get_inventory_with_items_returns_200(monkeypatch, client_with_ten
         "unit": "unit",
         "stock_status": "normal",
         "reorder_point": "1",
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(UTC).isoformat(),
         "category_name": None,
         "vendor_id": None,
         "average_daily_usage": "0",
@@ -158,7 +158,7 @@ async def test_category_missing_shape_does_not_500(monkeypatch):
                 "unit": "kg",
                 "min_quantity": "1",
                 "category": [],
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }
         ])
     })()

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
-from app.services.llm_failover import AllProvidersFailed, ProviderFailure, get_completion_with_failover
+from app.services.llm_failover import (
+    AllProvidersFailed,
+    ProviderFailure,
+    get_completion_with_failover,
+)
 from app.services.vision_agent import VisionAgent
 
 
