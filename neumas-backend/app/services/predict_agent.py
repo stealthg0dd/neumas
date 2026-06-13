@@ -244,6 +244,7 @@ async def _upsert_prediction(
 
     payload: dict[str, Any] = {
         "property_id": str(property_id),
+        "org_id": str(org_id),
         "organization_id": str(org_id),
         "item_id": str(item_id),
         "prediction_type": "stockout",
