@@ -26,7 +26,13 @@ NEUMAS_BACKEND_URL: str = os.environ.get(
 )
 AGENT_OS_URL: str = os.environ.get("AGENT_OS_URL", "")
 AGENT_OS_API_KEY: str = os.environ.get("AGENT_OS_API_KEY", "")
+# The Agent OS heartbeat endpoint (/api/heartbeat/neumas-health-agent) does not
+# exist yet (returns 404), which previously produced a 404 log line every
+# HEARTBEAT_INTERVAL_SECONDS. Heartbeats are skipped until this is set to
+# "true", once the endpoint is live on the Agent OS side.
+AGENT_OS_HEARTBEAT_ENABLED: bool = os.environ.get("AGENT_OS_HEARTBEAT_ENABLED", "false").lower() == "true"
 HEARTBEAT_INTERVAL: int = int(os.environ.get("HEARTBEAT_INTERVAL_SECONDS", "300"))  # 5 min
+HEARTBEAT_404_BACKOFF_SECONDS: int = 300  # don't retry a 404'd heartbeat for 5 minutes
 VERSION: str = os.environ.get("APP_VERSION", "0.1.0")
 
 # ---------------------------------------------------------------------------
@@ -43,6 +49,8 @@ logger = logging.getLogger("neumas-health-agent")
 # ---------------------------------------------------------------------------
 _start_time: float = time.monotonic()
 _backend_status: dict = {"healthy": None, "last_checked": None, "latency_ms": None}
+_heartbeat_skip_until: float = 0.0  # monotonic time; suppress heartbeat attempts until then
+_heartbeat_404_logged: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +58,7 @@ _backend_status: dict = {"healthy": None, "last_checked": None, "latency_ms": No
 # ---------------------------------------------------------------------------
 async def _monitor_loop() -> None:
     """Run forever: check backend health, then post heartbeat to router-system."""
+    global _heartbeat_skip_until, _heartbeat_404_logged
     async with httpx.AsyncClient(timeout=10.0) as client:
         while True:
             # --- 1. Check neumas-backend ---
@@ -77,7 +86,13 @@ async def _monitor_loop() -> None:
                 logger.error("neumas-backend health check failed: %s", exc)
 
             # --- 2. Send heartbeat to router-system ---
-            if AGENT_OS_URL:
+            if not AGENT_OS_HEARTBEAT_ENABLED:
+                pass  # disabled at startup; see lifespan log
+            elif not AGENT_OS_URL:
+                logger.warning("AGENT_OS_URL not set — skipping heartbeat")
+            elif time.monotonic() < _heartbeat_skip_until:
+                pass  # backing off after a 404
+            else:
                 try:
                     uptime = round(time.monotonic() - _start_time)
                     headers = {"Content-Type": "application/json"}
@@ -94,12 +109,18 @@ async def _monitor_loop() -> None:
                         },
                         headers=headers,
                     )
-                    hb_resp.raise_for_status()
-                    logger.info("Heartbeat sent to router-system")
+                    if hb_resp.status_code == 404:
+                        _heartbeat_skip_until = time.monotonic() + HEARTBEAT_404_BACKOFF_SECONDS
+                        if not _heartbeat_404_logged:
+                            logger.warning(
+                                "Agent OS heartbeat endpoint not yet configured — skipping"
+                            )
+                            _heartbeat_404_logged = True
+                    else:
+                        hb_resp.raise_for_status()
+                        logger.info("Heartbeat sent to router-system")
                 except Exception as exc:
                     logger.warning("Heartbeat failed (non-fatal): %s", exc)
-            else:
-                logger.warning("AGENT_OS_URL not set — skipping heartbeat")
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -117,6 +138,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         NEUMAS_BACKEND_URL,
         HEARTBEAT_INTERVAL,
     )
+
+    if not AGENT_OS_HEARTBEAT_ENABLED:
+        logger.info(
+            "Agent OS heartbeat disabled — set AGENT_OS_HEARTBEAT_ENABLED=true "
+            "when endpoint is available."
+        )
 
     # Register self with router-system on startup
     if AGENT_OS_URL:
