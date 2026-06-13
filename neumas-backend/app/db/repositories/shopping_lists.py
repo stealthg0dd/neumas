@@ -58,9 +58,15 @@ class ShoppingListsRepository:
 
         RLS: Users can only view lists for their properties.
         """
+        # shopping_list_items has two FK columns referencing shopping_lists
+        # (the legacy "list_id" and the current "shopping_list_id"), so
+        # PostgREST can't pick a relationship for an unqualified embed and
+        # returns "more than one relationship found for shopping_lists and
+        # shopping_list_items". The app writes to shopping_list_id, so embed
+        # via that FK explicitly.
         query = (
             self.client.table(self.table)
-            .select("*, items:shopping_list_items(*)")
+            .select("*, items:shopping_list_items!shopping_list_items_shopping_list_id_fkey(*)")
             .eq("id", str(list_id))
         )
 
@@ -127,9 +133,10 @@ class ShoppingListsRepository:
             logger.warning("get_by_property called without property_id")
             return []
 
+        # See get_by_id for why the FK hint is required here.
         query = (
             self.client.table(self.table)
-            .select("*, items:shopping_list_items(count)")
+            .select("*, items:shopping_list_items!shopping_list_items_shopping_list_id_fkey(count)")
             .eq("property_id", str(tenant.property_id))
         )
 
