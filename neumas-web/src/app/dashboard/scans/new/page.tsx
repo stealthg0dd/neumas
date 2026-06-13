@@ -1,5 +1,6 @@
 "use client";
 
+import { isAxiosError } from "axios";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,7 +22,12 @@ import { itemToCube, type PantryItemCube } from "@/components/three/PantryScene"
 import { batchInventoryUpdate, getScanStatus, uploadScan } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
-import { getScanPipelineProgress } from "@/lib/scan-progress";
+import {
+  classifyScanPollError,
+  getScanPipelineProgress,
+  isFailureTerminalScanStatus,
+  isSuccessTerminalScanStatus,
+} from "@/lib/scan-progress";
 import {
   SCAN_UPLOAD_ACCEPT_ATTR,
   SCAN_UPLOAD_SIZE_ERROR,
@@ -142,10 +148,10 @@ export default function NewScanPage() {
   const [progressLabel, setProgressLabel] = useState("Uploading receipt");
   const [preparedSize, setPreparedSize] = useState<number | null>(null);
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const reset = useCallback(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
+    if (pollRef.current) clearTimeout(pollRef.current);
     setFile(null);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
@@ -222,26 +228,23 @@ export default function NewScanPage() {
   useEffect(() => {
     if (!scanId) return;
 
+    let errorCount = 0;
+
     const t = setTimeout(() => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current);
       setBusy(false);
       toast.warning("Processing is taking longer than expected.");
     }, 90_000);
 
-    pollRef.current = setInterval(async () => {
+    const poll = async () => {
       try {
         const s = await getScanStatus(scanId);
+        errorCount = 0;
         const nextProgress = getScanPipelineProgress(s);
         setUploadProgress(nextProgress.value);
         setProgressLabel(nextProgress.label);
-        if (
-          s.status === "completed" ||
-          s.status === "partial_failed" ||
-          s.status === "completed_with_partial_analysis" ||
-          s.status === "needs_review"
-        ) {
+        if (isSuccessTerminalScanStatus(s.status)) {
           clearTimeout(t);
-          if (pollRef.current) clearInterval(pollRef.current);
           const raw = s.extracted_items ?? [];
           const rows = raw.map((it, i) => mapExtracted(it as Record<string, unknown>, i));
           setExtracted(rows);
@@ -255,24 +258,46 @@ export default function NewScanPage() {
           } else {
             toast.success(`Found ${rows.length} item${rows.length === 1 ? "" : "s"}.`);
           }
-        } else if (
-          s.status === "failed" ||
-          s.status === "failed_provider_unavailable" ||
-          s.status === "failed_invalid_file"
-        ) {
-          clearTimeout(t);
-          if (pollRef.current) clearInterval(pollRef.current);
-          setBusy(false);
-          toast.error(getScanFailureMessage(s.error_message));
+          return;
         }
-      } catch {
-        /* keep polling */
+
+        if (isFailureTerminalScanStatus(s.status)) {
+          clearTimeout(t);
+          setBusy(false);
+          setUploadProgress(0);
+          toast.error(getScanFailureMessage(s.error_message));
+          return;
+        }
+
+        pollRef.current = setTimeout(poll, 2000);
+      } catch (err) {
+        const status = isAxiosError(err) ? err.response?.status : undefined;
+        const action = classifyScanPollError(status, errorCount);
+
+        if (action.type === "stop") {
+          clearTimeout(t);
+          setBusy(false);
+          setProgressLabel(action.label);
+          toast.error(action.label);
+          return;
+        }
+
+        if (action.type === "log_and_continue") {
+          console.error(`Scan status poll received unexpected status ${status}`);
+          pollRef.current = setTimeout(poll, action.delayMs);
+          return;
+        }
+
+        errorCount += 1;
+        pollRef.current = setTimeout(poll, action.delayMs);
       }
-    }, 2000);
+    };
+
+    pollRef.current = setTimeout(poll, 2000);
 
     return () => {
       clearTimeout(t);
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current);
     };
   }, [getScanFailureMessage, scanId]);
 
