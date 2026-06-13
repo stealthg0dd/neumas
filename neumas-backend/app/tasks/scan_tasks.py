@@ -529,8 +529,12 @@ async def _process_scan_async(
         try:
             stage_started = time.perf_counter()
             stage_details["baseline"] = {"status": "running"}
+            # org_id was resolved above (from the scan's property record if not
+            # passed in) and is required by consumption_patterns.org_id (NOT
+            # NULL). Pass it through so pattern_agent doesn't have to re-derive
+            # it per item.
             pattern_result = await recompute_patterns_for_property(
-                UUID(property_id)
+                UUID(property_id), org_id=org_id
             )
             stage_details["baseline_recompute_ms"] = int((time.perf_counter() - stage_started) * 1000)
             stage_details["baseline"] = {
