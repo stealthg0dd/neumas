@@ -1,4 +1,4 @@
-const CACHE_NAME = "neumas-shell-v1";
+const CACHE_NAME = "neumas-shell-v2";
 const SHELL_ASSETS = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -21,6 +21,14 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(event.request.url);
   if (event.request.mode === "navigate" && (url.pathname === "/dashboard" || url.pathname.startsWith("/dashboard/"))) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // API responses must never be served from the cache: cache-first here would
+  // return a stale snapshot for repeated polling requests (e.g. scan status
+  // polling), since the cached response is keyed by URL and never expires.
+  if (url.pathname.startsWith("/api/")) {
     event.respondWith(fetch(event.request));
     return;
   }

@@ -96,3 +96,47 @@ describe("service worker /dashboard navigation", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("service worker /api requests", () => {
+  it("bypasses the cache and goes straight to the network for /api/ GET requests", async () => {
+    const listeners: Record<string, (event: unknown) => void> = {};
+    const self: Record<string, unknown> = {
+      addEventListener: (name: string, cb: (event: unknown) => void) => {
+        listeners[name] = cb;
+      },
+      skipWaiting: vi.fn(),
+    };
+
+    const cachesMatch = vi.fn().mockResolvedValue(new Response("stale-status"));
+    const caches = {
+      open: vi.fn().mockResolvedValue({ addAll: vi.fn(), put: vi.fn() }),
+      match: cachesMatch,
+      keys: vi.fn().mockResolvedValue([]),
+      delete: vi.fn(),
+    };
+
+    const networkResponse = new Response('{"status":"processing"}');
+    const fetchMock = vi.fn().mockResolvedValue(networkResponse);
+
+    loadServiceWorker({ self, caches, fetch: fetchMock, clients: {} });
+
+    const respondWith = vi.fn();
+    const event = {
+      request: {
+        method: "GET",
+        url: "https://www.neumas.cc/api/scan/abc123/status",
+        mode: "same-origin",
+      },
+      respondWith,
+    };
+
+    (listeners.fetch as (event: unknown) => void)(event);
+
+    expect(respondWith).toHaveBeenCalledTimes(1);
+    const result = await respondWith.mock.calls[0][0];
+
+    expect(result).toBe(networkResponse);
+    expect(fetchMock).toHaveBeenCalledWith(event.request);
+    expect(cachesMatch).not.toHaveBeenCalled();
+  });
+});
