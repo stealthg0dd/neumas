@@ -18,19 +18,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 308);
   }
 
-  const isProtectedPath =
-    pathname.startsWith("/dashboard") || pathname.startsWith("/app") || pathname.startsWith("/admin");
-  if (isProtectedPath) {
-    const hasSupabaseSessionCookie = request.cookies
-      .getAll()
-      .some(({ name }) => name.startsWith("sb-") && name.endsWith("-auth-token"));
-    if (!hasSupabaseSessionCookie) {
-      const loginUrl = new URL("/auth", request.url);
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl, 307);
-    }
-  }
-
   const response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -64,7 +51,19 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getClaims();
+  // Keep auth cookies up to date and validate the session for protected routes.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isProtectedPath =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/app") || pathname.startsWith("/admin");
+
+  if (isProtectedPath && !user) {
+    const loginUrl = new URL("/auth", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl, 307);
+  }
 
   return response;
 }

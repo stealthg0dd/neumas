@@ -22,6 +22,13 @@ import { batchInventoryUpdate, getScanStatus, uploadScan } from "@/lib/api/endpo
 import { useAuthStore } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
 import { getScanPipelineProgress } from "@/lib/scan-progress";
+import {
+  SCAN_UPLOAD_ACCEPT_ATTR,
+  SCAN_UPLOAD_SIZE_ERROR,
+  SCAN_UPLOAD_TYPE_ERROR,
+  isSupportedScanUploadSize,
+  isSupportedScanUploadType,
+} from "@/lib/scan-upload-contract";
 import { cn } from "@/lib/utils";
 
 const PantryScene = dynamic(
@@ -155,12 +162,12 @@ export default function NewScanPage() {
 
   const onFile = useCallback(
     (f: File) => {
-      if (!f.type.startsWith("image/")) {
-        toast.error("Please upload an image (JPEG, PNG, WebP).");
+      if (!isSupportedScanUploadType(f)) {
+        toast.error(SCAN_UPLOAD_TYPE_ERROR);
         return;
       }
-      if (f.size > 12 * 1024 * 1024) {
-        toast.error("Image must be under 12 MB.");
+      if (!isSupportedScanUploadSize(f)) {
+        toast.error(SCAN_UPLOAD_SIZE_ERROR);
         return;
       }
       reset();
@@ -169,6 +176,13 @@ export default function NewScanPage() {
     },
     [reset]
   );
+
+  const getScanFailureMessage = useCallback((message: string | null | undefined) => {
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message;
+    }
+    return "Analysis failed; retry.";
+  }, []);
 
   const analyze = async () => {
     const pid = propertyId ?? useAuthStore.getState().propertyId;
@@ -198,7 +212,8 @@ export default function NewScanPage() {
       toast.success("Scan queued — analyzing…");
     } catch (err) {
       captureUIError("scan_post", err);
-      toast.error("Failed to upload receipt.");
+      const message = err instanceof Error && err.message ? err.message : "Failed to upload receipt.";
+      toast.error(message);
       setBusy(false);
       setUploadProgress(0);
     }
@@ -208,6 +223,7 @@ export default function NewScanPage() {
     if (!scanId) return;
 
     const t = setTimeout(() => {
+      if (pollRef.current) clearInterval(pollRef.current);
       setBusy(false);
       toast.warning("Processing is taking longer than expected.");
     }, 90_000);
@@ -218,7 +234,12 @@ export default function NewScanPage() {
         const nextProgress = getScanPipelineProgress(s);
         setUploadProgress(nextProgress.value);
         setProgressLabel(nextProgress.label);
-        if (s.status === "completed" || s.status === "partial_failed" || s.status === "completed_with_partial_analysis") {
+        if (
+          s.status === "completed" ||
+          s.status === "partial_failed" ||
+          s.status === "completed_with_partial_analysis" ||
+          s.status === "needs_review"
+        ) {
           clearTimeout(t);
           if (pollRef.current) clearInterval(pollRef.current);
           const raw = s.extracted_items ?? [];
@@ -227,7 +248,9 @@ export default function NewScanPage() {
           setCubes(rows.map((r, i) => itemToCube(r.id, i, r.name)));
           setBusy(false);
           setUploadProgress(100);
-          if (s.status === "partial_failed" || s.status === "completed_with_partial_analysis") {
+          if (s.status === "needs_review") {
+            toast.warning("Scan completed but requires manual review.");
+          } else if (s.status === "partial_failed" || s.status === "completed_with_partial_analysis") {
             toast.warning("AI provider temporarily unavailable; showing extracted basics");
           } else {
             toast.success(`Found ${rows.length} item${rows.length === 1 ? "" : "s"}.`);
@@ -240,7 +263,7 @@ export default function NewScanPage() {
           clearTimeout(t);
           if (pollRef.current) clearInterval(pollRef.current);
           setBusy(false);
-          toast.error("Analysis failed; retry");
+          toast.error(getScanFailureMessage(s.error_message));
         }
       } catch {
         /* keep polling */
@@ -251,7 +274,7 @@ export default function NewScanPage() {
       clearTimeout(t);
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [scanId]);
+  }, [getScanFailureMessage, scanId]);
 
   async function saveAll() {
     const pid = propertyId ?? useAuthStore.getState().propertyId;
@@ -321,7 +344,7 @@ export default function NewScanPage() {
               <input
                 id="scan-file"
                 type="file"
-                accept="image/*"
+                accept={SCAN_UPLOAD_ACCEPT_ATTR}
                 capture="environment"
                 className="hidden"
                 onChange={(e) => {

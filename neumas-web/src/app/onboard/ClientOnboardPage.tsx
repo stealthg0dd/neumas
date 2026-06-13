@@ -19,6 +19,13 @@ import { saveSession, setAccessToken } from "@/lib/auth-session";
 import { useAuthStore, selectHasSession } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
 import { getScanPipelineProgress } from "@/lib/scan-progress";
+import {
+  SCAN_UPLOAD_ACCEPT_ATTR,
+  SCAN_UPLOAD_SIZE_ERROR,
+  SCAN_UPLOAD_TYPE_ERROR,
+  isSupportedScanUploadSize,
+  isSupportedScanUploadType,
+} from "@/lib/scan-upload-contract";
 import { cn } from "@/lib/utils";
 
 const TOTAL_STEPS = 4;
@@ -138,13 +145,32 @@ function StepUpload({ onNext, onBack, onSkip }: { onNext: () => void; onBack: ()
     setUploadProgress(0);
     setProgressLabel("Uploading invoice");
   }, [preview]);
-  const onFileSelected = useCallback((f: File) => { const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"]; if (!allowed.includes(f.type)) { toast.error("Upload a JPEG, PNG, WebP, or PDF."); return; } if (f.size > 15 * 1024 * 1024) { toast.error("File must be under 15 MB."); return; } resetFile(); setFile(f); if (f.type.startsWith("image/")) setPreview(URL.createObjectURL(f)); }, [resetFile]);
+  const onFileSelected = useCallback((f: File) => {
+    if (!isSupportedScanUploadType(f)) {
+      toast.error(SCAN_UPLOAD_TYPE_ERROR);
+      return;
+    }
+    if (!isSupportedScanUploadSize(f)) {
+      toast.error(SCAN_UPLOAD_SIZE_ERROR);
+      return;
+    }
+    resetFile();
+    setFile(f);
+    if (f.type.startsWith("image/")) setPreview(URL.createObjectURL(f));
+  }, [resetFile]);
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
     pollStartedAtRef.current = null;
+  }, []);
+
+  const getScanFailureMessage = useCallback((message: string | null | undefined) => {
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message;
+    }
+    return "Analysis failed; retry.";
   }, []);
 
   const checkScanStatus = useCallback(async (sid: string) => {
@@ -156,6 +182,7 @@ function StepUpload({ onNext, onBack, onSkip }: { onNext: () => void; onBack: ()
       s.status === "completed" ||
       s.status === "partial_failed" ||
       s.status === "completed_with_partial_analysis" ||
+      s.status === "needs_review" ||
       s.status === "failed" ||
       s.status === "failed_provider_unavailable" ||
       s.status === "failed_invalid_file"
@@ -165,23 +192,26 @@ function StepUpload({ onNext, onBack, onSkip }: { onNext: () => void; onBack: ()
       if (
         s.status === "completed" ||
         s.status === "partial_failed" ||
-        s.status === "completed_with_partial_analysis"
+        s.status === "completed_with_partial_analysis" ||
+        s.status === "needs_review"
       ) {
         setDone(true);
         setPollTimedOut(false);
         setUploadProgress(100);
-        if (s.status === "partial_failed" || s.status === "completed_with_partial_analysis") {
+        if (s.status === "needs_review") {
+          toast.warning("Scan completed but requires manual review.");
+        } else if (s.status === "partial_failed" || s.status === "completed_with_partial_analysis") {
           toast.warning("AI provider temporarily unavailable; showing extracted basics");
         } else {
           toast.success(`Extracted ${s.items_detected ?? 0} items — inventory updated.`);
         }
       } else {
-        toast.error("Analysis failed; retry");
+        toast.error(getScanFailureMessage(s.error_message));
       }
       return true;
     }
     return false;
-  }, [stopPolling]);
+  }, [getScanFailureMessage, stopPolling]);
 
   const startPolling = useCallback((sid: string) => {
     stopPolling();
@@ -265,7 +295,7 @@ function StepUpload({ onNext, onBack, onSkip }: { onNext: () => void; onBack: ()
         </div>
       ) : (
         <>
-          <div role="button" tabIndex={0} aria-label="Upload file" onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") (e.target as HTMLElement).click(); }} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) onFileSelected(f); }} onClick={() => { const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/jpeg,image/png,image/webp,application/pdf"; inp.onchange = () => { if (inp.files?.[0]) onFileSelected(inp.files[0]); }; inp.click(); }} className={cn("flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed transition-colors", dragging ? "border-[#0071a3] bg-[#f0f7fb]" : file ? "border-emerald-300 bg-emerald-50" : "border-gray-200 bg-gray-50 hover:border-gray-300")}>
+          <div role="button" tabIndex={0} aria-label="Upload file" onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") (e.target as HTMLElement).click(); }} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) onFileSelected(f); }} onClick={() => { const inp = document.createElement("input"); inp.type = "file"; inp.accept = SCAN_UPLOAD_ACCEPT_ATTR; inp.onchange = () => { if (inp.files?.[0]) onFileSelected(inp.files[0]); }; inp.click(); }} className={cn("flex min-h-[180px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed transition-colors", dragging ? "border-[#0071a3] bg-[#f0f7fb]" : file ? "border-emerald-300 bg-emerald-50" : "border-gray-200 bg-gray-50 hover:border-gray-300")}>
             {preview ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -278,7 +308,7 @@ function StepUpload({ onNext, onBack, onSkip }: { onNext: () => void; onBack: ()
                   <p className="text-[14px] font-medium text-gray-600">
                     {file ? file.name : "Drop invoice or click to upload"}
                   </p>
-                  <p className="mt-0.5 text-[12px] text-gray-400">JPEG, PNG, PDF · up to 15 MB</p>
+                  <p className="mt-0.5 text-[12px] text-gray-400">JPEG, PNG, WebP · up to 10 MB</p>
                 </div>
               </>
             )}
@@ -412,7 +442,22 @@ export default function ClientOnboardPage() {
           property_name: propertyName,
           role: "admin",
         });
-        saveSession(resp);
+        const { createClient } = await import("@/utils/supabase/client");
+        const supabase = createClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.access_token) {
+          saveSession({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token ?? null,
+            expires_in: session.expires_in ?? 3600,
+            profile: resp.profile,
+          });
+        } else {
+          saveSession(resp);
+        }
         setProvisionedSession(resp);
         return true;
       } catch (err) {

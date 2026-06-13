@@ -247,6 +247,7 @@ export type ScanStatus =
   | "uploaded"
   | "queued"
   | "processing"
+  | "needs_review"
   | "completed"
   | "completed_with_partial_analysis"
   | "partial_failed"
@@ -305,7 +306,7 @@ export interface ScanStatusResponse {
   completed_at?: string | null;
   stage_details?: Record<string, unknown> | null;
   stage_errors?: Array<Record<string, unknown>>;
-  /** Items extracted by AI (present when status === "completed") */
+  /** Items extracted by AI when available */
   extracted_items?: Record<string, unknown>[];
 }
 

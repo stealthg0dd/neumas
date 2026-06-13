@@ -79,15 +79,41 @@ async def login(request: LoginRequest, raw_request: Request) -> LoginResponse:
 
     Returns JWT access token and user profile.
     """
+    logger.info(
+        "Authentication login started",
+        event_name="auth_login_started",
+        email=request.email,
+    )
     try:
-        return await auth_service.login(request.email, request.password)
+        response = await auth_service.login(request.email, request.password)
+        logger.info(
+            "Authentication login succeeded",
+            event_name="auth_login_succeeded",
+            email=request.email,
+            user_id=str(response.profile.user_id),
+            org_id=str(response.profile.org_id),
+        )
+        return response
     except ValueError as e:
+        logger.warning(
+            "Authentication login failed",
+            event_name="auth_login_failed",
+            email=request.email,
+            reason="invalid_credentials",
+            error=str(e),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         )
     except Exception as e:
-        logger.error("Login failed", error=str(e))
+        logger.error(
+            "Authentication login failed",
+            event_name="auth_login_failed",
+            email=request.email,
+            reason="internal_error",
+            error=str(e),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -109,12 +135,23 @@ async def refresh_token(request: RefreshTokenRequest) -> TokenResponse:
     try:
         return await auth_service.refresh_session(request.refresh_token)
     except ValueError as e:
+        logger.warning(
+            "Authentication refresh failed",
+            event_name="auth_refresh_failed",
+            reason="invalid_refresh_token",
+            error=str(e),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         )
     except Exception as e:
-        logger.warning("Token refresh failed", error=str(e))
+        logger.warning(
+            "Authentication refresh failed",
+            event_name="auth_refresh_failed",
+            reason="internal_error",
+            error=str(e),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired. Please log in again.",
@@ -131,20 +168,55 @@ async def get_me(
     user: Annotated[UserInfo, Depends(get_current_user)],
 ) -> ProfileResponse:
     """Get current authenticated user's profile."""
-    if not user.default_property_id:
+    default_property_id = getattr(user, "default_property_id", None) or getattr(
+        user,
+        "property_id",
+        None,
+    )
+
+    if not default_property_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No property configured for this account. Contact your administrator.",
         )
+
+    org_name = getattr(user, "organization_name", "") or ""
+    property_name = ""
+
+    try:
+        client = await get_async_supabase_admin()
+        if client:
+            if not org_name:
+                org_row = await (
+                    client.table("organizations")
+                    .select("name")
+                    .eq("id", str(user.organization_id))
+                    .limit(1)
+                    .execute()
+                )
+                if org_row.data:
+                    org_name = org_row.data[0].get("name") or ""
+
+            prop_row = await (
+                client.table("properties")
+                .select("name")
+                .eq("id", str(default_property_id))
+                .limit(1)
+                .execute()
+            )
+            if prop_row.data:
+                property_name = prop_row.data[0].get("name") or ""
+    except Exception as exc:
+        logger.warning("Failed to enrich /me profile names", error=str(exc))
 
     return ProfileResponse(
         user_id=user.id,
         email=user.email,
         full_name=user.full_name,
         org_id=user.organization_id,
-        org_name=user.organization_name or "",
-        property_id=user.default_property_id,
-        property_name="",
+        org_name=org_name,
+        property_id=default_property_id,
+        property_name=property_name,
         role=user.role,
     )
 

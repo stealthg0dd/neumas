@@ -12,6 +12,7 @@
  */
 
 import type { ProfileResponse } from "@/lib/api/types";
+import { clearPendingAuthSessionCookie } from "@/lib/auth-bootstrap";
 import { useAuthStore } from "@/lib/store/auth";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -37,8 +38,78 @@ export function setAccessToken(token: string): void {
 /** Remove all tokens and clear Zustand store. */
 export function clearTokens(): void {
   if (typeof window === "undefined") return;
+
+  // Best-effort cookie/session cleanup for canonical Supabase session.
+  import("@/utils/supabase/client")
+    .then(({ createClient }) => createClient().auth.signOut())
+    .catch(() => {});
+
+  clearPendingAuthSessionCookie();
   localStorage.removeItem(ACCESS_TOKEN_KEY);
+  sessionStorage.removeItem("neumas_access_token");
+  sessionStorage.removeItem("neumas-auth");
   useAuthStore.getState().clearAuth();
+}
+
+async function fetchProfile(accessToken: string): Promise<ProfileResponse | null> {
+  try {
+    const response = await fetch("/api/auth/me", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) return null;
+    return (await response.json()) as ProfileResponse;
+  } catch {
+    return null;
+  }
+}
+
+async function syncFromSupabaseSession(options?: {
+  forceRefresh?: boolean;
+}): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+
+  const { createClient } = await import("@/utils/supabase/client");
+  const supabase = createClient();
+
+  let session = (
+    await supabase.auth.getSession()
+  ).data.session;
+
+  if (options?.forceRefresh || !session?.access_token) {
+    const refreshed = await supabase.auth.refreshSession();
+    session = refreshed.data.session;
+  }
+
+  if (!session?.access_token) {
+    return false;
+  }
+
+  const profile = await fetchProfile(session.access_token);
+  if (!profile) {
+    return false;
+  }
+
+  const expiresIn =
+    typeof session.expires_in === "number" && session.expires_in > 0
+      ? session.expires_in
+      : typeof session.expires_at === "number" && session.expires_at > 0
+        ? Math.max(1, session.expires_at - Math.floor(Date.now() / 1000))
+        : 3600;
+
+  saveSession({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token ?? null,
+    expires_in: expiresIn,
+    profile,
+  });
+
+  return true;
 }
 
 // ── Save after login/signup ────────────────────────────────────────────────────
@@ -86,40 +157,7 @@ export async function attemptRefresh(): Promise<boolean> {
 }
 
 async function _doRefresh(): Promise<boolean> {
-  const refreshToken = useAuthStore.getState().refreshToken;
-  if (!refreshToken) return false;
-
-  try {
-    const response = await fetch("/api/auth/refresh", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-
-    if (!response.ok) return false;
-
-    const data = await response.json() as {
-      access_token: string;
-      refresh_token?: string | null;
-      expires_in: number;
-    };
-
-    // Update token in localStorage and store
-    setAccessToken(data.access_token);
-    const profile = useAuthStore.getState().profile;
-    if (profile) {
-      useAuthStore.getState().saveAuth({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token ?? refreshToken,
-        expires_in: data.expires_in,
-        profile,
-      });
-    }
-
-    return true;
-  } catch {
-    return false;
-  }
+  return syncFromSupabaseSession({ forceRefresh: true });
 }
 
 // ── Rehydration reconciliation ────────────────────────────────────────────────
@@ -133,8 +171,11 @@ async function _doRefresh(): Promise<boolean> {
 export async function rehydrateSession(): Promise<void> {
   const store = useAuthStore.getState();
 
-  // Not logged in — nothing to reconcile
-  if (!store.token) return;
+  if (!store.token) {
+    // No local token yet — attempt bootstrap from canonical Supabase session.
+    await syncFromSupabaseSession();
+    return;
+  }
 
   if (isTokenExpired()) {
     const refreshed = await attemptRefresh();
@@ -151,13 +192,22 @@ export async function rehydrateSession(): Promise<void> {
  * then clears all local state.
  */
 export async function logout(): Promise<void> {
-  const token = getAccessToken();
-  if (token) {
-    // Best-effort backend logout (don't block on failure)
-    fetch("/api/auth/logout", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
+  try {
+    const { createClient } = await import("@/utils/supabase/client");
+    const supabase = createClient();
+
+    const token = getAccessToken();
+    if (token) {
+      // Best-effort backend audit logout (token already validated by backend).
+      fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+
+    await supabase.auth.signOut();
+  } catch {
+    // Continue with local cleanup even if signOut fails.
   }
   clearTokens();
 }

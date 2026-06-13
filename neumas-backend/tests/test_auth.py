@@ -9,6 +9,7 @@ import pytest
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
+from app.api.deps import get_current_user
 from app.main import app
 from app.schemas.auth import UserInfo
 
@@ -48,26 +49,50 @@ class TestHealthEndpoints:
 
     @pytest.mark.asyncio
     async def test_health_check(self, client: AsyncClient):
-        """Test basic health check returns healthy."""
+        """Test liveness endpoint returns healthy without dependency checks."""
         response = await client.get("/health")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["status"] == "healthy"
         assert data["service"] == "neumas-api"
+        assert data["checks"]["app_boot"] is True
 
     @pytest.mark.asyncio
     async def test_readiness_check(self, client: AsyncClient):
-        """Test readiness check with mocked dependencies."""
-        with patch("app.main.health_check", new_callable=AsyncMock) as mock_db:
-            mock_db.return_value = True
+        """Test readiness endpoint returns structured dependency checks."""
+        response = await client.get("/ready")
 
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE]
+        data = response.json()
+        payload = data.get("detail", data)
+        assert "checks" in payload
+        assert "metadata" in payload
+        assert payload["checks"].get("app_boot") is True
+
+    @pytest.mark.asyncio
+    async def test_readiness_requires_ocr_provider_when_queue_required(self, client: AsyncClient):
+        """Readiness should fail when queue mode is enabled without OCR provider keys."""
+        import app.main as app_main
+
+        with (
+            patch.object(app_main.settings, "ENV", "prod"),
+            patch.object(app_main.settings, "CELERY_TASK_ALWAYS_EAGER", False),
+            patch.object(app_main.settings, "DEV_MODE", False),
+            patch.object(app_main.settings, "OPENAI_API_KEY", ""),
+            patch.object(app_main.settings, "ANTHROPIC_API_KEY", ""),
+            patch.object(app_main.settings, "GOOGLE_API_KEY", ""),
+            patch.object(app_main.settings, "SUPABASE_URL", ""),
+            patch.object(app_main.settings, "SUPABASE_SERVICE_ROLE_KEY", ""),
+            patch.object(app_main.settings, "REDIS_URL", ""),
+            patch.object(app_main.settings, "REDIS_PRIVATE_URL", ""),
+            patch.object(app_main.settings, "CELERY_BROKER_URL", ""),
+        ):
             response = await client.get("/ready")
 
-            assert response.status_code == status.HTTP_200_OK
-            data = response.json()
-            assert data["status"] in ["ready", "degraded"]
-            assert "checks" in data
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        detail = response.json()["detail"]
+        assert "ocr_provider_config" in detail["failed"]
 
 
 class TestAuthEndpoints:
@@ -115,6 +140,72 @@ class TestAuthEndpoints:
 
             # Will fail without proper mocking - this is just a template
             # In real tests, you'd need to mock the full auth chain
+
+    @pytest.mark.asyncio
+    async def test_get_me_consistent_profile_shape(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+    ):
+        """/api/auth/me returns a consistent profile payload expected by frontend."""
+
+        class _MockUser:
+            id = uuid4()
+            auth_id = uuid4()
+            email = "chef@example.com"
+            full_name = "Chef"
+            role = "admin"
+            organization_id = uuid4()
+            organization_name = ""
+            default_property_id = uuid4()
+            is_active = True
+
+        user = _MockUser()
+
+        class _MockQuery:
+            def __init__(self, data):
+                self._data = data
+
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args, **_kwargs):
+                return self
+
+            def limit(self, *_args, **_kwargs):
+                return self
+
+            async def execute(self):
+                return type("Resp", (), {"data": self._data})
+
+        class _MockClient:
+            def table(self, name: str):
+                if name == "organizations":
+                    return _MockQuery([{"name": "Org Name"}])
+                if name == "properties":
+                    return _MockQuery([{"name": "Main Property"}])
+                return _MockQuery([])
+
+        async def _override_user():
+            return user
+
+        app.dependency_overrides[get_current_user] = _override_user
+        try:
+            with patch("app.api.routes.auth.get_async_supabase_admin", new_callable=AsyncMock) as mock_admin:
+                mock_admin.return_value = _MockClient()
+
+                response = await client.get("/api/auth/me", headers=auth_headers)
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["email"] == "chef@example.com"
+            assert data["org_name"] == "Org Name"
+            assert data["property_name"] == "Main Property"
+            assert "org_id" in data
+            assert "property_id" in data
+            assert "role" in data
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
 
     @pytest.mark.asyncio
     async def test_validate_token_unauthorized(self, client: AsyncClient):

@@ -22,6 +22,7 @@ from app.schemas.auth import (
     ProfileResponse,
     SignupRequest,
     SignupResponse,
+    TokenResponse,
     UserInfo,
 )
 from supabase import create_async_client

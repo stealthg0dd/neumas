@@ -1,13 +1,15 @@
 /**
  * GET /api/health
  *
- * Returns backend connectivity from the web surface so production checks hit the
- * same origin as the browser while still proving the Railway API is reachable.
+ * Returns backend liveness + readiness from the web surface so production checks
+ * hit the same origin as the browser while still proving the Railway API path.
  *
  * Response shape:
  *  {
- *    status:      "healthy" | "unhealthy"
- *    backend:     "ok" | "error"
+ *    status:      "healthy" | "unhealthy" | "degraded"
+ *    liveness:    "ok" | "error"
+ *    readiness:   "ok" | "error"
+ *    backend:     "ok" | "error"  // compatibility alias for readiness
  *    supabase:    "ok" | "error" | "not_configured"
  *    redis:       "ok" | "error" | "not_configured"
  *    version:     string
@@ -62,29 +64,39 @@ function normalizeCheckStatus(value: unknown): "ok" | "error" | "not_configured"
 
 async function handler(): Promise<NextResponse> {
   try {
-    const backendResponse = await fetch(`${BACKEND_URL}/health`, {
+    const livenessResponse = await fetch(`${BACKEND_URL}/health`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+    });
+    const readinessResponse = await fetch(`${BACKEND_URL}/ready`, {
       cache: "no-store",
       signal: AbortSignal.timeout(5_000),
     });
 
-    const raw = await backendResponse.json().catch(() => ({}));
-    const payload = extractHealthPayload(raw);
+    const livenessRaw = await livenessResponse.json().catch(() => ({}));
+    const readinessRaw = await readinessResponse.json().catch(() => ({}));
+    const livenessPayload = extractHealthPayload(livenessRaw);
+    const readinessPayload = extractHealthPayload(readinessRaw);
 
-    const supabase = normalizeCheckStatus(payload.supabase ?? payload.checks?.supabase);
-    const redis = normalizeCheckStatus(payload.redis ?? payload.checks?.redis);
-    const isHealthy = backendResponse.ok && (payload.status === "healthy" || payload.status === "ok");
+    const supabase = normalizeCheckStatus(readinessPayload.supabase ?? readinessPayload.checks?.supabase);
+    const redis = normalizeCheckStatus(readinessPayload.redis ?? readinessPayload.checks?.redis);
+    const isLive = livenessResponse.ok;
+    const isReady = readinessResponse.ok;
+    const overallStatus = isLive && isReady ? "healthy" : isLive ? "degraded" : "unhealthy";
 
     return NextResponse.json(
       {
-        status: isHealthy ? "healthy" : "unhealthy",
-        service: payload.service ?? "neumas-api",
-        backend: backendResponse.ok ? "ok" : "error",
-        version: payload.version ?? process.env.npm_package_version ?? "0.1.0",
-        environment: payload.environment ?? (serverConfig.environment || publicConfig.environment),
+        status: overallStatus,
+        service: readinessPayload.service ?? livenessPayload.service ?? "neumas-api",
+        liveness: isLive ? "ok" : "error",
+        readiness: isReady ? "ok" : "error",
+        backend: isReady ? "ok" : "error",
+        version: readinessPayload.version ?? livenessPayload.version ?? process.env.npm_package_version ?? "0.1.0",
+        environment: readinessPayload.environment ?? livenessPayload.environment ?? (serverConfig.environment || publicConfig.environment),
         supabase,
         redis,
       },
-      { status: backendResponse.status }
+      { status: overallStatus === "healthy" ? 200 : 503 }
     );
   } catch {
     return NextResponse.json(

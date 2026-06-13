@@ -101,6 +101,36 @@ UPLOAD_DEDUP_WINDOW_SECONDS = 300  # 5 minutes
 FILE_HASH_ALGO = "sha256"
 
 # ---------------------------------------------------------------------------
+# Scan upload / processing contract
+# ---------------------------------------------------------------------------
+
+SCAN_UPLOAD_ALLOWED_MIME_TYPES = frozenset({
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+})
+
+SCAN_UPLOAD_ALLOWED_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp"})
+
+SCAN_UPLOAD_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+SCAN_TERMINAL_STATUSES = frozenset({
+    "needs_review",
+    "completed",
+    "partial_failed",
+    "completed_with_partial_analysis",
+    "failed",
+    "failed_provider_unavailable",
+    "failed_invalid_file",
+})
+
+SCAN_SUCCESS_STATUSES = frozenset({
+    "completed",
+    "partial_failed",
+    "completed_with_partial_analysis",
+})
+
+# ---------------------------------------------------------------------------
 # Report generation
 # ---------------------------------------------------------------------------
 

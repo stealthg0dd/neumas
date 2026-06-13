@@ -47,7 +47,7 @@ jobs:
           AGENT_OS_URL: ${{ secrets.AGENT_OS_URL }}
           RAILWAY_API_URL: ${{ secrets.RAILWAY_API_URL }}
         run: |
-          HEALTH_URL="${RAILWAY_API_URL}/health"
+          HEALTH_URL="${RAILWAY_API_URL}/ready"
           echo "Checking $HEALTH_URL"
           for i in 1 2 3 4 5 6; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" || echo "000")
