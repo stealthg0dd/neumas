@@ -17,6 +17,7 @@ import axios, {
   type AxiosResponse,
   type AxiosError,
 } from "axios";
+import { useAuthStore } from "@/lib/store/auth";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,8 @@ const RETRY_BASE_DELAY = 400;
 /** Read token from localStorage. Safe to call during SSR (returns null). */
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
+  const storeToken = useAuthStore.getState().token;
+  if (storeToken) return storeToken;
   return localStorage.getItem("neumas_access_token");
 }
 
@@ -125,6 +128,7 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const config = error.config as InternalAxiosRequestConfig & {
       _retryCount?: number;
+      _authRetry?: boolean;
     };
 
     // Retry counter (attach to config so it survives re-attempts)
@@ -156,20 +160,11 @@ apiClient.interceptors.response.use(
     const detail = (error.response?.data as { detail?: unknown })?.detail;
     let message: string;
 
-    if (typeof detail === "string") {
-      message = detail;
-    } else if (Array.isArray(detail)) {
-      message = detail
-        .map((d) =>
-          typeof d === "object" && d !== null && "msg" in d
-            ? String((d as { msg: unknown }).msg)
-            : String(d)
-        )
-        .join("; ");
-    } else if (error.response?.status === 401) {
+    if (error.response?.status === 401) {
       // Attempt token refresh before giving up.
       // Import dynamically to avoid circular dependency with auth-session.
-      if (typeof window !== "undefined" && !_redirectingToLogin) {
+      if (typeof window !== "undefined" && !_redirectingToLogin && !config._authRetry) {
+        config._authRetry = true;
         try {
           const { attemptRefresh, getAccessToken } = await import("@/lib/auth-session");
           const refreshed = await attemptRefresh();
@@ -191,6 +186,18 @@ apiClient.interceptors.response.use(
         window.location.href = "/auth";
       }
       message = "Session expired. Please log in again.";
+    } else if (typeof detail === "string") {
+      message = detail;
+    } else if (detail && typeof detail === "object" && "message" in detail) {
+      message = String((detail as { message: unknown }).message);
+    } else if (Array.isArray(detail)) {
+      message = detail
+        .map((d) =>
+          typeof d === "object" && d !== null && "msg" in d
+            ? String((d as { msg: unknown }).msg)
+            : String(d)
+        )
+        .join("; ");
     } else if (error.response?.status === 403) {
       message = "You do not have permission to perform this action.";
     } else if (error.response?.status === 404) {

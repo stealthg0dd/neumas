@@ -9,6 +9,20 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+ScanProcessingStatus = Literal[
+    "pending",
+    "uploaded",
+    "queued",
+    "processing",
+    "needs_review",
+    "completed",
+    "completed_with_partial_analysis",
+    "partial_failed",
+    "failed",
+    "failed_provider_unavailable",
+    "failed_invalid_file",
+]
+
 
 class ScanBase(BaseModel):
     """Base scan fields."""
@@ -45,7 +59,7 @@ class ScanResponse(ScanBase):
     id: UUID
     property_id: UUID
     user_id: UUID
-    status: str
+    status: ScanProcessingStatus
     image_urls: list[str]
     items_detected: int
     confidence_score: Decimal | None
@@ -164,7 +178,7 @@ class ScanQueuedResponse(BaseModel):
     """Response when scan is queued for processing."""
 
     scan_id: UUID
-    status: str = "uploaded"
+    status: Literal["uploaded"] = "uploaded"
     message: str = "Receipt uploaded, analysis pending"
 
 
@@ -173,7 +187,7 @@ class ScanStatusResponse(BaseModel):
 
     scan_id: UUID
     processed: bool
-    status: str
+    status: ScanProcessingStatus
     created_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None

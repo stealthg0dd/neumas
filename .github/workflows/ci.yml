@@ -64,6 +64,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: ESLint
+        run: pnpm run lint
+
       - name: TypeScript type-check
         run: pnpm tsc --noEmit
 
@@ -136,6 +139,16 @@ jobs:
         # --ignore=tests/manual is also in pyproject.toml addopts; explicit here
         # for clarity so CI readers don't wonder why manual tests don't run.
         run: pytest tests/ --ignore=tests/manual -v --tb=short
+
+      - name: Mypy ratchet (critical auth/scan modules)
+        run: |
+          mypy \
+            app/api/routes/auth.py \
+            app/api/routes/scans.py \
+            app/services/auth_service.py \
+            app/services/scan_service.py \
+            app/tasks/scan_tasks.py \
+            --config-file mypy-ratchet.ini
 
   # ---------------------------------------------------------------------------
   # Notify Slack on failure

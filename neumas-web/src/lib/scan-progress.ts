@@ -30,6 +30,10 @@ export function getScanPipelineProgress(
     return { value: 100, label: "AI provider temporarily unavailable; showing extracted basics" };
   }
 
+  if (scan.status === "needs_review") {
+    return { value: 100, label: "Needs manual review" };
+  }
+
   if (scan.status === "failed_provider_unavailable" || scan.status === "failed_invalid_file") {
     return { value: 100, label: "Analysis failed; retry" };
   }

@@ -28,13 +28,15 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+    if (!hasHydrated || !hasSession) return;
+
     get<unknown>("/api/predictions", { limit: 1 })
       .then(() => setWorkerOk(true))
       .catch((err: { response?: { status: number } }) => {
         const status = err?.response?.status;
         setWorkerOk(!status || status < 500);
       });
-  }, []);
+  }, [hasHydrated, hasSession]);
 
   useEffect(() => {
     if (!hasHydrated || !hasSession) return;
@@ -58,9 +60,26 @@ export default function DashboardLayout({
   }, [hasHydrated, hasSession, router]);
 
   useEffect(() => {
-    if (hasHydrated && !hasSession) {
-      router.replace("/auth");
-    }
+    if (!hasHydrated || hasSession) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { rehydrateSession } = await import("@/lib/auth-session");
+        await rehydrateSession();
+        if (!cancelled && !useAuthStore.getState().token) {
+          router.replace("/auth");
+        }
+      } catch {
+        if (!cancelled) {
+          router.replace("/auth");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [hasHydrated, hasSession, router]);
 
   if (!hasHydrated) {

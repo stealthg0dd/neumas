@@ -16,6 +16,7 @@ from typing import Any
 from uuid import UUID
 
 from app.core.celery_app import celery_app, neumas_task
+from app.core.constants import SCAN_SUCCESS_STATUSES
 from app.core.logging import get_logger, log_business_event
 
 logger = get_logger(__name__)
@@ -120,6 +121,7 @@ def process_scan(
     """
     logger.info(
         "Scan task received",
+        event_name="scan_worker_started",
         scan_id=scan_id,
         property_id=property_id,
         scan_type=scan_type,
@@ -195,14 +197,15 @@ async def _process_scan_async(
     # -- Idempotency check: skip if already completed --------------------------
     existing_resp = await (
         supabase.table("scans")
-        .select("status, items_detected, processing_time_ms")
+        .select("status, items_detected, processing_time_ms, processed_results")
         .eq("id", scan_id)
         .single()
         .execute()
     )
+    existing_scan = existing_resp.data or {}
     if (
-        existing_resp.data
-        and existing_resp.data.get("status") == "completed"
+        existing_scan
+        and existing_scan.get("status") in SCAN_SUCCESS_STATUSES
         and not force_reprocess
     ):
         logger.info(
@@ -213,8 +216,8 @@ async def _process_scan_async(
         return {
             "scan_id": scan_id,
             "property_id": property_id,
-            "status": "completed",
-            "items_upserted": existing_resp.data.get("items_detected", 0),
+            "status": existing_scan.get("status"),
+            "items_upserted": existing_scan.get("items_detected", 0),
             "errors": [],
             "skipped": True,
         }
@@ -269,6 +272,13 @@ async def _process_scan_async(
         # =================================================================
         stage_started = time.perf_counter()
         vision_agent = await get_vision_agent()
+        logger.info(
+            "OCR extraction started",
+            event_name="ocr_extract_started",
+            scan_id=scan_id,
+            property_id=property_id,
+            scan_type=scan_type,
+        )
         stage_details["ocr"] = {"status": "running"}
         vision_result = await vision_agent.analyze_receipt(
             image_url=image_url,
@@ -288,6 +298,14 @@ async def _process_scan_async(
                 "elapsed_ms": stage_details["ocr_ms"],
             }
             logger.error("VisionAgent failed", scan_id=scan_id, error=error_msg)
+            logger.warning(
+                "OCR extraction failed",
+                event_name="ocr_extract_failed",
+                scan_id=scan_id,
+                property_id=property_id,
+                reason_code=reason_code,
+                error=error_msg,
+            )
             stage_errors = [{"stage": "ocr", "error": error_msg, "reason_code": reason_code}]
             await _mark_failed(
                 supabase,
@@ -301,12 +319,13 @@ async def _process_scan_async(
             result["errors"].append({"stage": "vision", "error": error_msg})
             return result
 
-        extracted_items: list[dict[str, Any]] = vision_result.get("items", [])
+        extracted_items = _sanitize_extracted_items(vision_result.get("items"))
         receipt_meta: dict[str, Any] = vision_result.get("receipt_metadata") or {}
         vision_confidence: float = float(vision_result.get("confidence") or 0)
 
         logger.info(
             "VisionAgent complete",
+            event_name="ocr_extract_succeeded",
             scan_id=scan_id,
             items_extracted=len(extracted_items),
             confidence=vision_confidence,
@@ -414,54 +433,95 @@ async def _process_scan_async(
         # =================================================================
         # Step 4 -- Resolve vendor + upsert items into inventory_items
         # =================================================================
-        vendor_name = (receipt_meta.get("vendor_name") or "").strip()
-        vendor_id: str | None = await _resolve_or_create_vendor_id(
-            supabase=supabase,
-            org_id=org_id,
-            vendor_name=vendor_name,
-            confidence=vision_confidence,
-        )
-
-        stage_started = time.perf_counter()
         upserted: list[dict[str, Any]] = []
-        for item in extracted_items:
-            try:
-                inv_item = await _upsert_inventory_item(
-                    supabase=supabase,
-                    org_id=org_id,
-                    property_id=property_id,
-                    item=item,
-                    vendor_id=vendor_id,
-                    vendor_name=vendor_name,
-                )
-                if inv_item:
-                    upserted.append(inv_item)
-            except Exception as exc:
-                logger.warning(
-                    "Inventory upsert failed for item",
-                    item_name=item.get("item_name"),
-                    error=str(exc),
-                )
-                result["errors"].append({
-                    "stage": "inventory",
-                    "item": item.get("item_name"),
-                    "error": str(exc),
-                })
-
-        result["items_upserted"] = len(upserted)
-        stage_details["inventory_upsert_ms"] = int((time.perf_counter() - stage_started) * 1000)
-        stage_details["inventory"] = {
-            "status": "completed" if not result["errors"] else "partial_failed",
-            "elapsed_ms": stage_details["inventory_upsert_ms"],
-            "items_upserted": len(upserted),
-            "items_extracted": len(extracted_items),
-        }
         logger.info(
-            "Inventory upsert complete",
+            "Inventory update from scan started",
+            event_name="inventory_update_from_scan_started",
             scan_id=scan_id,
-            upserted=len(upserted),
-            of_extracted=len(extracted_items),
+            property_id=property_id,
+            items_extracted=len(extracted_items),
         )
+        prior_inventory_status = (
+            ((existing_scan.get("processed_results") or {}).get("stage_details") or {})
+            .get("inventory", {})
+            .get("status")
+        )
+        if prior_inventory_status == "completed" and not force_reprocess:
+            logger.warning(
+                "Inventory stage already completed; skipping retry upserts",
+                scan_id=scan_id,
+                property_id=property_id,
+            )
+            stage_details["inventory"] = {
+                "status": "skipped",
+                "reason": "already_applied",
+            }
+            result["items_upserted"] = 0
+            logger.info(
+                "Inventory update from scan skipped",
+                event_name="inventory_update_from_scan_succeeded",
+                scan_id=scan_id,
+                property_id=property_id,
+                reason="already_applied",
+                items_upserted=0,
+            )
+        else:
+            vendor_name = (receipt_meta.get("vendor_name") or "").strip()
+            vendor_id: str | None = await _resolve_or_create_vendor_id(
+                supabase=supabase,
+                org_id=org_id,
+                vendor_name=vendor_name,
+                confidence=vision_confidence,
+            )
+
+            stage_started = time.perf_counter()
+            for item in extracted_items:
+                try:
+                    inv_item = await _upsert_inventory_item(
+                        supabase=supabase,
+                        org_id=org_id,
+                        property_id=property_id,
+                        item=item,
+                        vendor_id=vendor_id,
+                        vendor_name=vendor_name,
+                    )
+                    if inv_item:
+                        upserted.append(inv_item)
+                except Exception as exc:
+                    logger.warning(
+                        "Inventory upsert failed for item",
+                        item_name=item.get("item_name"),
+                        error=str(exc),
+                    )
+                    result["errors"].append({
+                        "stage": "inventory",
+                        "item": item.get("item_name"),
+                        "error": str(exc),
+                    })
+
+            result["items_upserted"] = len(upserted)
+            stage_details["inventory_upsert_ms"] = int((time.perf_counter() - stage_started) * 1000)
+            stage_details["inventory"] = {
+                "status": "completed" if not result["errors"] else "partial_failed",
+                "elapsed_ms": stage_details["inventory_upsert_ms"],
+                "items_upserted": len(upserted),
+                "items_extracted": len(extracted_items),
+            }
+            logger.info(
+                "Inventory upsert complete",
+                event_name="inventory_update_from_scan_succeeded",
+                scan_id=scan_id,
+                upserted=len(upserted),
+                of_extracted=len(extracted_items),
+            )
+            if result["errors"]:
+                logger.warning(
+                    "Inventory update from scan completed with errors",
+                    event_name="inventory_update_from_scan_failed",
+                    scan_id=scan_id,
+                    property_id=property_id,
+                    error_count=len(result["errors"]),
+                )
 
         # =================================================================
         # Step 5 -- Recompute consumption patterns
@@ -555,15 +615,16 @@ async def _process_scan_async(
             property_id=property_id,
             user_id=user_id,
             scan_id=scan_id,
-            items_upserted=len(upserted),
+            items_upserted=result.get("items_upserted", 0),
             elapsed_ms=total_ms,
             errors=len(result["errors"]),
         )
         logger.info(
             "Scan processing complete",
+            event_name="scan_worker_succeeded",
             scan_id=scan_id,
             property_id=property_id,
-            items_upserted=len(upserted),
+            items_upserted=result.get("items_upserted", 0),
             total_ms=total_ms,
             errors=len(result["errors"]),
         )
@@ -591,7 +652,7 @@ async def _process_scan_async(
                     property_id=property_id,
                     actor_role="system",
                     metadata={
-                        "items_upserted": len(upserted),
+                        "items_upserted": result.get("items_upserted", 0),
                         "items_detected": len(extracted_items),
                         "scan_type": scan_type,
                         "confidence": vision_confidence,
@@ -606,9 +667,25 @@ async def _process_scan_async(
 
     except Exception as exc:
         error_msg = str(exc)
+        failed_status = "failed_invalid_file" if isinstance(exc, ValueError) else "failed_provider_unavailable"
         logger.exception(
             "Scan processing failed",
+            event_name="scan_worker_failed",
             scan_id=scan_id,
+            error=error_msg,
+        )
+        logger.warning(
+            "OCR extraction failed",
+            event_name="ocr_extract_failed",
+            scan_id=scan_id,
+            property_id=property_id,
+            error=error_msg,
+        )
+        logger.warning(
+            "Inventory update from scan failed",
+            event_name="inventory_update_from_scan_failed",
+            scan_id=scan_id,
+            property_id=property_id,
             error=error_msg,
         )
         try:
@@ -616,7 +693,7 @@ async def _process_scan_async(
                 supabase,
                 scan_id,
                 error_msg,
-                status="failed_provider_unavailable",
+                status=failed_status,
                 stage_details=stage_details,
                 stage_errors=result.get("errors", []) + [{"stage": "pipeline", "error": error_msg}],
             )
@@ -626,7 +703,7 @@ async def _process_scan_async(
                 scan_id=scan_id,
                 error=str(db_exc),
             )
-        result["status"] = "failed_provider_unavailable"
+        result["status"] = failed_status
         result["errors"].append({"stage": "pipeline", "error": error_msg})
         if task is not None:
             raise   # triggers Celery retry
@@ -837,6 +914,48 @@ async def _mark_failed(
             "stage_errors": stage_errors or [],
         },
     }).eq("id", scan_id).execute()
+
+
+def _sanitize_extracted_items(raw_items: Any) -> list[dict[str, Any]]:
+    """Validate OCR output shape before inventory writes."""
+    if raw_items is None:
+        return []
+    if not isinstance(raw_items, list):
+        raise ValueError("OCR payload is malformed: items must be a list")
+
+    sanitized: list[dict[str, Any]] = []
+    for index, item in enumerate(raw_items):
+        if not isinstance(item, dict):
+            raise ValueError(f"OCR payload is malformed: item {index} must be an object")
+
+        name = str(item.get("item_name") or item.get("name") or "").strip()
+        if not name:
+            continue
+
+        raw_quantity = item.get("quantity")
+        try:
+            if raw_quantity is None:
+                quantity = 1.0
+            elif isinstance(raw_quantity, int | float | str):
+                quantity = float(raw_quantity)
+            else:
+                raise ValueError
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"OCR payload is malformed: item {index} quantity invalid") from exc
+
+        if quantity <= 0:
+            quantity = 1
+
+        sanitized.append(
+            {
+                **item,
+                "item_name": name,
+                "quantity": quantity,
+                "unit": _normalize_unit(item.get("unit")),
+            }
+        )
+
+    return sanitized
 
 
 async def _upsert_inventory_item(

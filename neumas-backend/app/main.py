@@ -373,79 +373,17 @@ async def get_redoc(request: Request):
 )
 async def health_check() -> dict:
     """
-    Liveness probe: verifies Redis PING and Supabase connectivity.
+    Liveness probe.
 
-    Returns 200 when all configured dependencies respond.
-    Returns 500 when any configured dependency is unreachable — Railway
-    will restart the container on repeated failures.
+    This endpoint only confirms the API process is running and able to serve
+    requests. It intentionally does not depend on external services.
     """
-    checks: dict[str, bool] = {}
-    failures: list[str] = []
-
-    # --- Supabase / database ---
-    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
-        try:
-            from app.db.supabase_client import health_check as db_health
-            checks["supabase"] = await db_health()
-        except Exception as exc:
-            logger.warning("Supabase health check failed", error=str(exc))
-            checks["supabase"] = False
-        if not checks["supabase"]:
-            failures.append("supabase")
-    else:
-        checks["supabase"] = None  # type: ignore[assignment]  # not configured
-
-    # --- Redis ---
-    # NOTE: Railway's internal DNS (redis.railway.internal) is unreachable from
-    # synchronous redis-py even when Redis is fully operational — Celery connects
-    # fine via the same URL using async pools.  Treat any connection failure as
-    # "unknown" (not a hard failure) to avoid false-negative liveness probes.
-    redis_url = settings.celery_broker  # already resolved with correct priority
-    if redis_url and redis_url != "redis://localhost:6379/0":
-        try:
-            r = redis_lib.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
-            r.ping()
-            checks["redis"] = True
-        except Exception as exc:
-            logger.warning(
-                "Redis health check failed (treating as healthy to avoid false-negative)",
-                error=str(exc),
-                redis_url=settings.redis_url_redacted,
-            )
-            # Don't add to failures — sync DNS resolution of Railway's internal
-            # Redis URL often fails even when the service is healthy.
-            checks["redis"] = None  # type: ignore[assignment]
-    else:
-        checks["redis"] = None  # type: ignore[assignment]  # not configured
-
-    def _check_status(value: bool | None) -> str:
-        if value is True:
-            return "ok"
-        if value is False:
-            return "error"
-        return "not_configured"
-
-    if failures:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "status": "unhealthy",
-                "service": "neumas-api",
-                "failed": failures,
-                "supabase": _check_status(checks["supabase"]),
-                "redis": _check_status(checks["redis"]),
-                "checks": checks,
-            },
-        )
-
     return {
         "status": "healthy",
         "service": "neumas-api",
         "version": settings.APP_VERSION,
         "environment": settings.ENV,
-        "supabase": _check_status(checks["supabase"]),
-        "redis": _check_status(checks["redis"]),
-        "checks": checks,
+        "checks": {"app_boot": True},
     }
 
 
@@ -459,71 +397,91 @@ async def readiness_check() -> dict:
     """
     Readiness check endpoint.
 
-    Verifies all dependencies are available:
-    - Database connectivity
-    - Redis connectivity
-    - External API availability
+    Verifies dependency readiness used for production traffic acceptance.
 
-    Used by orchestrators to determine if the service can accept traffic.
+    Checks:
+    - app boot status
+    - Supabase reachability when configured
+    - Redis reachability when worker queue is required
+    - OCR provider configuration presence when DEV_MODE is disabled
     """
-    checks = {
-        "database": False,
-        "redis": False,
+    checks: dict[str, bool] = {
+        "app_boot": True,
+        "supabase": True,
+        "redis": True,
+        "ocr_provider_configured": True,
     }
-    all_healthy = True
+    metadata = {
+        "queue_required": not settings.celery_always_eager,
+        "dev_mode": settings.DEV_MODE,
+    }
+    failures: list[str] = []
 
-    # Check database
-    try:
-        from app.db.supabase_client import health_check as db_health
+    # Provider keys are required in non-DEV_MODE deployments.
+    ocr_provider_configured = bool(
+        settings.OPENAI_API_KEY or settings.ANTHROPIC_API_KEY or settings.GOOGLE_API_KEY
+    )
+    if not settings.DEV_MODE and metadata["queue_required"] and not ocr_provider_configured:
+        checks["ocr_provider_configured"] = False
+        failures.append("ocr_provider_config")
 
-        checks["database"] = await db_health()
-    except Exception as e:
-        logger.warning("Database health check failed", error=str(e))
-        all_healthy = False
-
-    # Check Redis — use the resolved URL which prefers REDIS_PRIVATE_URL on Railway.
-    #
-    # NOTE: The synchronous redis-py client can fail to resolve Railway's internal
-    # DNS name (redis.railway.internal) even when Redis is fully operational —
-    # Celery workers connect successfully via the same URL because they use async
-    # connection pools that handle DNS differently.  To avoid a false-negative on
-    # the readiness probe we:
-    #   1. Attempt a quick ping with a tight socket timeout.
-    #   2. On any DNS / socket error we log the detail but still mark Redis as
-    #      healthy, because a configured URL is strong evidence the service is up.
-    #   3. Only mark Redis as unhealthy when no URL is configured at all.
-    redis_url = settings.celery_broker or settings.REDIS_PRIVATE_URL or settings.REDIS_URL
-    if redis_url and redis_url != "redis://":
+    # Check Supabase only when configured.
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
         try:
-            r = redis_lib.from_url(
-                redis_url,
-                socket_connect_timeout=2,
-                socket_timeout=2,
-            )
-            r.ping()
-            checks["redis"] = True
-        except Exception as e:
-            # Railway's internal DNS (redis.railway.internal) is unreachable from
-            # synchronous clients even when Redis is fully operational — Celery
-            # connects fine via the same URL using async connection pools.
-            # Treat any connection failure as healthy to avoid false-negative
-            # readiness probes.
-            logger.warning(
-                "Redis sync ping failed — treating as healthy "
-                "(Railway private-network DNS quirk; Celery connects fine)",
-                error=str(e),
-                exc_type=type(e).__name__,
-                redis_url=redis_url,
-            )
-            checks["redis"] = True
-    else:
-        checks["redis"] = True  # Redis not configured — not required
+            from app.db.supabase_client import health_check as db_health
 
-    status = "ready" if all_healthy else "degraded"
+            checks["supabase"] = await db_health()
+        except Exception as e:
+            logger.warning("Readiness: Supabase check failed", error=str(e))
+            checks["supabase"] = False
+        if not checks["supabase"]:
+            failures.append("supabase")
+
+    # Check Redis when queue-backed processing is required.
+    redis_url = settings.celery_broker or settings.REDIS_PRIVATE_URL or settings.REDIS_URL
+    if metadata["queue_required"]:
+        if not redis_url or redis_url == "redis://":
+            checks["redis"] = False
+            failures.append("redis")
+        else:
+            try:
+                r = redis_lib.from_url(
+                    redis_url,
+                    socket_connect_timeout=2,
+                    socket_timeout=2,
+                )
+                r.ping()
+                checks["redis"] = True
+            except Exception as e:
+                logger.warning(
+                    "Readiness: Redis check failed",
+                    error=str(e),
+                    redis_url=settings.redis_url_redacted,
+                )
+                checks["redis"] = False
+                failures.append("redis")
+    else:
+        checks["redis"] = True
+
+    if failures:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "status": "not_ready",
+                "service": "neumas-api",
+                "failed": failures,
+                "checks": checks,
+                "metadata": metadata,
+            },
+        )
 
     return {
-        "status": status,
+        "status": "ready",
+        "service": "neumas-api",
         "checks": checks,
+        "metadata": metadata,
+        "version": settings.APP_VERSION,
+        "environment": settings.ENV,
     }
 
 

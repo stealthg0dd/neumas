@@ -17,7 +17,6 @@ Configurable via env / .env:
   STORAGE_SIGNED_URL_EXPIRY    seconds              (default: 3600)
 """
 
-import asyncio
 import uuid
 from decimal import Decimal
 from typing import Any
@@ -27,6 +26,7 @@ from fastapi import UploadFile  # kept for get_scan / list_scans type hints
 
 from app.api.deps import TenantContext
 from app.core.config import settings
+from app.core.constants import SCAN_SUCCESS_STATUSES
 from app.core.logging import get_logger
 from app.db.repositories.scans import get_scans_repository
 from app.db.supabase_client import get_async_supabase_admin
@@ -48,6 +48,10 @@ _DEV_PLACEHOLDER_URL = (
     "AAAAAAAAAAAAAAAAAAAAAAB/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/"
     "xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwABmX/9k="
 )
+
+
+class ScanQueueUnavailableError(RuntimeError):
+    """Raised when scan processing cannot be queued to workers."""
 
 
 def _dev_placeholder_url(scan_id: str) -> str:
@@ -255,42 +259,77 @@ class ScanService:
             storage_path=storage_path,
         )
 
-        # Step 3: Process scan in the background (no Redis/Celery needed).
-        # asyncio.create_task schedules _process_scan_async on the running
-        # event loop so the upload response returns immediately while the
-        # AI pipeline runs concurrently.
-        from app.tasks.scan_tasks import _process_scan_async
-
-        def _on_task_done(task: asyncio.Task) -> None:
-            if task.cancelled():
-                logger.warning("Scan background task cancelled", scan_id=str(scan_id))
-            elif task.exception():
-                logger.exception(
-                    "Scan background task raised an unhandled exception",
-                    scan_id=str(scan_id),
-                    exc_info=task.exception(),
-                )
-
-        bg_task = asyncio.create_task(
-            _process_scan_async(
-                task=None,
-                scan_id=str(scan_id),
-                org_id=str(tenant.org_id),
-                property_id=str(tenant.property_id),
-                user_id=str(tenant.user_id),
-                image_url=image_url,
-                scan_type=scan_type,
-                request_id=request_id,
-            )
+        # Step 3: Queue-first processing via Celery worker.
+        await self._enqueue_scan_processing(
+            scan_id=scan_id,
+            tenant=tenant,
+            image_url=image_url,
+            scan_type=scan_type,
+            request_id=request_id,
         )
-        bg_task.add_done_callback(_on_task_done)
 
-        logger.info("Scan processing started in background", scan_id=str(scan_id))
+        logger.info("Scan processing queued", scan_id=str(scan_id))
 
         return ScanQueuedResponse(
             scan_id=scan_id,
             status="uploaded",
         )
+
+    async def _enqueue_scan_processing(
+        self,
+        scan_id: UUID,
+        tenant: TenantContext,
+        image_url: str,
+        scan_type: str,
+        request_id: str | None,
+    ) -> None:
+        """Queue scan processing; fail deterministically when broker/worker path is unavailable."""
+        from app.tasks.scan_tasks import process_scan
+
+        try:
+            process_scan.apply_async(
+                kwargs={
+                    "scan_id": str(scan_id),
+                    "property_id": str(tenant.property_id),
+                    "user_id": str(tenant.user_id),
+                    "image_url": image_url,
+                    "scan_type": scan_type,
+                },
+                queue="scans",
+            )
+        except Exception as exc:
+            logger.exception(
+                "Failed to queue scan processing",
+                scan_id=str(scan_id),
+                request_id=request_id,
+                error=str(exc),
+            )
+
+            scans_repo = await get_scans_repository()
+            await scans_repo.update(
+                tenant,
+                scan_id,
+                {
+                    "status": "failed_provider_unavailable",
+                    "error_message": "Scan queue unavailable. Please retry shortly.",
+                    "processed_results": {
+                        "stage_details": {
+                            "request_id": request_id,
+                            "queue": {
+                                "status": "failed",
+                                "message": "Failed to enqueue scan processing",
+                            },
+                        },
+                        "stage_errors": [
+                            {
+                                "stage": "queue",
+                                "error": str(exc),
+                            }
+                        ],
+                    },
+                },
+            )
+            raise ScanQueueUnavailableError("Scan queue unavailable. Please retry shortly.") from exc
 
     async def get_scan_status(
         self,
@@ -318,7 +357,8 @@ class ScanService:
             raise ValueError(f"Scan {scan_id} not found")
 
         # Determine processed flag based on status
-        processed = scan.get("status") in {"completed", "partial_failed", "completed_with_partial_analysis"}
+        status_value = scan.get("status") or "uploaded"
+        processed = status_value in SCAN_SUCCESS_STATUSES
 
         processed_results = scan.get("processed_results") or {}
         stage_details: dict[str, Any] | None = processed_results.get("stage_details")
@@ -344,7 +384,7 @@ class ScanService:
         return ScanStatusResponse(
             scan_id=scan_id,
             processed=processed,
-            status=scan.get("status", "unknown"),
+            status=status_value,
             created_at=scan.get("created_at"),
             started_at=scan.get("started_at"),
             completed_at=scan.get("completed_at"),
@@ -502,7 +542,7 @@ class ScanService:
             property_id=UUID(scan["property_id"]),
             user_id=UUID(scan["user_id"]) if scan.get("user_id") else tenant.user_id,
             scan_type=scan.get("scan_type", "full"),
-            status=scan.get("status", "unknown"),
+            status=scan.get("status") or "uploaded",
             image_urls=scan.get("image_urls", []),
             items_detected=scan.get("items_detected", 0),
             confidence_score=Decimal(str(scan["confidence_score"])) if scan.get("confidence_score") else None,
@@ -528,9 +568,19 @@ class ScanService:
             logger.warning("Scan not found", scan_id=str(scan_id))
             raise ValueError(f"Scan {scan_id} not found")
 
-        from app.tasks.scan_tasks import _reprocess_scan_async
+        from app.tasks.scan_tasks import reprocess_scan
 
-        asyncio.create_task(_reprocess_scan_async(task=None, scan_id=str(scan_id), user_hint=hint))
+        try:
+            reprocess_scan.apply_async(
+                kwargs={
+                    "scan_id": str(scan_id),
+                    "user_hint": hint,
+                },
+                queue="scans",
+            )
+        except Exception as exc:
+            logger.exception("Failed to queue scan rerun", scan_id=str(scan_id), error=str(exc))
+            raise ScanQueueUnavailableError("Scan queue unavailable. Please retry shortly.") from exc
         return {"scan_id": str(scan_id), "status": "uploaded", "hint": hint}
 
     async def list_scans(
@@ -566,7 +616,7 @@ class ScanService:
                 property_id=UUID(scan["property_id"]),
                 user_id=UUID(scan["user_id"]) if scan.get("user_id") else tenant.user_id,
                 scan_type=scan.get("scan_type", "full"),
-                status=scan.get("status", "unknown"),
+                status=scan.get("status") or "uploaded",
                 image_urls=scan.get("image_urls", []),
                 items_detected=scan.get("items_detected", 0),
                 confidence_score=Decimal(str(scan["confidence_score"])) if scan.get("confidence_score") else None,

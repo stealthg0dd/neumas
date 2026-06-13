@@ -190,6 +190,9 @@ export const useAuthStore = create<AuthStore>()(
       clearAuth() {
         if (typeof window !== "undefined") {
           localStorage.removeItem("neumas_access_token");
+          localStorage.removeItem("neumas-auth");
+          sessionStorage.removeItem("neumas_access_token");
+          sessionStorage.removeItem("neumas-auth");
         }
         set({
           token: null,
@@ -230,51 +233,27 @@ export const useAuthStore = create<AuthStore>()(
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         void (async () => {
-          if (!state.token) {
-            const pendingSession = consumePendingAuthSessionCookie();
-            if (pendingSession) {
-              state.saveAuth(pendingSession);
-              state.setHasHydrated(true);
-              return;
-            }
+          const pendingSession = consumePendingAuthSessionCookie();
+          if (pendingSession) {
+            state.saveAuth(pendingSession);
+          }
 
-            const supabaseSession = await bootstrapFromSupabaseSession();
-            if (supabaseSession) {
-              state.saveAuth(supabaseSession);
-            }
-
+          // Canonical source of truth is the Supabase session cookie.
+          // Reconcile persisted store state from Supabase on every hydration.
+          const supabaseSession = await bootstrapFromSupabaseSession();
+          if (supabaseSession) {
+            state.saveAuth(supabaseSession);
             state.setHasHydrated(true);
             return;
           }
 
-          // Token is expired — attempt a silent refresh before giving up.
-          // Dynamic import avoids a circular dependency (auth-session imports this store).
-          if (state.expiresAt != null && state.expiresAt <= Math.floor(Date.now() / 1000)) {
+          // If we still have a token but couldn't load Supabase session,
+          // make one guarded refresh attempt before clearing local state.
+          if (state.token) {
             const { attemptRefresh } = await import("@/lib/auth-session");
             const refreshed = await attemptRefresh();
             if (!refreshed) {
               state.clearAuth();
-            }
-            state.setHasHydrated(true);
-            return;
-          }
-
-          // Sync token to localStorage for the Axios interceptor
-          if (typeof window !== "undefined") {
-            localStorage.setItem("neumas_access_token", state.token);
-          }
-
-          // If propertyId/orgId are missing from the persisted snapshot (e.g.
-          // user logged in before this fix was deployed), decode the JWT to
-          // recover them without forcing a re-login.
-          if (!state.propertyId || !state.orgId) {
-            const claims = decodeToken(state.token);
-            if (claims && state.profile) {
-              state.setProfile({
-                ...state.profile,
-                property_id: state.profile.property_id || claims.property_id || "",
-                org_id: state.profile.org_id || claims.org_id || "",
-              });
             }
           }
 

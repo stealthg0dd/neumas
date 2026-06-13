@@ -2,6 +2,7 @@
 Scan routes for receipt/barcode processing.
 """
 
+from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -19,13 +20,18 @@ from fastapi import (
 from pydantic import BaseModel
 
 from app.api.deps import TenantContext, get_tenant_context, require_property
+from app.core.constants import (
+    SCAN_UPLOAD_ALLOWED_EXTENSIONS,
+    SCAN_UPLOAD_ALLOWED_MIME_TYPES,
+    SCAN_UPLOAD_MAX_BYTES,
+)
 from app.core.logging import get_logger
 from app.schemas.scans import (
     ScanQueuedResponse,
     ScanResponse,
     ScanStatusResponse,
 )
-from app.services.scan_service import ScanService
+from app.services.scan_service import ScanQueueUnavailableError, ScanService
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -36,6 +42,10 @@ scan_service = ScanService()
 
 class ScanRerunRequest(BaseModel):
     hint: str
+
+
+def _error_payload(code: str, message: str) -> dict[str, str]:
+    return {"code": code, "message": message}
 
 
 @router.post(
@@ -71,27 +81,60 @@ async def upload_scan(
 
     Returns scan_id to check status later.
     """
-    # Validate file type
-    if not file.content_type or not file.content_type.startswith("image/"):
+    logger.info(
+        "Scan upload started",
+        event_name="scan_upload_started",
+        scan_type=scan_type,
+        filename=file.filename,
+        content_type=file.content_type,
+        property_id=str(tenant.property_id),
+        org_id=str(tenant.org_id),
+    )
+    file_name = file.filename or ""
+    file_ext = Path(file_name).suffix.lower()
+
+    # Validate file type and extension using one canonical contract.
+    if (
+        not file.content_type
+        or file.content_type not in SCAN_UPLOAD_ALLOWED_MIME_TYPES
+        or file_ext not in SCAN_UPLOAD_ALLOWED_EXTENSIONS
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be an image (JPEG, PNG, WebP)",
+            detail=_error_payload(
+                "scan_upload_unsupported_type",
+                "Only JPEG, PNG, and WebP images are supported.",
+            ),
         )
 
     # Validate file size (max 10MB)
-    MAX_SIZE = 10 * 1024 * 1024
     file_bytes = await file.read()
-    if len(file_bytes) > MAX_SIZE:
+    if not file_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File too large. Maximum size is 10MB.",
+            detail=_error_payload(
+                "scan_upload_empty_file",
+                "Uploaded file is empty.",
+            ),
+        )
+
+    if len(file_bytes) > SCAN_UPLOAD_MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_error_payload(
+                "scan_upload_too_large",
+                "File too large. Maximum size is 10MB.",
+            ),
         )
     request_id = getattr(request.state, "request_id", None)
 
     if not getattr(tenant, "org_id", None):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User not associated with an organization.",
+            detail=_error_payload(
+                "scan_upload_missing_org",
+                "User not associated with an organization.",
+            ),
         )
 
     logger.info(
@@ -102,21 +145,61 @@ async def upload_scan(
     )
 
     try:
-        return await scan_service.upload_scan(
+        response = await scan_service.upload_scan(
             file=file,
             file_bytes=file_bytes,
             scan_type=scan_type,
             tenant=tenant,
             request_id=request_id,
         )
+        logger.info(
+            "Scan upload succeeded",
+            event_name="scan_upload_succeeded",
+            scan_id=str(response.scan_id),
+            scan_type=scan_type,
+            property_id=str(tenant.property_id),
+            org_id=str(tenant.org_id),
+        )
+        return response
+    except ScanQueueUnavailableError as e:
+        logger.warning(
+            "Scan upload failed",
+            event_name="scan_upload_failed",
+            reason="queue_unavailable",
+            error=str(e),
+            scan_type=scan_type,
+            property_id=str(tenant.property_id),
+            org_id=str(tenant.org_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=_error_payload(
+                "scan_queue_unavailable",
+                str(e),
+            ),
+        )
     except ValueError as e:
+        logger.warning(
+            "Scan upload failed",
+            event_name="scan_upload_failed",
+            reason="invalid_request",
+            error=str(e),
+            scan_type=scan_type,
+            property_id=str(tenant.property_id),
+            org_id=str(tenant.org_id),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail=_error_payload(
+                "scan_upload_invalid_request",
+                str(e),
+            ),
         )
     except Exception as e:
         logger.exception(
             "Scan upload failed",
+            event_name="scan_upload_failed",
+            reason="internal_error",
             error=str(e),
             request_id=request_id,
             property_id=str(tenant.property_id),
@@ -124,7 +207,10 @@ async def upload_scan(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process scan upload",
+            detail=_error_payload(
+                "scan_upload_internal_error",
+                "Failed to process scan upload",
+            ),
         )
 
 
@@ -144,6 +230,7 @@ async def get_scan_status(
     Statuses:
     - uploaded: Receipt accepted and waiting for worker pickup
     - processing: Currently being analyzed
+    - needs_review: Parsed but requires manual review
     - completed: Processing finished successfully
     - completed_with_partial_analysis: Core extraction completed with fallback basics
     - failed_provider_unavailable: Providers unavailable or timed out
@@ -201,6 +288,14 @@ async def rerun_scan(
 ) -> dict[str, str]:
     try:
         return await scan_service.rerun_with_hint(scan_id, tenant, body.hint)
+    except ScanQueueUnavailableError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=_error_payload(
+                "scan_queue_unavailable",
+                str(e),
+            ),
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

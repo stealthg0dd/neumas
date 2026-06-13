@@ -30,7 +30,10 @@ export const publicConfig = {
 // Never access these in browser-side code. They are NOT prefixed NEXT_PUBLIC_.
 
 export const serverConfig = {
-  supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY ?? "",
+  supabaseServiceKey:
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.SUPABASE_SERVICE_KEY ??
+    "",
   sentryDsn: process.env.SENTRY_DSN ?? "",
   agentOsUrl: process.env.AGENT_OS_URL ?? "",
   agentOsApiKey: process.env.AGENT_OS_API_KEY ?? "",
@@ -48,7 +51,7 @@ export const serverConfig = {
 // ── Env-var name mapping (for error messages) ─────────────────────────────────
 
 const SERVER_VAR_NAMES: Record<keyof typeof serverConfig, string> = {
-  supabaseServiceKey: "SUPABASE_SERVICE_KEY",
+  supabaseServiceKey: "SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_KEY",
   sentryDsn: "SENTRY_DSN",
   agentOsUrl: "AGENT_OS_URL",
   agentOsApiKey: "AGENT_OS_API_KEY",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -55,18 +55,17 @@ async def test_scan_service_rerun_with_hint_returns_uploaded_status(tenant: Tena
 
     with (
         patch("app.services.scan_service.get_scans_repository", new=AsyncMock()) as repo_factory,
-        patch("app.services.scan_service.asyncio.create_task") as create_task,
+        patch("app.tasks.scan_tasks.reprocess_scan.apply_async", new=MagicMock()) as apply_async,
     ):
         repo = AsyncMock()
         repo.get_by_id.return_value = {"id": str(scan_id)}
         repo_factory.return_value = repo
-        create_task.side_effect = lambda coro: (coro.close(), AsyncMock())[1]
         response = await svc.rerun_with_hint(scan_id, tenant, "Treat sprite as 24 cans")
 
     assert response["scan_id"] == str(scan_id)
     assert response["status"] == "uploaded"
     assert response["hint"] == "Treat sprite as 24 cans"
-    create_task.assert_called_once()
+    apply_async.assert_called_once()
 
 
 class _Resp:

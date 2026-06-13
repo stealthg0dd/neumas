@@ -72,7 +72,9 @@ class Settings(BaseSettings):
         default="", description="Supabase project URL"
     )
     SUPABASE_SERVICE_ROLE_KEY: str = Field(
-        default="", description="Supabase service role key for admin operations (bypasses RLS)"
+        default="",
+        validation_alias=AliasChoices("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"),
+        description="Supabase service role key for admin operations (bypasses RLS)",
     )
     SUPABASE_ANON_KEY: str = Field(
         default="", description="Supabase anon key for user-scoped RLS queries"
@@ -136,7 +138,9 @@ class Settings(BaseSettings):
     # JWT Settings
     JWT_ALGORITHM: str = Field(default="HS256", description="JWT algorithm")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=60, description="Access token expiry in minutes"
+        default=60,
+        validation_alias=AliasChoices("ACCESS_TOKEN_EXPIRE_MINUTES", "JWT_EXPIRE_MINUTES"),
+        description="Access token expiry in minutes",
     )
 
     # Celery
