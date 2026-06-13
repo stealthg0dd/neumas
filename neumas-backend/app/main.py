@@ -176,7 +176,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Initialize Celery app (best-effort broker check) - only if Redis is configured.
     # Avoid `celery_app.control.ping()` here because a broker auth/DNS issue can
     # block startup long enough for Railway to fail the deployment health check.
-    if settings.REDIS_URL:
+    if settings.celery_broker and settings.celery_broker != "redis://":
         try:
             broker = settings.celery_broker
             redis_client = redis_lib.from_url(
@@ -277,7 +277,7 @@ if RequestLoggingMiddleware:
 # Add idempotency middleware (Redis-backed replay for POST/PATCH)
 try:
     from app.core.idempotency import IdempotencyMiddleware
-    _redis_url = settings.celery_broker or getattr(settings, "REDIS_PRIVATE_URL", None) or getattr(settings, "REDIS_URL", None)
+    _redis_url = settings.celery_broker
     if _redis_url and _redis_url != "redis://":
         app.add_middleware(IdempotencyMiddleware, redis_url=_redis_url)
 except Exception as _idem_err:
@@ -438,11 +438,14 @@ async def readiness_check() -> dict:
             failures.append("supabase")
 
     # Check Redis when queue-backed processing is required.
-    redis_url = settings.celery_broker or settings.REDIS_PRIVATE_URL or settings.REDIS_URL
+    redis_url = settings.celery_broker
     if metadata["queue_required"]:
+        metadata["redis"] = settings.redis_connection_metadata
         if not redis_url or redis_url == "redis://":
             checks["redis"] = False
             failures.append("redis")
+            if isinstance(metadata["redis"], dict):
+                metadata["redis"]["error_type"] = "missing_redis_url"
         else:
             try:
                 r = redis_lib.from_url(
@@ -460,6 +463,8 @@ async def readiness_check() -> dict:
                 )
                 checks["redis"] = False
                 failures.append("redis")
+                if isinstance(metadata["redis"], dict):
+                    metadata["redis"]["error_type"] = type(e).__name__
     else:
         checks["redis"] = True
 

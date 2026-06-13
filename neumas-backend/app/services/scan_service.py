@@ -114,7 +114,7 @@ class ScanService:
 
                 from app.core.config import settings as _s
                 _redis = redis_lib.from_url(
-                    _s.REDIS_URL, socket_connect_timeout=1, socket_timeout=1
+                    _s.celery_broker, socket_connect_timeout=1, socket_timeout=1
                 )
                 file_hash = compute_hash(file_bytes)
                 if is_duplicate_upload(

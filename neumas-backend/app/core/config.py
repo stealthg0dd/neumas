@@ -5,6 +5,7 @@ Centralizes all environment variables and settings.
 
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import quote_plus, urlparse, urlunparse
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -217,50 +218,79 @@ class Settings(BaseSettings):
             return default
         return val
 
+    @staticmethod
+    def _is_unresolved_env_value(value: str | None) -> bool:
+        if value is None:
+            return True
+        stripped = value.strip()
+        return not stripped or stripped.startswith("$") or stripped == "None"
+
+    def _normalized_redis_candidate(self, value: str | None) -> str:
+        candidate = (value or "").strip()
+        if self._is_unresolved_env_value(candidate):
+            return ""
+
+        if candidate.startswith("rediss://"):
+            candidate = "redis://" + candidate[len("rediss://"):]
+
+        parsed = urlparse(candidate)
+        if parsed.password and not parsed.username:
+            default_user = self.REDIS_USER or self.REDISUSER or "default"
+            netloc = f"{default_user}:{quote_plus(parsed.password)}@{parsed.hostname}"
+            if parsed.port:
+                netloc = f"{netloc}:{parsed.port}"
+            candidate = urlunparse(parsed._replace(netloc=netloc))
+        return candidate
+
+    def _redis_url_from_parts(self) -> str:
+        host = self._safe_env("REDISHOST", "")
+        if not host:
+            return ""
+
+        port = self._safe_env("REDISPORT", "6379")
+        username = self._safe_env("REDISUSER", self.REDIS_USER or "default")
+        raw_password = self._safe_env("REDISPASSWORD", self.REDIS_PASSWORD or "")
+        password = quote_plus(raw_password) if raw_password else ""
+
+        if password:
+            if username:
+                return f"redis://{username}:{password}@{host}:{port}/0"
+            return f"redis://:{password}@{host}:{port}/0"
+        return f"redis://{host}:{port}/0"
+
+    @property
+    def redis_source_name(self) -> str | None:
+        candidates = (
+            ("REDIS_PRIVATE_URL", self.REDIS_PRIVATE_URL),
+            ("REDIS_URL", self.REDIS_URL),
+            ("CELERY_BROKER_URL", self.CELERY_BROKER_URL),
+        )
+        for name, value in candidates:
+            if self._normalized_redis_candidate(value):
+                return name
+        if self._redis_url_from_parts():
+            return "individual-vars"
+        return None
+
     @property
     def _resolved_redis_url(self) -> str:
         """Pick the best available Redis URL and normalise the scheme.
 
         Priority (Railway monorepo deployment):
-        1. Individual vars (REDISHOST/REDISPORT/REDISPASSWORD) read via
-           _safe_env() — immune to unresolved '${VAR}' Railway references.
-        2. CELERY_BROKER_URL — explicit operator override.
-        3. REDIS_PRIVATE_URL — Railway composite internal URL (may lack password).
-        4. REDIS_URL — external composite URL / local-dev fallback.
+        1. REDIS_PRIVATE_URL
+        2. REDIS_URL
+        3. CELERY_BROKER_URL
+        4. Individual vars (REDISHOST/REDISPORT/REDISPASSWORD)
         """
-        from urllib.parse import quote_plus, urlparse, urlunparse
-
-        host = self._safe_env("REDISHOST", "")
-        if host:
-            port = self._safe_env("REDISPORT", "6379")
-            username = self._safe_env("REDISUSER", self.REDIS_USER or "default")
-            raw_password = self._safe_env("REDISPASSWORD", self.REDIS_PASSWORD or "")
-            password = quote_plus(raw_password) if raw_password else ""
-            if password:
-                if username:
-                    url = f"redis://{username}:{password}@{host}:{port}/0"
-                else:
-                    url = f"redis://:{password}@{host}:{port}/0"
-            else:
-                url = f"redis://{host}:{port}/0"
-        elif self.CELERY_BROKER_URL and not self.CELERY_BROKER_URL.startswith("$"):
-            url = self.CELERY_BROKER_URL
-        else:
-            url = self.REDIS_PRIVATE_URL or self.REDIS_URL
-
-        # Railway sometimes provides rediss:// (TLS). Celery needs redis://
-        # on private networking where TLS termination is handled upstream.
-        if url.startswith("rediss://"):
-            url = "redis://" + url[len("rediss://"):]
-
-        parsed = urlparse(url)
-        if parsed.password and not parsed.username:
-            default_user = self.REDIS_USER or "default"
-            netloc = f"{default_user}:{quote_plus(parsed.password)}@{parsed.hostname}"
-            if parsed.port:
-                netloc = f"{netloc}:{parsed.port}"
-            url = urlunparse(parsed._replace(netloc=netloc))
-        return url
+        for _name, value in (
+            ("REDIS_PRIVATE_URL", self.REDIS_PRIVATE_URL),
+            ("REDIS_URL", self.REDIS_URL),
+            ("CELERY_BROKER_URL", self.CELERY_BROKER_URL),
+        ):
+            normalized = self._normalized_redis_candidate(value)
+            if normalized:
+                return normalized
+        return self._redis_url_from_parts()
 
     @property
     def redis_url_redacted(self) -> str:
@@ -282,7 +312,37 @@ class Settings(BaseSettings):
 
     @property
     def celery_backend(self) -> str:
-        return self.CELERY_RESULT_BACKEND or self._resolved_redis_url
+        return self._resolved_redis_url
+
+    @property
+    def redis_connection_metadata(self) -> dict[str, str | int | bool | None]:
+        url = self._resolved_redis_url
+        if not url:
+            return {
+                "selected_env": self.redis_source_name,
+                "scheme": None,
+                "host": None,
+                "port": None,
+                "password_present": False,
+            }
+
+        try:
+            parsed = urlparse(url)
+            return {
+                "selected_env": self.redis_source_name,
+                "scheme": parsed.scheme or None,
+                "host": parsed.hostname,
+                "port": parsed.port,
+                "password_present": bool(parsed.password),
+            }
+        except Exception:  # noqa: BLE001
+            return {
+                "selected_env": self.redis_source_name,
+                "scheme": None,
+                "host": None,
+                "port": None,
+                "password_present": False,
+            }
 
     @property
     def is_production(self) -> bool:
@@ -303,12 +363,7 @@ def get_settings() -> Settings:
     # Emit a single diagnostic line at process startup so Railway logs show
     # exactly which Redis URL was resolved and which source won.
     import sys
-    source = (
-        "individual-vars" if s.REDISHOST
-        else "CELERY_BROKER_URL" if s.CELERY_BROKER_URL
-        else "REDIS_PRIVATE_URL" if s.REDIS_PRIVATE_URL
-        else "REDIS_URL"
-    )
+    source = s.redis_source_name
     print(
         f"[neumas] redis_url={s.redis_url_redacted!r} source={source!r}",
         file=sys.stderr,
