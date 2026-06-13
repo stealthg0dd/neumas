@@ -1,4 +1,64 @@
-import type { ScanStatusResponse } from "@/lib/api/types";
+import type { ScanStatus, ScanStatusResponse } from "@/lib/api/types";
+
+// Statuses that mean the scan pipeline finished successfully (possibly with
+// warnings) and polling should stop with the extracted results shown.
+const SUCCESS_TERMINAL_STATUSES: readonly ScanStatus[] = [
+  "completed",
+  "partial_failed",
+  "completed_with_partial_analysis",
+  "needs_review",
+];
+
+// Statuses that mean the scan pipeline failed and polling should stop with
+// an error shown to the user.
+const FAILURE_TERMINAL_STATUSES: readonly ScanStatus[] = [
+  "failed",
+  "failed_provider_unavailable",
+  "failed_invalid_file",
+];
+
+export function isSuccessTerminalScanStatus(status: ScanStatus): boolean {
+  return SUCCESS_TERMINAL_STATUSES.includes(status);
+}
+
+export function isFailureTerminalScanStatus(status: ScanStatus): boolean {
+  return FAILURE_TERMINAL_STATUSES.includes(status);
+}
+
+export type ScanPollErrorAction =
+  | { type: "stop"; label: string }
+  | { type: "log_and_continue"; delayMs: number }
+  | { type: "continue"; delayMs: number };
+
+/**
+ * Decide what the scan-status poller should do after a failed request.
+ *
+ * `consecutiveErrors` is the number of 5xx/network failures observed so far
+ * *before* this one (i.e. 0 on the first failure).
+ */
+export function classifyScanPollError(
+  status: number | undefined,
+  consecutiveErrors: number
+): ScanPollErrorAction {
+  if (status === 401) {
+    return { type: "stop", label: "Session expired. Please refresh and try again." };
+  }
+
+  if (status === 404) {
+    return { type: "stop", label: "Scan not found. Please try again." };
+  }
+
+  if (status !== undefined && status < 500) {
+    return { type: "log_and_continue", delayMs: 2000 };
+  }
+
+  const nextCount = consecutiveErrors + 1;
+  if (nextCount > 5) {
+    return { type: "stop", label: "Server error. Please try again later." };
+  }
+
+  return { type: "continue", delayMs: nextCount > 2 ? 5000 : 2000 };
+}
 
 function getStageStatus(
   stageDetails: Record<string, unknown> | null | undefined,
