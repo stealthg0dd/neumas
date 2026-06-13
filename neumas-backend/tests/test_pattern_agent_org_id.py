@@ -146,8 +146,8 @@ async def test_recompute_patterns_falls_back_to_property_org_id(monkeypatch):
 async def test_process_scan_passes_org_id_to_pattern_recompute(monkeypatch):
     """scan_tasks resolves org_id from the property and must forward it to
     recompute_patterns_for_property so consumption_patterns.org_id is set."""
-    from tests.test_scan_pipeline import _FakeSupabase
     from app.tasks.scan_tasks import _process_scan_async
+    from tests.test_scan_pipeline import _FakeSupabase
 
     fake = _FakeSupabase(org_id=str(uuid4()))
     scan_id = fake.scan_id
