@@ -42,6 +42,12 @@ jobs:
             --detach \
             --ci
 
+      - name: Post-deploy health check
+        run: |
+          sleep 30
+          curl --fail -s https://neumas-production.up.railway.app/health > /dev/null && echo "Backend healthy" || (echo "Backend health check failed" && exit 1)
+          curl --fail -s https://neumas-production.up.railway.app/ready > /dev/null && echo "Backend ready" || (echo "Backend readiness check failed" && exit 1)
+
       - name: Wait for API health check
         env:
           AGENT_OS_URL: ${{ secrets.AGENT_OS_URL }}

@@ -140,6 +140,18 @@ jobs:
         # for clarity so CI readers don't wonder why manual tests don't run.
         run: pytest tests/ --ignore=tests/manual -v --tb=short
 
+      - name: Backend smoke (non-live)
+        env:
+          ENV: test
+          DEBUG: "true"
+          SUPABASE_URL: https://test.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: test-key
+          SUPABASE_JWT_SECRET: test-jwt-secret
+          JWT_SECRET_KEY: test-secret-key-for-testing-only
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_TASK_ALWAYS_EAGER: "true"
+        run: python -m pytest tests/test_production_smoke.py -q -k "not live" --tb=short
+
       - name: Mypy ratchet (critical auth/scan modules)
         run: |
           mypy \

@@ -118,6 +118,11 @@ jobs:
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $URL"
 
+      - name: Post-deploy web health check
+        run: |
+          sleep 20
+          curl --fail -s https://www.neumas.cc/api/health > /dev/null && echo "Web healthy" || (echo "Web health check failed" && exit 1)
+
       - name: Verify /api/health
         if: steps.deploy.outputs.url != ''
         env:
