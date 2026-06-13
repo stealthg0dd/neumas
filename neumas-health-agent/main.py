@@ -26,11 +26,9 @@ NEUMAS_BACKEND_URL: str = os.environ.get(
 )
 AGENT_OS_URL: str = os.environ.get("AGENT_OS_URL", "")
 AGENT_OS_API_KEY: str = os.environ.get("AGENT_OS_API_KEY", "")
-# The Agent OS heartbeat endpoint (/api/heartbeat/neumas-health-agent) does not
-# exist yet (returns 404), which previously produced a 404 log line every
-# HEARTBEAT_INTERVAL_SECONDS. Heartbeats are skipped until this is set to
-# "true", once the endpoint is live on the Agent OS side.
-AGENT_OS_HEARTBEAT_ENABLED: bool = os.environ.get("AGENT_OS_HEARTBEAT_ENABLED", "false").lower() == "true"
+# Lets the heartbeat be turned off without a redeploy if AGENT_OS_URL ever
+# points at an endpoint that 404s again (see the 404 backoff below).
+AGENT_OS_HEARTBEAT_ENABLED: bool = os.environ.get("AGENT_OS_HEARTBEAT_ENABLED", "true").lower() == "true"
 HEARTBEAT_INTERVAL: int = int(os.environ.get("HEARTBEAT_INTERVAL_SECONDS", "300"))  # 5 min
 HEARTBEAT_404_BACKOFF_SECONDS: int = 300  # don't retry a 404'd heartbeat for 5 minutes
 VERSION: str = os.environ.get("APP_VERSION", "0.1.0")
@@ -140,10 +138,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     if not AGENT_OS_HEARTBEAT_ENABLED:
-        logger.info(
-            "Agent OS heartbeat disabled — set AGENT_OS_HEARTBEAT_ENABLED=true "
-            "when endpoint is available."
-        )
+        logger.info("Agent OS heartbeat disabled via AGENT_OS_HEARTBEAT_ENABLED=false.")
 
     # Register self with router-system on startup
     if AGENT_OS_URL:
