@@ -291,7 +291,16 @@ async def _upsert_pattern(
         "period_start": _period_start.isoformat(),
         "period_end": _period_end.isoformat(),
     }
+    # consumption_patterns has TWO org columns in the live schema:
+    #   - org_id (uuid, NOT NULL, FK -> organizations) -- the original column
+    #   - organization_id (uuid, nullable, FK -> organizations) -- added later
+    # Previously only "organization_id" was populated here, leaving the
+    # required "org_id" column unset and causing inserts to fail with
+    # "null value in column org_id violates not-null constraint". Populate
+    # both so the row satisfies the NOT NULL constraint and stays consistent
+    # with the newer column.
     if org_id:
+        payload["org_id"] = org_id
         payload["organization_id"] = org_id
     if property_id:
         payload["property_id"] = property_id
@@ -326,10 +335,16 @@ async def _upsert_pattern(
 
 async def recompute_patterns_for_property(
     property_id: UUID,
+    org_id: str = "",
 ) -> dict[str, Any]:
     """
     Analyse historical purchase scans for a property and upsert consumption
     patterns into the consumption_patterns table.
+
+    org_id is the organization that owns the property (resolved by the
+    caller, e.g. scan_tasks._process_scan_async). It is used as a fallback
+    for items whose inventory_items row has no organization_id, since
+    consumption_patterns.org_id is NOT NULL.
 
     Called by:
     - Celery task  agents.run_predictions  (via PatternAgent.analyze_patterns)
@@ -441,7 +456,7 @@ async def recompute_patterns_for_property(
             continue
 
         item_id = UUID(matched["id"])
-        item_org_id: str = matched.get("organization_id") or ""
+        item_org_id: str = matched.get("organization_id") or org_id or ""
         display_name: str = matched.get("name", raw_name)
 
         # Sort chronologically
@@ -579,6 +594,7 @@ class PatternAgent:
         item_ids: list[UUID] | None = None,
         pattern_types: list[str] | None = None,
         parsed_items: list[dict[str, Any]] | None = None,
+        org_id: str = "",
     ) -> dict[str, Any]:
         """
         Analyze consumption patterns for a property.
@@ -590,7 +606,7 @@ class PatternAgent:
         Returns a dict with at minimum:
             items_analyzed, patterns_found, property_id
         """
-        return await recompute_patterns_for_property(property_id)
+        return await recompute_patterns_for_property(property_id, org_id=org_id)
 
     async def get_item_patterns(
         self,
