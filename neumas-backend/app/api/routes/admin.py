@@ -399,6 +399,70 @@ async def get_property_stock_health(tenant: AdminTenant) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Pattern / prediction backfill
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/backfill-patterns",
+    summary="Backfill consumption patterns and predictions from existing scans",
+)
+async def backfill_patterns(tenant: AdminTenant) -> dict:
+    """
+    Recompute consumption_patterns and predictions for every property in the
+    current organisation that has at least one completed scan.
+
+    Use this after fixing a data-pipeline bug (e.g. the consumption_patterns
+    org_id NOT NULL constraint) so historical scans produce pattern/prediction
+    rows without waiting for new scans or a worker restart.
+    """
+    require_admin_role(tenant)
+
+    from app.services.pattern_agent import recompute_patterns_for_property
+    from app.services.predict_agent import recompute_predictions_for_property
+
+    client = await get_async_supabase_admin()
+
+    props_resp = await (
+        client.table("properties")
+        .select("id")
+        .eq("organization_id", str(tenant.org_id))
+        .execute()
+    )
+    property_ids = [p["id"] for p in (props_resp.data or [])]
+    if not property_ids:
+        return {"triggered": 0, "results": [], "errors": []}
+
+    scans_resp = await (
+        client.table("scans")
+        .select("property_id")
+        .in_("property_id", property_ids)
+        .in_("status", ["completed", "completed_with_partial_analysis", "partial_failed"])
+        .execute()
+    )
+    completed_property_ids = sorted({s["property_id"] for s in (scans_resp.data or []) if s.get("property_id")})
+
+    results: list[dict] = []
+    errors: list[dict] = []
+    for pid in completed_property_ids:
+        try:
+            pattern_result = await recompute_patterns_for_property(UUID(pid), org_id=str(tenant.org_id))
+            prediction_result = await recompute_predictions_for_property(UUID(pid))
+            results.append(
+                {
+                    "property_id": pid,
+                    "patterns": pattern_result,
+                    "predictions": prediction_result,
+                }
+            )
+        except Exception as exc:
+            logger.error("Backfill failed for property", property_id=pid, error=str(exc))
+            errors.append({"property_id": pid, "error": str(exc)})
+
+    return {"triggered": len(completed_property_ids), "results": results, "errors": errors}
+
+
+# ---------------------------------------------------------------------------
 # Weekly digest reporting
 # ---------------------------------------------------------------------------
 
