@@ -5,7 +5,6 @@
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "pip install ./neumas-backend"
 watchPatterns = ["neumas-backend/**"]
 
 [deploy]

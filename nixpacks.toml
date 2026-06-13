@@ -5,10 +5,13 @@
 providers = ["python"]
 
 [phases.setup]
-nixPkgs = ["python312", "gcc", "postgresql"]
+nixPkgs = ["python312", "python312Packages.pip", "gcc", "postgresql"]
 
 [phases.install]
-cmds = ["pip install ./neumas-backend"]
+cmds = [
+  "python -m pip install --upgrade pip setuptools wheel",
+  "python -m pip install ./neumas-backend",
+]
 
 [start]
 cmd = "bash start.sh"
