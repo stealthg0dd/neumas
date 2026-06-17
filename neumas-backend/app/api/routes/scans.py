@@ -14,6 +14,7 @@ from fastapi import (
     HTTPException,
     Query,
     Request,
+    Response,
     UploadFile,
     status,
 )
@@ -223,6 +224,7 @@ async def upload_scan(
 async def get_scan_status(
     scan_id: UUID,
     tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+    response: Response,
 ) -> ScanStatusResponse:
     """
     Get the current status of a scan.
@@ -236,6 +238,9 @@ async def get_scan_status(
     - failed_provider_unavailable: Providers unavailable or timed out
     - failed_invalid_file: Input file invalid or unreadable
     """
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     try:
         return await scan_service.get_scan_status(scan_id, tenant)
     except ValueError as e:
@@ -248,6 +253,33 @@ async def get_scan_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve scan status",
+        )
+
+
+@router.post(
+    "/{scan_id}/retry",
+    summary="Retry a stalled or failed scan",
+    description="Re-enqueue a scan that is stalled (queued/uploaded but not picked up) or failed.",
+)
+async def retry_scan(
+    scan_id: UUID,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> dict[str, str]:
+    """Re-enqueue a scan that is stalled (queued/uploaded) or failed."""
+    try:
+        return await scan_service.rerun_with_hint(scan_id, tenant, hint="")
+    except ScanQueueUnavailableError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=_error_payload("scan_queue_unavailable", str(e)),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to retry scan", scan_id=str(scan_id), error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to queue scan retry",
         )
 
 
