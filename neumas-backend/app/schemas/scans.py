@@ -198,6 +198,9 @@ class ScanStatusResponse(BaseModel):
     stage_errors: list[dict[str, Any]] | None = None
     # Extracted items from processed_results (present when status == "completed")
     extracted_items: list[dict[str, Any]] | None = None
+    # True when scan has been queued/uploaded for >2 min and worker hasn't started it
+    stalled: bool = False
+    worker_seen: bool = False
 
 
 # Forward references

@@ -217,6 +217,11 @@ export async function getScan(scanId: string): Promise<Scan> {
   return get<Scan>(`/api/scan/${scanId}`);
 }
 
+/** POST /api/scan/{scanId}/retry — re-enqueue a stalled or failed scan */
+export async function retryScan(scanId: string): Promise<{ scan_id: string; status: string }> {
+  return post<{ scan_id: string; status: string }>(`/api/scan/${scanId}/retry`, {});
+}
+
 /** POST /api/scan/{scanId}/rerun */
 export async function rerunScanWithHint(
   scanId: string,

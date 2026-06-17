@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { itemToCube, type PantryItemCube } from "@/components/three/PantryScene";
-import { batchInventoryUpdate, getScanStatus, uploadScan } from "@/lib/api/endpoints";
+import { batchInventoryUpdate, getScanStatus, retryScan, uploadScan } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
 import {
@@ -146,6 +146,7 @@ export default function NewScanPage() {
   const [zoom, setZoom] = useState(1.05);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("Uploading receipt");
+  const [stalled, setStalled] = useState(false);
   const [preparedSize, setPreparedSize] = useState<number | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -163,6 +164,7 @@ export default function NewScanPage() {
     setZoom(1.05);
     setUploadProgress(0);
     setProgressLabel("Uploading receipt");
+    setStalled(false);
     setPreparedSize(null);
   }, [preview]);
 
@@ -240,9 +242,15 @@ export default function NewScanPage() {
       try {
         const s = await getScanStatus(scanId);
         errorCount = 0;
-        const nextProgress = getScanPipelineProgress(s);
-        setUploadProgress(nextProgress.value);
-        setProgressLabel(nextProgress.label);
+        if (s.stalled) {
+          setStalled(true);
+          setProgressLabel("Scan queued but worker has not started yet.");
+        } else {
+          setStalled(false);
+          const nextProgress = getScanPipelineProgress(s);
+          setUploadProgress(nextProgress.value);
+          setProgressLabel(nextProgress.label);
+        }
         if (isSuccessTerminalScanStatus(s.status)) {
           clearTimeout(t);
           const raw = s.extracted_items ?? [];
@@ -451,6 +459,25 @@ export default function NewScanPage() {
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
+                {stalled && scanId && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-amber-600">Worker has not picked up this scan yet.</span>
+                    <button
+                      className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-200"
+                      onClick={async () => {
+                        try {
+                          await retryScan(scanId);
+                          setStalled(false);
+                          toast.info("Scan re-queued — retrying…");
+                        } catch {
+                          toast.error("Retry failed. Please try uploading again.");
+                        }
+                      }}
+                    >
+                      Retry processing
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

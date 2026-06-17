@@ -18,6 +18,7 @@ Configurable via env / .env:
 """
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -381,6 +382,19 @@ class ScanService:
                 if (it.get("item_name") or it.get("name") or "").strip()
             ]
 
+        # Detect stalled scan: queued/uploaded for >2 min without worker pickup.
+        worker_seen = scan.get("started_at") is not None
+        stalled = False
+        if status_value in ("queued", "uploaded") and not worker_seen:
+            raw_created = scan.get("created_at")
+            if raw_created:
+                try:
+                    created_dt = datetime.fromisoformat(str(raw_created).replace("Z", "+00:00"))
+                    if datetime.now(UTC) - created_dt > timedelta(minutes=2):
+                        stalled = True
+                except (ValueError, TypeError):
+                    pass
+
         return ScanStatusResponse(
             scan_id=scan_id,
             processed=processed,
@@ -394,6 +408,8 @@ class ScanService:
             stage_details=stage_details,
             stage_errors=stage_errors,
             extracted_items=extracted_items,
+            stalled=stalled,
+            worker_seen=worker_seen,
         )
 
     async def _upload_to_storage(

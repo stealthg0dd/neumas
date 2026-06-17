@@ -535,6 +535,8 @@ async def test_scan_status_endpoint_schema_stable(monkeypatch):
         "stage_details",
         "stage_errors",
         "extracted_items",
+        "stalled",
+        "worker_seen",
     }
     assert payload["processed"] is True
     assert payload["status"] == "completed_with_partial_analysis"

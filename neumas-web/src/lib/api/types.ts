@@ -308,6 +308,9 @@ export interface ScanStatusResponse {
   stage_errors?: Array<Record<string, unknown>>;
   /** Items extracted by AI when available */
   extracted_items?: Record<string, unknown>[];
+  /** True when queued/uploaded for >2 min without worker pickup */
+  stalled?: boolean;
+  worker_seen?: boolean;
 }
 
 // ============================================================================
