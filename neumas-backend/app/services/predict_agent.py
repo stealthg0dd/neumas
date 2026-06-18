@@ -250,6 +250,7 @@ async def _upsert_prediction(
         "prediction_type": "stockout",
         "prediction_date": prediction_date.isoformat(),
         "predicted_value": str(round(predicted_value, 4)),
+        "predicted_quantity": str(round(predicted_value, 4)),
         "confidence_interval_low": str(round(ci_low, 4)),
         "confidence_interval_high": str(round(ci_high, 4)),
         "confidence": str(confidence),

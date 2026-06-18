@@ -72,6 +72,11 @@ class _FakePredictionSupabase:
                     'null value in column "org_id" of relation "predictions" '
                     'violates not-null constraint'
                 )
+            if payload.get("predicted_quantity") is None:
+                raise Exception(
+                    'null value in column "predicted_quantity" of relation "predictions" '
+                    'violates not-null constraint'
+                )
             self.rows[payload["id"]] = payload
             return _PredictionResp([payload])
 
@@ -107,3 +112,4 @@ async def test_upsert_prediction_populates_required_org_id(monkeypatch):
     [row] = fake.rows.values()
     assert row["org_id"] == str(org_id)
     assert row["organization_id"] == str(org_id)
+    assert row["predicted_quantity"] == "3.0"
