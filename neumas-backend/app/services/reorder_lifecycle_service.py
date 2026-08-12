@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from app.api.deps import TenantContext
@@ -20,6 +21,8 @@ ACTIVE_STATUSES = {
     "recommended",
     "awaiting_approval",
     "approved",
+    "order_ready",
+    "order_placed_manually",
     "modified",
     "order_sent",
     "partially_received",
@@ -29,8 +32,10 @@ TRANSITIONS: dict[str, set[str]] = {
     "draft": {"recommended", "awaiting_approval", "approved", "cancelled"},
     "recommended": {"awaiting_approval", "approved", "modified", "rejected", "cancelled"},
     "awaiting_approval": {"approved", "modified", "rejected", "cancelled"},
-    "approved": {"modified", "order_sent", "partially_received", "received", "cancelled"},
-    "modified": {"awaiting_approval", "approved", "order_sent", "partially_received", "received", "cancelled"},
+    "approved": {"order_ready", "order_placed_manually", "modified", "order_sent", "partially_received", "received", "cancelled"},
+    "order_ready": {"order_placed_manually", "order_sent", "partially_received", "received", "cancelled"},
+    "order_placed_manually": {"partially_received", "received", "cancelled"},
+    "modified": {"awaiting_approval", "approved", "order_ready", "order_placed_manually", "order_sent", "partially_received", "received", "cancelled"},
     "rejected": set(),
     "order_sent": {"partially_received", "received", "cancelled"},
     "partially_received": {"received", "cancelled"},
@@ -90,6 +95,15 @@ class ReorderLifecycleService:
         if normalized_next == "approved":
             update_data["approved_at"] = now
             update_data["approved_by_id"] = str(tenant.user_id)
+        if normalized_next in {"approved", "order_ready", "order_placed_manually", "order_sent"}:
+            generation_params = shopping_list.get("generation_params")
+            if not isinstance(generation_params, dict):
+                generation_params = {}
+            if normalized_next == "approved":
+                generation_params["order_representation_state"] = "order_ready"
+            else:
+                generation_params["order_representation_state"] = normalized_next
+            update_data["generation_params"] = generation_params
 
         updated = await repo.update(tenant, list_id, update_data)
         transition = await repo.create_transition(
@@ -225,6 +239,77 @@ class ReorderLifecycleService:
                     error=str(exc),
                 )
         return updated_item
+
+    async def match_document_receipt(
+        self,
+        tenant: TenantContext,
+        *,
+        document_id: UUID,
+        matched_items: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        repo = await get_shopping_lists_repository(tenant)
+        open_lists = await repo.get_by_property(tenant, limit=25)
+        actionable_statuses = {"approved", "order_ready", "order_placed_manually", "order_sent", "partially_received"}
+        candidate_lists = [
+            row for row in open_lists if str(row.get("status") or "") in actionable_statuses
+        ]
+        if not candidate_lists or not matched_items:
+            return {"matched_list_ids": [], "matched_item_count": 0}
+
+        matched_list_ids: set[str] = set()
+        matched_item_count = 0
+        item_ids = {str(row["item_id"]): row for row in matched_items if row.get("item_id")}
+
+        for shopping_list in candidate_lists:
+            list_id = UUID(str(shopping_list["id"]))
+            list_items = await repo.get_items(tenant, list_id)
+            for list_item in list_items:
+                inventory_item_id = list_item.get("inventory_item_id")
+                if not inventory_item_id:
+                    continue
+                matched = item_ids.get(str(inventory_item_id))
+                if matched is None:
+                    continue
+                if list_item.get("receipt_idempotency_key") == f"document:{document_id}:{list_item['id']}":
+                    continue
+
+                payload = {
+                    "is_purchased": True,
+                    "purchased_at": datetime.now(UTC).isoformat(),
+                    "received_at": datetime.now(UTC).isoformat(),
+                    "received_by_id": str(tenant.user_id),
+                    "received_quantity": str(matched.get("quantity") or list_item.get("quantity") or 0),
+                    "receipt_idempotency_key": f"document:{document_id}:{list_item['id']}",
+                }
+                if matched.get("actual_price") is not None:
+                    payload["actual_price"] = str(matched["actual_price"])
+                await repo.update_item(tenant, list_id, UUID(str(list_item["id"])), payload)
+                matched_item_count += 1
+                matched_list_ids.add(str(list_id))
+
+            if str(list_id) not in matched_list_ids:
+                continue
+
+            refreshed_items = await repo.get_items(tenant, list_id)
+            purchased_items = sum(1 for row in refreshed_items if row.get("is_purchased"))
+            total_items = len(refreshed_items)
+            target_state = "received" if total_items and purchased_items >= total_items else "partially_received"
+            if str(shopping_list.get("status") or "") != target_state:
+                await self.transition_list(
+                    tenant,
+                    list_id,
+                    next_state=target_state,
+                    idempotency_key=f"document-receipt:{document_id}:{list_id}",
+                    reason="document_receipt_matched",
+                    note="Purchase document matched to an open reorder plan.",
+                    metadata={"document_id": str(document_id), "matched_item_count": matched_item_count},
+                )
+            await repo.update_totals(tenant, list_id)
+
+        return {
+            "matched_list_ids": sorted(matched_list_ids),
+            "matched_item_count": matched_item_count,
+        }
 
 
 async def get_reorder_lifecycle_service() -> ReorderLifecycleService:

@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Building2 } from "lucide-react";
-import { listVendors, listCatalogItems, type Vendor } from "@/lib/api/endpoints";
+import {
+  getVendorAlerts,
+  getVendorSpend,
+  listCatalogItems,
+  listVendors,
+  type Vendor,
+} from "@/lib/api/endpoints";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
 import { captureUIError } from "@/lib/analytics";
@@ -15,6 +21,8 @@ export default function VendorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [spendSummary, setSpendSummary] = useState<Record<string, { total_spend: number; count: number }>>({});
+  const [priceAlerts, setPriceAlerts] = useState<Array<{ item_name: string; vendor_name: string; old_price: number; new_price: number }>>([]);
 
   const loadVendors = useCallback(async () => {
     setLoading(true);
@@ -22,6 +30,26 @@ export default function VendorsPage() {
     try {
       const resp = await listVendors({ page_size: 50 });
       setVendors(resp.vendors);
+      const [spendResp, alertsResp] = await Promise.all([
+        getVendorSpend({ days: 90 }).catch(() => ({ vendors: [] })),
+        getVendorAlerts({ days: 30 }).catch(() => ({ alerts: [] })),
+      ]);
+      setSpendSummary(
+        Object.fromEntries(
+          (spendResp.vendors || []).map((row) => [
+            row.vendor_name,
+            { total_spend: row.total_spend, count: row.count },
+          ])
+        )
+      );
+      setPriceAlerts(
+        (alertsResp.alerts || []).map((row) => ({
+          item_name: row.item_name,
+          vendor_name: row.vendor_name,
+          old_price: row.old_price,
+          new_price: row.new_price,
+        }))
+      );
     } catch (err) {
       setError("We couldn't load vendors.");
       captureUIError("load_vendors", err);
@@ -128,6 +156,25 @@ export default function VendorsPage() {
           />
         ) : (
           <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-gray-100 bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Tracked vendors</p>
+                <p className="mt-2 text-2xl font-semibold text-gray-900">{vendors.length}</p>
+                <p className="mt-1 text-xs text-gray-500">Auto-linked from approved purchase evidence.</p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Spend anomalies</p>
+                <p className="mt-2 text-2xl font-semibold text-gray-900">{priceAlerts.length}</p>
+                <p className="mt-1 text-xs text-gray-500">Only meaningful price changes with enough history are shown.</p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Pending mappings</p>
+                <p className="mt-2 text-2xl font-semibold text-gray-900">
+                  {Math.max(0, vendors.filter((vendor) => !spendSummary[vendor.name]).length)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">Suppliers still learning from recent invoices.</p>
+              </div>
+            </div>
             {filteredVendors.map((vendor) => (
               <div
                 key={vendor.id}
@@ -161,12 +208,43 @@ export default function VendorsPage() {
                   {vendor.notes && (
                     <p className="text-xs text-gray-400 mt-1 italic">{vendor.notes}</p>
                   )}
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-500">
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1">
+                      Spend {spendSummary[vendor.name] ? `$${spendSummary[vendor.name].total_spend.toFixed(2)}` : "Still learning"}
+                    </span>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1">
+                      Purchases {spendSummary[vendor.name]?.count ?? 0}
+                    </span>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1">
+                      {priceAlerts.some((alert) => alert.vendor_name === vendor.name)
+                        ? "Price movement detected"
+                        : "No major variance"}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-xs text-gray-400 shrink-0">
                   {new Date(vendor.created_at).toLocaleDateString()}
                 </p>
               </div>
             ))}
+            {priceAlerts.length > 0 && (
+              <div className="rounded-xl border border-gray-100 bg-white p-4">
+                <p className="text-sm font-medium text-gray-900">Recent price changes</p>
+                <div className="mt-3 space-y-2">
+                  {priceAlerts.slice(0, 4).map((alert, index) => (
+                    <div key={`${alert.vendor_name}-${alert.item_name}-${index}`} className="flex items-start justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+                      <div>
+                        <p className="text-sm text-gray-900">{alert.item_name}</p>
+                        <p className="text-xs text-gray-500">{alert.vendor_name}</p>
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        {`$${alert.old_price.toFixed(2)} -> $${alert.new_price.toFixed(2)}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )
       ) : (

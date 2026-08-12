@@ -474,6 +474,65 @@ async def test_receive_posts_ledger_once_and_enqueues_prediction_evaluation():
 
 
 @pytest.mark.asyncio
+async def test_document_receipt_matching_updates_existing_plan_without_duplicate_ledger():
+    tenant = _tenant()
+    repo = _FakeShoppingRepo()
+    list_row = await repo.create(
+        tenant,
+        {
+            "organization_id": str(tenant.org_id),
+            "name": "Reorder Plan",
+            "status": "approved",
+            "source_prediction_ids": [str(uuid4())],
+            "generation_params": {"plan_kind": "forecast_reorder", "order_representation_state": "order_ready"},
+        },
+    )
+    inventory_item_id = str(uuid4())
+    item_id = str(uuid4())
+    repo.items[list_row["id"]] = [
+        {
+            "id": item_id,
+            "shopping_list_id": list_row["id"],
+            "inventory_item_id": inventory_item_id,
+            "prediction_id": str(uuid4()),
+            "name": "Milk",
+            "quantity": "5",
+            "unit": "unit",
+            "estimated_price": "3.5",
+            "actual_price": None,
+            "priority": "high",
+            "reason": "Predicted stockout",
+            "source": "prediction",
+            "is_purchased": False,
+            "receipt_idempotency_key": None,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+    ]
+
+    with (
+        patch("app.services.reorder_lifecycle_service.get_shopping_lists_repository", new=AsyncMock(return_value=repo)),
+        patch("app.services.reorder_lifecycle_service.AuditService.log", new=AsyncMock(return_value=None)),
+    ):
+        lifecycle = ReorderLifecycleService()
+        result = await lifecycle.match_document_receipt(
+            tenant,
+            document_id=uuid4(),
+            matched_items=[
+                {
+                    "item_id": UUID(inventory_item_id),
+                    "quantity": 5,
+                    "actual_price": 4.2,
+                }
+            ],
+        )
+
+    assert result["matched_item_count"] == 1
+    assert list_row["status"] == "received"
+    assert repo.items[list_row["id"]][0]["actual_price"] == "4.2"
+    assert repo.items[list_row["id"]][0]["is_purchased"] is True
+
+
+@pytest.mark.asyncio
 async def test_no_qualifying_risk_creates_no_empty_shopping_list():
     tenant = _tenant()
     repo = _FakeShoppingRepo()

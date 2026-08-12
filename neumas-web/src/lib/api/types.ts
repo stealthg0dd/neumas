@@ -630,6 +630,8 @@ export type ShoppingListStatus =
   | "recommended"
   | "awaiting_approval"
   | "approved"
+  | "order_ready"
+  | "order_placed_manually"
   | "modified"
   | "rejected"
   | "order_sent"

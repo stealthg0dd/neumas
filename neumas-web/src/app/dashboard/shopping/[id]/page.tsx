@@ -267,7 +267,7 @@ export default function ShoppingDetailPage({
               ? "badge-mint"
               : list.status === "rejected" || list.status === "cancelled"
                 ? "badge-red"
-                : list.status === "approved" || list.status === "modified" || list.status === "partially_received"
+                : list.status === "approved" || list.status === "order_ready" || list.status === "modified" || list.status === "partially_received"
                   ? "badge-cyan"
                   : "badge-amber"
           }>
@@ -312,7 +312,7 @@ export default function ShoppingDetailPage({
 
       {/* Action buttons */}
       <div className="flex gap-2">
-        {list.status === "draft" && (
+        {(list.status === "draft" || list.status === "recommended" || list.status === "awaiting_approval" || list.status === "modified") && (
           <button
             onClick={handleApprove}
             disabled={approving}

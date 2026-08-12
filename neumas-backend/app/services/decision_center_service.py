@@ -221,7 +221,9 @@ class DecisionCenterService:
             )
 
         delivery_lists = [
-            row for row in shopping_lists if str(row.get("status")) in {"approved", "order_sent", "partially_received"}
+            row
+            for row in shopping_lists
+            if str(row.get("status")) in {"approved", "order_ready", "order_placed_manually", "order_sent", "partially_received"}
         ]
         if delivery_lists:
             queue.append(

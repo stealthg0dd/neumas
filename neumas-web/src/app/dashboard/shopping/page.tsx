@@ -29,6 +29,8 @@ const STATUS_CFG: Record<ShoppingListStatus, { label: string; badge: string }> =
   recommended:        { label: "Recommended",        badge: "badge-amber" },
   awaiting_approval:  { label: "Awaiting approval",  badge: "badge-amber" },
   approved:           { label: "Approved",           badge: "badge-cyan" },
+  order_ready:        { label: "Order ready",        badge: "badge-cyan" },
+  order_placed_manually: { label: "Placed manually", badge: "badge-purple" },
   modified:           { label: "Modified",           badge: "badge-cyan" },
   rejected:           { label: "Rejected",           badge: "badge-red" },
   order_sent:         { label: "Order prepared",     badge: "badge-purple" },
@@ -247,6 +249,7 @@ const FILTERS: Array<{ value: ShoppingListStatus | "all"; label: string }> = [
   { value: "draft",    label: "Draft" },
   { value: "awaiting_approval", label: "Approval" },
   { value: "approved", label: "Approved" },
+  { value: "order_ready", label: "Ready" },
   { value: "order_sent",  label: "Prepared" },
   { value: "received", label: "Received" },
 ];

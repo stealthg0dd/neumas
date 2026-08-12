@@ -717,6 +717,23 @@ export interface Vendor {
   created_at: string;
 }
 
+export interface VendorSpendSummary {
+  vendor_name: string;
+  total_spend: number;
+  count: number;
+}
+
+export interface VendorPriceAlert {
+  vendor_id: string;
+  vendor_name: string;
+  item_id: string;
+  item_name: string;
+  date: string;
+  old_price: number;
+  new_price: number;
+  type: string;
+}
+
 /** GET /api/vendors */
 export async function listVendors(params?: {
   page?: number;
@@ -728,6 +745,21 @@ export async function listVendors(params?: {
 /** GET /api/vendors/{vendorId} */
 export async function getVendor(vendorId: string): Promise<Vendor> {
   return get<Vendor>(`/api/vendors/${vendorId}`);
+}
+
+/** GET /api/vendor-analytics/spend */
+export async function getVendorSpend(params?: {
+  vendor_id?: string;
+  days?: number;
+}): Promise<{ vendors: VendorSpendSummary[] }> {
+  return get("/api/vendor-analytics/spend", params);
+}
+
+/** GET /api/vendor-analytics/alerts */
+export async function getVendorAlerts(params?: {
+  days?: number;
+}): Promise<{ alerts: VendorPriceAlert[] }> {
+  return get("/api/vendor-analytics/alerts", params);
 }
 
 /** GET /api/vendors/catalog/items */

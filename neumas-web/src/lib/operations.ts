@@ -6,6 +6,8 @@ export function normalizeShoppingListStatus(status: string | null | undefined): 
     case "recommended":
     case "awaiting_approval":
     case "approved":
+    case "order_ready":
+    case "order_placed_manually":
     case "modified":
     case "rejected":
     case "order_sent":

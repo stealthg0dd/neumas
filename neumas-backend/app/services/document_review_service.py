@@ -17,6 +17,8 @@ from app.db.repositories.document_line_items import DocumentLineItemsRepository
 from app.db.repositories.documents import DocumentsRepository
 from app.db.supabase_client import get_async_supabase_admin
 from app.services.inventory_ledger_service import InventoryLedgerService
+from app.services.reorder_lifecycle_service import ReorderLifecycleService
+from app.services.vendor_intelligence_service import VendorIntelligenceService
 
 logger = get_logger(__name__)
 
@@ -28,6 +30,8 @@ class DocumentReviewService:
         self._docs_repo = DocumentsRepository()
         self._line_items_repo = DocumentLineItemsRepository()
         self._ledger = InventoryLedgerService()
+        self._reorder_lifecycle = ReorderLifecycleService()
+        self._vendor_intelligence = VendorIntelligenceService()
 
     async def approve_and_post(
         self,
@@ -52,6 +56,8 @@ class DocumentReviewService:
         client = await get_async_supabase_admin()
         posted = []
         skipped = []
+        item_links: dict[str, UUID] = {}
+        matched_receipt_items: list[dict[str, Any]] = []
 
         for line_item in line_items:
             raw_name = line_item.get("normalized_name") or line_item.get("raw_name", "")
@@ -80,6 +86,7 @@ class DocumentReviewService:
                 continue
 
             item_id = UUID(item_resp.data[0]["id"])
+            item_links[str(line_item["id"])] = item_id
             idempotency_key = f"doc:{document_id}:line:{line_item['id']}"
 
             movement = await self._ledger.apply_purchase(
@@ -96,10 +103,30 @@ class DocumentReviewService:
                     tenant, UUID(line_item["id"]), UUID(movement["id"])
                 )
                 posted.append({"line_item_id": line_item["id"], "movement_id": movement["id"]})
+                matched_receipt_items.append(
+                    {
+                        "line_item_id": line_item["id"],
+                        "item_id": item_id,
+                        "quantity": quantity,
+                        "actual_price": line_item.get("unit_price") or line_item.get("raw_price"),
+                    }
+                )
 
         # Mark document as approved
         await self._docs_repo.update_status(
             tenant, document_id, "approved", approved_by_id=tenant.user_id
+        )
+
+        vendor_intelligence = await self._vendor_intelligence.enrich_purchase_document(
+            tenant,
+            document=document,
+            line_items=line_items,
+            item_links=item_links,
+        )
+        matched_receipts = await self._reorder_lifecycle.match_document_receipt(
+            tenant,
+            document_id=document_id,
+            matched_items=matched_receipt_items,
         )
 
         logger.info(
@@ -115,6 +142,8 @@ class DocumentReviewService:
             "movements_created": len(posted),
             "items_skipped": len(skipped),
             "skipped": skipped,
+            "matched_receipts": matched_receipts,
+            "vendor_intelligence": vendor_intelligence,
         }
 
     async def correct_line_item(
