@@ -91,6 +91,7 @@ async def test_forecast_eligibility_requires_minimum_documents():
 
     assert result.reason_code == "INSUFFICIENT_DOCUMENTS"
     assert result.evidence_cycles_available == 2
+    assert result.purchase_cycles_observed == 2
 
 
 @pytest.mark.asyncio
@@ -180,3 +181,44 @@ async def test_forecast_eligibility_returns_eligible_when_evidence_mature_and_st
         result = await ForecastEligibilityService().evaluate_forecast_eligibility(org_id, property_id)
 
     assert result.reason_code == "ELIGIBLE"
+    assert result.purchase_cycles_observed == 3
+    assert result.canonical_item_coverage == 1.0
+
+
+@pytest.mark.asyncio
+async def test_forecast_eligibility_reports_consumption_evidence_readiness():
+    org_id = uuid4()
+    property_id = uuid4()
+    now = datetime.now(UTC)
+    admin = _FakeAdmin(
+        {
+            "scans": [
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "status": "completed", "created_at": (now - timedelta(days=10)).isoformat()},
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "status": "completed", "created_at": (now - timedelta(days=5)).isoformat()},
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "status": "completed", "created_at": now.isoformat()},
+            ],
+            "inventory_movements": [
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "movement_type": "purchase"},
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "movement_type": "usage"},
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "movement_type": "waste"},
+            ],
+            "consumption_patterns": [
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "pattern_type": "daily", "sample_size": 2, "days_covered": 10},
+            ],
+            "inventory_items": [
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "canonical_item_id": str(uuid4()), "is_active": True},
+                {"id": str(uuid4()), "organization_id": str(org_id), "property_id": str(property_id), "canonical_item_id": None, "is_active": True},
+            ],
+        }
+    )
+    entitlements = AsyncMock(return_value=type("Ent", (), {"limits": type("Lim", (), {"forecast_frequency_hours": 12})()})())
+
+    with (
+        patch("app.services.forecast_eligibility_service.get_async_supabase_admin", new=AsyncMock(return_value=admin)),
+        patch("app.services.forecast_eligibility_service.EntitlementService.get_for_tenant", new=entitlements),
+    ):
+        result = await ForecastEligibilityService().evaluate_forecast_eligibility(org_id, property_id)
+
+    assert result.reason_code == "INSUFFICIENT_TIME_SERIES"
+    assert result.consumption_movements_observed == 2
+    assert result.history_days_observed == 10

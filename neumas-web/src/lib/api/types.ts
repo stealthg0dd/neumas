@@ -465,6 +465,12 @@ export interface DecisionAheadState {
   waste_risk_count?: number | null;
   forecast_confidence?: number | null;
   learning_state?: string | null;
+  forecast_reason_code?: string | null;
+  purchase_cycles_observed?: number;
+  purchase_cycles_required?: number;
+  consumption_movements_observed?: number;
+  history_days_observed?: number;
+  canonical_item_coverage?: number | null;
 }
 
 export interface DecisionImpactState {
@@ -531,6 +537,10 @@ export interface ForecastEligibilityResponse {
   detail?: string;
   forecast_running?: boolean;
   cadence_hours?: number | null;
+  purchase_cycles_observed?: number;
+  consumption_movements_observed?: number;
+  history_days_observed?: number;
+  canonical_item_coverage?: number;
 }
 
 export interface ScanRerunResponse {
@@ -843,4 +853,30 @@ export interface AnalyticsSummary {
     price_observations_created: number;
     average_extraction_confidence?: number | null;
   } | null;
+  purchase_intelligence?: {
+    documents_processed: number;
+    items_purchased: number;
+    supplier_spend_visible: boolean;
+    item_price_observations: number;
+    category_distribution: CategoryBreakdownPoint[];
+    purchase_value_visible: boolean;
+  };
+  inventory_intelligence?: {
+    tracked_items: number;
+    latest_additions: number;
+    low_or_out_items: number;
+    category_distribution: CategoryBreakdownPoint[];
+  };
+  forecast_intelligence?: {
+    has_forecasts: boolean;
+    predictions_count: number;
+    avg_confidence_pct: number;
+    urgency_breakdown: UrgencyBreakdown;
+  };
+  action_intelligence?: {
+    recommendations: number;
+    approvals: number;
+    completed_receipts: number;
+    planned_spend: number;
+  };
 }

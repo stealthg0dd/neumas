@@ -164,6 +164,32 @@ const EMPTY_SUMMARY: AnalyticsSummary = {
   category_breakdown: [],
   urgency_breakdown:  { critical: 0, urgent: 0, soon: 0, later: 0 },
   latest_purchase_summary: null,
+  purchase_intelligence: {
+    documents_processed: 0,
+    items_purchased: 0,
+    supplier_spend_visible: false,
+    item_price_observations: 0,
+    category_distribution: [],
+    purchase_value_visible: false,
+  },
+  inventory_intelligence: {
+    tracked_items: 0,
+    latest_additions: 0,
+    low_or_out_items: 0,
+    category_distribution: [],
+  },
+  forecast_intelligence: {
+    has_forecasts: false,
+    predictions_count: 0,
+    avg_confidence_pct: 0,
+    urgency_breakdown: { critical: 0, urgent: 0, soon: 0, later: 0 },
+  },
+  action_intelligence: {
+    recommendations: 0,
+    approvals: 0,
+    completed_receipts: 0,
+    planned_spend: 0,
+  },
 };
 
 export default function AnalyticsPage() {
@@ -309,6 +335,85 @@ export default function AnalyticsPage() {
           </div>
         </ChartCard>
       )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <ChartCard
+          title="Purchase Intelligence"
+          subtitle="Useful immediately after the first receipt"
+          index={1}
+          className="min-h-0"
+        >
+          <div className="space-y-3 text-sm">
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Documents processed</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.purchase_intelligence?.documents_processed ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Items purchased</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.purchase_intelligence?.items_purchased ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Price observations</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.purchase_intelligence?.item_price_observations ?? 0}</p>
+            </div>
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Inventory" subtitle="Useful without forecasting" index={2} className="min-h-0">
+          <div className="space-y-3 text-sm">
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Tracked items</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.inventory_intelligence?.tracked_items ?? summary.items_tracked}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Latest additions</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.inventory_intelligence?.latest_additions ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Low / out status</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.inventory_intelligence?.low_or_out_items ?? 0}</p>
+            </div>
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Forecast Intelligence" subtitle="Only when evidence exists" index={3} className="min-h-0">
+          <div className="space-y-3 text-sm">
+            {(summary.forecast_intelligence?.has_forecasts ?? false) ? (
+              <>
+                <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Predictions</p>
+                  <p className="mt-1 font-semibold text-foreground">{summary.forecast_intelligence?.predictions_count ?? 0}</p>
+                </div>
+                <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Confidence</p>
+                  <p className="mt-1 font-semibold text-foreground">{Math.round(summary.forecast_intelligence?.avg_confidence_pct ?? 0)}%</p>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border/50 bg-white/5 p-3 text-muted-foreground">
+                Forecasting is still learning from receipt cycles and ledger evidence.
+              </div>
+            )}
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Action Intelligence" subtitle="Recommendation lifecycle" index={4} className="min-h-0">
+          <div className="space-y-3 text-sm">
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Recommendations</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.action_intelligence?.recommendations ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Approvals</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.action_intelligence?.approvals ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Completed receipts</p>
+              <p className="mt-1 font-semibold text-foreground">{summary.action_intelligence?.completed_receipts ?? 0}</p>
+            </div>
+          </div>
+        </ChartCard>
+      </div>
 
       {/* Charts grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

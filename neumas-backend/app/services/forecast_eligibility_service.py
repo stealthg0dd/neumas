@@ -27,6 +27,10 @@ class ForecastEligibilityResult:
     detail: str = ""
     forecast_running: bool = False
     cadence_hours: int | None = None
+    purchase_cycles_observed: int = 0
+    consumption_movements_observed: int = 0
+    history_days_observed: int = 0
+    canonical_item_coverage: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +43,10 @@ class ForecastEligibilityResult:
             "detail": self.detail,
             "forecast_running": self.forecast_running,
             "cadence_hours": self.cadence_hours,
+            "purchase_cycles_observed": self.purchase_cycles_observed,
+            "consumption_movements_observed": self.consumption_movements_observed,
+            "history_days_observed": self.history_days_observed,
+            "canonical_item_coverage": self.canonical_item_coverage,
         }
 
 
@@ -87,8 +95,22 @@ class ForecastEligibilityService:
             .in_("status", ["inventory_posted", "completed", "completed_with_partial_analysis", "partial_failed"])
             .execute()
         )
-        evidence_cycles = int(docs_resp.count or len(docs_resp.data or []))
-        if evidence_cycles < MIN_EVIDENCE_CYCLES:
+        scan_rows = docs_resp.data or []
+        evidence_cycles = int(docs_resp.count or len(scan_rows))
+        history_days_observed = 0
+        if scan_rows:
+            created_values = [str(row.get("created_at") or "") for row in scan_rows if row.get("created_at")]
+            parsed = []
+            for value in created_values:
+                try:
+                    parsed.append(datetime.fromisoformat(value.replace("Z", "+00:00")))
+                except ValueError:
+                    continue
+            if parsed:
+                history_days_observed = max(0, (max(parsed) - min(parsed)).days)
+
+        purchase_cycles_observed = evidence_cycles
+        if purchase_cycles_observed < MIN_EVIDENCE_CYCLES:
             return ForecastEligibilityResult(
                 status="blocked",
                 reason_code="INSUFFICIENT_DOCUMENTS",
@@ -98,16 +120,19 @@ class ForecastEligibilityService:
                 next_eligible_at=None,
                 detail="waiting_for_more_purchase_documents",
                 cadence_hours=cadence_hours,
+                purchase_cycles_observed=purchase_cycles_observed,
+                history_days_observed=history_days_observed,
             )
 
         movements_resp = await (
             client.table("inventory_movements")
-            .select("id", count="exact")
+            .select("id, movement_type", count="exact")
             .eq("organization_id", str(org_id))
             .eq("property_id", str(property_id))
             .execute()
         )
-        movement_count = int(movements_resp.count or len(movements_resp.data or []))
+        movement_rows = movements_resp.data or []
+        movement_count = int(movements_resp.count or len(movement_rows))
         if movement_count == 0:
             return ForecastEligibilityResult(
                 status="blocked",
@@ -118,11 +143,19 @@ class ForecastEligibilityService:
                 next_eligible_at=None,
                 detail="inventory_ledger_has_no_movements",
                 cadence_hours=cadence_hours,
+                purchase_cycles_observed=purchase_cycles_observed,
+                history_days_observed=history_days_observed,
             )
+
+        consumption_movements_observed = sum(
+            1
+            for row in movement_rows
+            if str(row.get("movement_type") or "") in {"usage", "waste", "expiry"}
+        )
 
         patterns_resp = await (
             client.table("consumption_patterns")
-            .select("id, sample_size")
+            .select("id, sample_size, days_covered")
             .eq("organization_id", str(org_id))
             .eq("property_id", str(property_id))
             .eq("pattern_type", "daily")
@@ -138,8 +171,14 @@ class ForecastEligibilityService:
                 evidence_cycles_required=MIN_EVIDENCE_CYCLES,
                 last_forecast_at=None,
                 next_eligible_at=None,
-                detail="daily_patterns_not_mature",
+                detail="consumption_history_not_mature",
                 cadence_hours=cadence_hours,
+                purchase_cycles_observed=purchase_cycles_observed,
+                consumption_movements_observed=consumption_movements_observed,
+                history_days_observed=max(
+                    history_days_observed,
+                    max((int(row.get("days_covered") or 0) for row in pattern_rows), default=0),
+                ),
             )
 
         inventory_resp = await (
@@ -151,7 +190,9 @@ class ForecastEligibilityService:
             .execute()
         )
         inventory_rows = inventory_resp.data or []
-        if not inventory_rows or not any(row.get("canonical_item_id") for row in inventory_rows):
+        canonical_count = sum(1 for row in inventory_rows if row.get("canonical_item_id"))
+        canonical_item_coverage = (canonical_count / len(inventory_rows)) if inventory_rows else 0.0
+        if not inventory_rows or canonical_count == 0:
             return ForecastEligibilityResult(
                 status="blocked",
                 reason_code="MISSING_CANONICAL_ITEMS",
@@ -161,6 +202,13 @@ class ForecastEligibilityService:
                 next_eligible_at=None,
                 detail="canonical_item_links_missing",
                 cadence_hours=cadence_hours,
+                purchase_cycles_observed=purchase_cycles_observed,
+                consumption_movements_observed=consumption_movements_observed,
+                history_days_observed=max(
+                    history_days_observed,
+                    max((int(row.get("days_covered") or 0) for row in pattern_rows), default=0),
+                ),
+                canonical_item_coverage=canonical_item_coverage,
             )
 
         scans_resp = await (
@@ -184,6 +232,13 @@ class ForecastEligibilityService:
                 detail="post_scan_workflow_in_progress",
                 forecast_running=True,
                 cadence_hours=cadence_hours,
+                purchase_cycles_observed=purchase_cycles_observed,
+                consumption_movements_observed=consumption_movements_observed,
+                history_days_observed=max(
+                    history_days_observed,
+                    max((int(row.get("days_covered") or 0) for row in pattern_rows), default=0),
+                ),
+                canonical_item_coverage=canonical_item_coverage,
             )
 
         last_prediction_resp = await (
@@ -216,6 +271,13 @@ class ForecastEligibilityService:
                             next_eligible_at=next_eligible_at,
                             detail="forecast_within_plan_cadence",
                             cadence_hours=cadence_hours,
+                            purchase_cycles_observed=purchase_cycles_observed,
+                            consumption_movements_observed=consumption_movements_observed,
+                            history_days_observed=max(
+                                history_days_observed,
+                                max((int(row.get("days_covered") or 0) for row in pattern_rows), default=0),
+                            ),
+                            canonical_item_coverage=canonical_item_coverage,
                         )
                 except ValueError:
                     pass
@@ -229,4 +291,11 @@ class ForecastEligibilityService:
             next_eligible_at=next_eligible_at,
             detail="forecast_can_run",
             cadence_hours=cadence_hours,
+            purchase_cycles_observed=purchase_cycles_observed,
+            consumption_movements_observed=consumption_movements_observed,
+            history_days_observed=max(
+                history_days_observed,
+                max((int(row.get("days_covered") or 0) for row in pattern_rows), default=0),
+            ),
+            canonical_item_coverage=canonical_item_coverage,
         )

@@ -42,6 +42,12 @@ class DecisionAheadState(BaseModel):
     waste_risk_count: int | None = None
     forecast_confidence: float | None = None
     learning_state: str | None = None
+    forecast_reason_code: str | None = None
+    purchase_cycles_observed: int = 0
+    purchase_cycles_required: int = 0
+    consumption_movements_observed: int = 0
+    history_days_observed: int = 0
+    canonical_item_coverage: float | None = None
 
 
 class DecisionImpactState(BaseModel):

@@ -14,10 +14,12 @@ from app.db.repositories.inventory import get_inventory_repository
 from app.schemas.inventory import (
     BurnRateRecomputeRequest,
     BurnRateRecomputeResponse,
+    InventoryMovementActionRequest,
     InventoryIntelligenceResponse,
     InventoryItemCreate,
     InventoryItemResponse,
     InventoryItemSummary,
+    InventoryStockCountRequest,
     InventoryItemUpdate,
     InventoryUpdateRequest,
     InventoryUpdateResponse,
@@ -301,6 +303,96 @@ async def adjust_quantity(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to adjust quantity",
         )
+
+
+@router.post(
+    "/{item_id}/usage",
+    response_model=InventoryItemResponse,
+    summary="Record usage",
+    description="Record observed consumption as a ledger-backed usage movement.",
+)
+async def record_usage(
+    item_id: UUID,
+    body: InventoryMovementActionRequest,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> InventoryItemResponse:
+    try:
+        item = await inventory_service.record_usage(
+            item_id=item_id,
+            quantity=float(body.quantity),
+            tenant=tenant,
+            note=body.note,
+        )
+        if not item:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found")
+        return item
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to record usage", item_id=str(item_id), error=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to record usage")
+
+
+@router.post(
+    "/{item_id}/waste",
+    response_model=InventoryItemResponse,
+    summary="Record waste",
+    description="Record spoilage or disposal as a ledger-backed waste movement.",
+)
+async def record_waste(
+    item_id: UUID,
+    body: InventoryMovementActionRequest,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> InventoryItemResponse:
+    try:
+        item = await inventory_service.record_waste(
+            item_id=item_id,
+            quantity=float(body.quantity),
+            tenant=tenant,
+            note=body.note,
+        )
+        if not item:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found")
+        return item
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to record waste", item_id=str(item_id), error=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to record waste")
+
+
+@router.post(
+    "/{item_id}/stock-count",
+    response_model=InventoryItemResponse,
+    summary="Confirm stock count",
+    description="Set the physically counted quantity through the ledger-backed adjustment path.",
+)
+async def confirm_stock_count(
+    item_id: UUID,
+    body: InventoryStockCountRequest,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> InventoryItemResponse:
+    try:
+        item = await inventory_service.confirm_stock_count(
+            item_id=item_id,
+            quantity=float(body.quantity),
+            tenant=tenant,
+            note=body.note,
+        )
+        if not item:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found")
+        return item
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to confirm stock count", item_id=str(item_id), error=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to confirm stock count")
 
 
 @router.get(

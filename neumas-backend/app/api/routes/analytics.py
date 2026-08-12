@@ -36,6 +36,10 @@ def _empty_analytics_summary() -> dict[str, Any]:
         "category_breakdown": [],
         "urgency_breakdown": {"critical": 0, "urgent": 0, "soon": 0, "later": 0},
         "latest_purchase_summary": None,
+        "purchase_intelligence": {},
+        "inventory_intelligence": {},
+        "forecast_intelligence": {},
+        "action_intelligence": {},
     }
 
 
@@ -277,6 +281,43 @@ async def get_analytics_summary(
         inventory_items=inventory_items,
     )
 
+    purchase_intelligence = {
+        "documents_processed": len(scans),
+        "items_purchased": int((purchase_summary or {}).get("products_added") or 0),
+        "supplier_spend_visible": bool((purchase_summary or {}).get("supplier_name")),
+        "item_price_observations": int((purchase_summary or {}).get("price_observations_created") or 0),
+        "category_distribution": category_breakdown,
+        "purchase_value_visible": (purchase_summary or {}).get("total_purchase_value") is not None,
+    }
+    inventory_intelligence = {
+        "tracked_items": len(inventory_items),
+        "latest_additions": int((purchase_summary or {}).get("products_added") or 0),
+        "low_or_out_items": sum(
+            1
+            for item in inventory_items
+            if str(item.get("stock_status") or "") in {"low_stock", "out_of_stock"}
+        ),
+        "category_distribution": category_breakdown,
+    }
+    forecast_intelligence = {
+        "has_forecasts": len(predictions) > 0,
+        "predictions_count": len(predictions),
+        "avg_confidence_pct": avg_confidence_pct,
+        "urgency_breakdown": urgency_breakdown,
+    }
+    action_intelligence = {
+        "recommendations": sum(
+            1 for row in shopping_lists if str(row.get("status") or "") in {"recommended", "awaiting_approval", "modified"}
+        ),
+        "approvals": sum(
+            1 for row in shopping_lists if str(row.get("status") or "") in {"approved", "order_ready", "order_placed_manually", "order_sent"}
+        ),
+        "completed_receipts": sum(
+            1 for row in shopping_lists if str(row.get("status") or "") in {"received", "partially_received"}
+        ),
+        "planned_spend": round(spend_total, 2),
+    }
+
     return {
         "spend_total":          round(spend_total, 2),
         "avg_confidence_pct":   avg_confidence_pct,
@@ -289,4 +330,8 @@ async def get_analytics_summary(
         "category_breakdown":   category_breakdown,
         "urgency_breakdown":    urgency_breakdown,
         "latest_purchase_summary": purchase_summary,
+        "purchase_intelligence": purchase_intelligence,
+        "inventory_intelligence": inventory_intelligence,
+        "forecast_intelligence": forecast_intelligence,
+        "action_intelligence": action_intelligence,
     }

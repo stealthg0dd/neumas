@@ -21,6 +21,7 @@ from app.schemas.inventory import (
     InventoryUpdateRequest,
     InventoryUpdateResponse,
 )
+from app.services.inventory_ledger_service import InventoryLedgerService
 
 logger = get_logger(__name__)
 
@@ -97,6 +98,9 @@ def _item_response(item: dict[str, Any]) -> InventoryItemResponse:
 
 class InventoryService:
     """Service for inventory management operations."""
+
+    def __init__(self) -> None:
+        self._ledger = InventoryLedgerService()
 
     async def create_daily_snapshots(self) -> dict[str, Any]:
         """Persist inventory valuation snapshots for all active properties."""
@@ -453,10 +457,13 @@ class InventoryService:
         if new_qty < 0:
             raise ValueError("Adjustment would result in negative quantity")
 
-        await inventory_repo.update(
-            item_id=item_id,
-            data={"quantity": str(new_qty)},
+        await self._ledger.apply_movement(
             tenant=tenant,
+            item_id=item_id,
+            movement_type="manual_adjustment",
+            quantity_delta=float(adjustment),
+            unit=str(item.get("unit") or "unit"),
+            notes=reason,
         )
 
         logger.info(
@@ -468,6 +475,74 @@ class InventoryService:
             reason=reason,
         )
 
+        return await self.get_item(item_id, tenant)
+
+    async def record_usage(
+        self,
+        item_id: UUID,
+        quantity: float,
+        tenant: TenantContext,
+        note: str | None = None,
+    ) -> InventoryItemResponse | None:
+        inventory_repo = await get_inventory_repository()
+        item = await inventory_repo.get_by_id(item_id, tenant)
+        if not item:
+            return None
+        current_qty = Decimal(str(item.get("quantity", 0)))
+        if current_qty - Decimal(str(quantity)) < 0:
+            raise ValueError("Usage would result in negative quantity")
+        await self._ledger.record_usage(
+            tenant=tenant,
+            item_id=item_id,
+            quantity=quantity,
+            unit=str(item.get("unit") or "unit"),
+            notes=note,
+        )
+        return await self.get_item(item_id, tenant)
+
+    async def record_waste(
+        self,
+        item_id: UUID,
+        quantity: float,
+        tenant: TenantContext,
+        note: str | None = None,
+    ) -> InventoryItemResponse | None:
+        inventory_repo = await get_inventory_repository()
+        item = await inventory_repo.get_by_id(item_id, tenant)
+        if not item:
+            return None
+        current_qty = Decimal(str(item.get("quantity", 0)))
+        if current_qty - Decimal(str(quantity)) < 0:
+            raise ValueError("Waste would result in negative quantity")
+        await self._ledger.record_waste(
+            tenant=tenant,
+            item_id=item_id,
+            quantity=quantity,
+            unit=str(item.get("unit") or "unit"),
+            notes=note,
+        )
+        return await self.get_item(item_id, tenant)
+
+    async def confirm_stock_count(
+        self,
+        item_id: UUID,
+        quantity: float,
+        tenant: TenantContext,
+        note: str | None = None,
+    ) -> InventoryItemResponse | None:
+        inventory_repo = await get_inventory_repository()
+        item = await inventory_repo.get_by_id(item_id, tenant)
+        if not item:
+            return None
+        current_qty = Decimal(str(item.get("quantity", 0)))
+        notes = note or "Physical stock count confirmed"
+        await self._ledger.apply_manual_adjustment(
+            tenant=tenant,
+            item_id=item_id,
+            new_quantity=float(quantity),
+            unit=str(item.get("unit") or "unit"),
+            notes=f"{notes} (from {current_qty} to {quantity})",
+        )
         return await self.get_item(item_id, tenant)
 
 

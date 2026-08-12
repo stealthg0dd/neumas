@@ -124,6 +124,20 @@ class QuantityAdjustment(BaseModel):
     reason: str | None = Field(None, max_length=500)
 
 
+class InventoryMovementActionRequest(BaseModel):
+    """Ledger-backed usage / waste / stock-count request."""
+
+    quantity: Decimal = Field(..., ge=0)
+    note: str | None = Field(None, max_length=500)
+
+
+class InventoryStockCountRequest(BaseModel):
+    """Confirm actual counted stock quantity."""
+
+    quantity: Decimal = Field(..., ge=0)
+    note: str | None = Field(None, max_length=500)
+
+
 class QuantitySet(BaseModel):
     """Set quantity request."""
 

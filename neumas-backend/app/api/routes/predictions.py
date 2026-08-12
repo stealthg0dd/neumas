@@ -49,6 +49,10 @@ class ForecastEligibilityResponse(BaseModel):
     detail: str = ""
     forecast_running: bool = False
     cadence_hours: int | None = None
+    purchase_cycles_observed: int = 0
+    consumption_movements_observed: int = 0
+    history_days_observed: int = 0
+    canonical_item_coverage: float = 0.0
 
 
 @router.post(

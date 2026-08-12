@@ -165,6 +165,44 @@ class TestInventoryLedgerService:
                 assert call_kwargs["quantity_delta"] == expected_delta
                 assert call_kwargs["movement_type"] == "manual_adjustment"
 
+    @pytest.mark.asyncio
+    async def test_record_usage_posts_negative_usage_delta(self, tenant: TenantContext):
+        from app.services.inventory_ledger_service import InventoryLedgerService
+
+        svc = InventoryLedgerService()
+        item_id = uuid4()
+
+        with patch.object(
+            svc,
+            "apply_movement",
+            new_callable=AsyncMock,
+            return_value={"id": str(uuid4()), "movement_type": "usage", "quantity_delta": -2.0},
+        ) as mock_apply:
+            result = await svc.record_usage(tenant=tenant, item_id=item_id, quantity=2.0, notes="Prep usage")
+
+        assert result is not None
+        assert result["movement_type"] == "usage"
+        assert mock_apply.await_args.kwargs["quantity_delta"] == -2.0
+
+    @pytest.mark.asyncio
+    async def test_record_waste_posts_negative_waste_delta(self, tenant: TenantContext):
+        from app.services.inventory_ledger_service import InventoryLedgerService
+
+        svc = InventoryLedgerService()
+        item_id = uuid4()
+
+        with patch.object(
+            svc,
+            "apply_movement",
+            new_callable=AsyncMock,
+            return_value={"id": str(uuid4()), "movement_type": "waste", "quantity_delta": -1.0},
+        ) as mock_apply:
+            result = await svc.record_waste(tenant=tenant, item_id=item_id, quantity=1.0, notes="Spoiled")
+
+        assert result is not None
+        assert result["movement_type"] == "waste"
+        assert mock_apply.await_args.kwargs["quantity_delta"] == -1.0
+
 
 class TestDocumentService:
     """Tests for the document service."""

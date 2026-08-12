@@ -172,6 +172,46 @@ class InventoryLedgerService:
             idempotency_key=idempotency_key,
         )
 
+    async def record_usage(
+        self,
+        tenant: TenantContext,
+        item_id: UUID,
+        quantity: float,
+        unit: str = "unit",
+        notes: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Record observed or user-confirmed consumption."""
+        return await self.apply_movement(
+            tenant=tenant,
+            item_id=item_id,
+            movement_type="usage",
+            quantity_delta=-abs(quantity),
+            unit=unit,
+            notes=notes,
+            idempotency_key=idempotency_key,
+        )
+
+    async def record_waste(
+        self,
+        tenant: TenantContext,
+        item_id: UUID,
+        quantity: float,
+        unit: str = "unit",
+        notes: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Record waste as a first-class ledger event."""
+        return await self.apply_movement(
+            tenant=tenant,
+            item_id=item_id,
+            movement_type="waste",
+            quantity_delta=-abs(quantity),
+            unit=unit,
+            notes=notes,
+            idempotency_key=idempotency_key,
+        )
+
     async def list_movements(
         self,
         tenant: TenantContext,

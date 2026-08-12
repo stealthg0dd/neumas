@@ -9,6 +9,7 @@ from app.api.deps import TenantContext
 from app.core.logging import get_logger
 from app.db.supabase_client import get_async_supabase_admin
 from app.services.impact_service import ImpactService
+from app.services.purchase_summary_service import PurchaseSummaryService
 
 logger = get_logger(__name__)
 
@@ -20,6 +21,7 @@ class ExecutiveBriefingService:
 
     def __init__(self) -> None:
         self._impact = ImpactService()
+        self._purchase_summary = PurchaseSummaryService()
 
     async def get_briefing(
         self,
@@ -50,7 +52,8 @@ class ExecutiveBriefingService:
         response = await query.execute()
         logs = response.data or []
         impact = await self._impact.get_impact_summary(tenant, days=30)
-        bullets = await self._llm_summary(logs, days, impact=impact)
+        purchase_summary = await self._purchase_summary.get_latest_summary(tenant)
+        bullets = await self._llm_summary(logs, days, impact=impact, purchase_summary=purchase_summary)
         payload = {
             "period_days": days,
             "generated_at": datetime.now(UTC).isoformat(),
@@ -117,8 +120,31 @@ class ExecutiveBriefingService:
         settings[self._SETTINGS_KEY] = cache
         await client.table("organizations").update({"settings": settings}).eq("id", str(tenant.org_id)).execute()
 
-    def _fallback_bullets(self, logs: list[dict[str, Any]], days: int, impact: dict[str, Any] | None = None) -> list[str]:
+    def _fallback_bullets(
+        self,
+        logs: list[dict[str, Any]],
+        days: int,
+        impact: dict[str, Any] | None = None,
+        purchase_summary: dict[str, Any] | None = None,
+    ) -> list[str]:
         if not logs:
+            if purchase_summary:
+                total_value = purchase_summary.get("total_purchase_value")
+                supplier = purchase_summary.get("supplier_name") or "an unresolved supplier"
+                categories = purchase_summary.get("categories_identified") or []
+                return [
+                    f"{purchase_summary.get('products_added') or 0} item line(s) were added from the latest purchase with {supplier}.",
+                    (
+                        f"{purchase_summary.get('canonicalized_count') or 0} item(s) were canonicalized across {len(categories)} category(ies)."
+                        if categories
+                        else f"{purchase_summary.get('canonicalized_count') or 0} item(s) were canonicalized from the latest receipt."
+                    ),
+                    (
+                        f"Recorded purchase value: {total_value} {purchase_summary.get('currency') or ''}".strip()
+                        if total_value is not None
+                        else "Forecasting is still learning from this first evidence cycle."
+                    ),
+                ]
             return [
                 f"No audited activity was recorded in the last {days} days.",
                 "Inventory workflows were quiet, so no new operational risks were inferred.",
@@ -150,8 +176,15 @@ class ExecutiveBriefingService:
             )
         return bullets
 
-    async def _llm_summary(self, logs: list[dict[str, Any]], days: int, *, impact: dict[str, Any] | None = None) -> list[str]:
-        fallback = self._fallback_bullets(logs, days, impact=impact)
+    async def _llm_summary(
+        self,
+        logs: list[dict[str, Any]],
+        days: int,
+        *,
+        impact: dict[str, Any] | None = None,
+        purchase_summary: dict[str, Any] | None = None,
+    ) -> list[str]:
+        fallback = self._fallback_bullets(logs, days, impact=impact, purchase_summary=purchase_summary)
         if not logs:
             return fallback
 
@@ -173,6 +206,7 @@ class ExecutiveBriefingService:
                 ],
                 "period_days": days,
                 "impact_summary": (impact or {}).get("summary") or {},
+                "latest_purchase_summary": purchase_summary or {},
                 "logs": logs[:50],
             }
             message = await client.messages.create(

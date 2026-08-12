@@ -112,11 +112,22 @@ class InventoryIntelligenceService:
             if when is None:
                 continue
             movement_type = str(row.get("movement_type") or "movement")
+            title = movement_type.replace("_", " ").title()
+            detail = f"Quantity moved by {row.get('quantity_delta')} {row.get('unit') or item.unit}."
+            if movement_type == "usage":
+                title = "Usage recorded"
+                detail = f"Observed consumption reduced stock by {abs(float(row.get('quantity_delta') or 0))} {row.get('unit') or item.unit}."
+            elif movement_type == "waste":
+                title = "Waste recorded"
+                detail = f"Waste reduced stock by {abs(float(row.get('quantity_delta') or 0))} {row.get('unit') or item.unit}."
+            elif movement_type == "manual_adjustment":
+                title = "Stock count confirmed"
+                detail = str(row.get("notes") or "Physical stock count updated the ledger-backed quantity.")
             events.append(
                 InventoryTimelineEvent(
                     event_type=movement_type,
-                    title=movement_type.replace("_", " ").title(),
-                    detail=f"Quantity moved by {row.get('quantity_delta')} {row.get('unit') or item.unit}.",
+                    title=title,
+                    detail=detail,
                     created_at=when,
                     reference_id=str(row.get("reference_id")) if row.get("reference_id") else None,
                     reference_type=str(row.get("reference_type")) if row.get("reference_type") else None,

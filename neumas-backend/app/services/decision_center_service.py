@@ -15,6 +15,7 @@ from app.schemas.decision_center import (
     DecisionLatestActivity,
     DecisionNextBestAction,
 )
+from app.services.forecast_eligibility_service import ForecastEligibilityService
 from app.services.impact_service import ImpactService
 from app.services.purchase_summary_service import PurchaseSummaryService
 
@@ -27,6 +28,7 @@ class DecisionCenterService:
     def __init__(self) -> None:
         self._impact = ImpactService()
         self._purchase_summary = PurchaseSummaryService()
+        self._forecast_eligibility = ForecastEligibilityService()
 
     async def build(self, tenant: TenantContext, *, workspace_experience: str = "FNB") -> DecisionCenterResponse:
         client = await get_async_supabase_admin()
@@ -101,7 +103,8 @@ class DecisionCenterService:
         )
         next_best_action = self._pick_next_best_action(action_queue, workspace_experience)
         latest_activity = await self._build_latest_activity(tenant, scans)
-        ahead = self._build_ahead_state(
+        ahead = await self._build_ahead_state(
+            tenant=tenant,
             workspace_experience=workspace_experience,
             alerts=alerts,
             predictions=predictions,
@@ -352,9 +355,10 @@ class DecisionCenterService:
             downstream_status=str(downstream.get("status") or ("pending" if latest.get("status") == "inventory_posted" else "unknown")),
         )
 
-    def _build_ahead_state(
+    async def _build_ahead_state(
         self,
         *,
+        tenant: TenantContext,
         workspace_experience: str,
         alerts: list[dict[str, Any]],
         predictions: list[dict[str, Any]],
@@ -372,20 +376,44 @@ class DecisionCenterService:
             ),
             None,
         )
-        if not predictions:
+        eligibility = await self._forecast_eligibility.evaluate_forecast_eligibility(
+            tenant.org_id,
+            tenant.property_id,
+            role=tenant.role,
+            user_id=tenant.user_id,
+        )
+        if predictions:
+            learning_state = None
+        elif eligibility.reason_code == "INSUFFICIENT_DOCUMENTS":
+            learning_state = (
+                f"Forecast learning: {eligibility.purchase_cycles_observed} of {eligibility.evidence_cycles_required} evidence cycles observed."
+            )
+        elif eligibility.reason_code == "INSUFFICIENT_TIME_SERIES":
+            learning_state = (
+                f"Forecast learning: {eligibility.consumption_movements_observed} consumption movement(s) across {eligibility.history_days_observed} day(s) of history."
+            )
+        elif eligibility.reason_code == "MISSING_CANONICAL_ITEMS":
+            learning_state = "Forecast learning: item mapping is still completing before Neumas can model depletion."
+        elif eligibility.reason_code == "FORECAST_RUNNING":
+            learning_state = "Inventory updated. Neumas is now checking stock risk, purchasing need and anomalies."
+        else:
             learning_state = (
                 "Neumas is learning your household rhythm."
                 if workspace_experience == "HOUSEHOLD"
                 else "Neumas is building your operating baseline."
             )
-        else:
-            learning_state = None
         return DecisionAheadState(
             stock_risk_count=stock_risk_count,
             next_7_day_purchase_need=purchase_need,
             waste_risk_count=None,
             forecast_confidence=(sum(confidences) / len(confidences)) if confidences else None,
             learning_state=learning_state,
+            forecast_reason_code=eligibility.reason_code,
+            purchase_cycles_observed=eligibility.purchase_cycles_observed,
+            purchase_cycles_required=eligibility.evidence_cycles_required,
+            consumption_movements_observed=eligibility.consumption_movements_observed,
+            history_days_observed=eligibility.history_days_observed,
+            canonical_item_coverage=eligibility.canonical_item_coverage,
         )
 
     async def _build_impact_state(

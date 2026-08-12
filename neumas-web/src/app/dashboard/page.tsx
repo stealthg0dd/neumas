@@ -79,6 +79,12 @@ const EMPTY_DECISION_CENTER: DecisionCenterResponse = {
     waste_risk_count: null,
     forecast_confidence: null,
     learning_state: null,
+    forecast_reason_code: null,
+    purchase_cycles_observed: 0,
+    purchase_cycles_required: 0,
+    consumption_movements_observed: 0,
+    history_days_observed: 0,
+    canonical_item_coverage: null,
   },
   impact: {
     mode: "baseline",
@@ -674,6 +680,31 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
+            {!predictions.length ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-gray-500">Evidence cycles</p>
+                  <p className="mt-2 text-lg font-bold text-gray-900">
+                    {decisionCenter.ahead.purchase_cycles_observed ?? 0}
+                    {decisionCenter.ahead.purchase_cycles_required
+                      ? ` / ${decisionCenter.ahead.purchase_cycles_required}`
+                      : ""}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-gray-500">Consumption evidence</p>
+                  <p className="mt-2 text-lg font-bold text-gray-900">
+                    {decisionCenter.ahead.consumption_movements_observed ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-gray-500">History observed</p>
+                  <p className="mt-2 text-lg font-bold text-gray-900">
+                    {decisionCenter.ahead.history_days_observed ?? 0}d
+                  </p>
+                </div>
+              </div>
+            ) : null}
             {decisionCenter.ahead.learning_state ? (
               <p className="mt-3 text-sm text-gray-500">{decisionCenter.ahead.learning_state}</p>
             ) : null}
