@@ -76,9 +76,7 @@ class PurchaseSummaryService:
         canonicalized_count = sum(1 for row in line_items if row.get("canonical_item_id"))
         unresolved_count = sum(1 for row in line_items if row.get("review_needed"))
         purchase_date = document.get("document_date") or document.get("approved_at") or document.get("created_at")
-        if isinstance(purchase_date, date):
-            purchase_date = purchase_date.isoformat()
-        elif isinstance(purchase_date, datetime):
+        if isinstance(purchase_date, date | datetime):
             purchase_date = purchase_date.isoformat()
 
         return {

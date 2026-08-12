@@ -253,7 +253,7 @@ class TestDocumentService:
         doc_id = uuid4()
         with (
             patch.object(svc._docs_repo, "create", new_callable=AsyncMock, return_value={"id": str(doc_id), "status": "pending"}) as mock_create,
-            patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]) as mock_create_many,
+            patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]),
         ):
             await svc.create_from_scan(
                 tenant=tenant,
