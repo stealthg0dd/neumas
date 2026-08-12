@@ -5,7 +5,7 @@ Centralizes all environment variables and settings.
 
 from functools import lru_cache
 from typing import Literal
-from urllib.parse import quote_plus, urlparse, urlunparse
+from urllib.parse import quote_plus, urlparse
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -233,6 +233,13 @@ class Settings(BaseSettings):
         return val
 
     @staticmethod
+    def _env_is_explicitly_set(key: str) -> bool:
+        import os as _os
+
+        value = _os.getenv(key)
+        return value is not None and value != ""
+
+    @staticmethod
     def _is_unresolved_env_value(value: str | None) -> bool:
         if value is None:
             return True
@@ -246,14 +253,6 @@ class Settings(BaseSettings):
 
         if candidate.startswith("rediss://"):
             candidate = "redis://" + candidate[len("rediss://"):]
-
-        parsed = urlparse(candidate)
-        if parsed.password and not parsed.username:
-            default_user = self.REDIS_USER or self.REDISUSER or "default"
-            netloc = f"{default_user}:{quote_plus(parsed.password)}@{parsed.hostname}"
-            if parsed.port:
-                netloc = f"{netloc}:{parsed.port}"
-            candidate = urlunparse(parsed._replace(netloc=netloc))
         return candidate
 
     def _redis_url_from_parts(self) -> str:
@@ -274,11 +273,12 @@ class Settings(BaseSettings):
 
     @property
     def redis_source_name(self) -> str | None:
-        candidates = (
-            ("REDIS_PRIVATE_URL", self.REDIS_PRIVATE_URL),
-            ("REDIS_URL", self.REDIS_URL),
-            ("CELERY_BROKER_URL", self.CELERY_BROKER_URL),
-        )
+        candidates: list[tuple[str, str]] = [("REDIS_PRIVATE_URL", self.REDIS_PRIVATE_URL)]
+        if self._env_is_explicitly_set("REDIS_URL"):
+            candidates.append(("REDIS_URL", self.REDIS_URL))
+        candidates.append(("CELERY_BROKER_URL", self.CELERY_BROKER_URL))
+        if not self._env_is_explicitly_set("REDIS_URL"):
+            candidates.append(("REDIS_URL", self.REDIS_URL))
         for name, value in candidates:
             if self._normalized_redis_candidate(value):
                 return name
@@ -291,16 +291,19 @@ class Settings(BaseSettings):
         """Pick the best available Redis URL and normalise the scheme.
 
         Priority (monorepo + Railway safe default):
-        1. CELERY_BROKER_URL - explicit operator override.
-        2. REDIS_PRIVATE_URL - Railway composite internal URL.
-        3. REDIS_URL - external composite URL / local fallback.
+        1. REDIS_PRIVATE_URL - Railway composite internal URL.
+        2. REDIS_URL - external composite URL / local fallback.
+        3. CELERY_BROKER_URL - explicit operator override.
         4. Individual vars (REDISHOST/REDISPORT/REDISPASSWORD).
         """
-        for _name, value in (
-            ("CELERY_BROKER_URL", self.CELERY_BROKER_URL),
-            ("REDIS_PRIVATE_URL", self.REDIS_PRIVATE_URL),
-            ("REDIS_URL", self.REDIS_URL),
-        ):
+        candidates: list[tuple[str, str]] = [("REDIS_PRIVATE_URL", self.REDIS_PRIVATE_URL)]
+        if self._env_is_explicitly_set("REDIS_URL"):
+            candidates.append(("REDIS_URL", self.REDIS_URL))
+        candidates.append(("CELERY_BROKER_URL", self.CELERY_BROKER_URL))
+        if not self._env_is_explicitly_set("REDIS_URL"):
+            candidates.append(("REDIS_URL", self.REDIS_URL))
+
+        for _name, value in candidates:
             normalized = self._normalized_redis_candidate(value)
             if normalized:
                 return normalized

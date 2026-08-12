@@ -114,8 +114,11 @@ class ScanService:
                 import redis as redis_lib
 
                 from app.core.config import settings as _s
+                broker_url = _s.celery_broker
+                if not broker_url:
+                    raise RuntimeError("Redis broker URL is not configured")
                 _redis = redis_lib.from_url(
-                    _s.celery_broker, socket_connect_timeout=1, socket_timeout=1
+                    broker_url, socket_connect_timeout=1, socket_timeout=1
                 )
                 file_hash = compute_hash(file_bytes)
                 if is_duplicate_upload(

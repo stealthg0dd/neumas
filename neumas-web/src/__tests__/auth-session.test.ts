@@ -1,5 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { storageMock } = vi.hoisted(() => {
+  const memory = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, value);
+    },
+    removeItem: (key: string) => {
+      memory.delete(key);
+    },
+    clear: () => {
+      memory.clear();
+    },
+  };
+  vi.stubGlobal("localStorage", storage);
+  return { storageMock: storage };
+});
+
 import { useAuthStore } from "@/lib/store/auth";
 
 const getSessionMock = vi.fn().mockResolvedValue({
@@ -21,7 +39,7 @@ vi.mock("@/utils/supabase/client", () => ({
 describe("auth-session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    storageMock.clear();
     useAuthStore.setState({
       token: null,
       refreshToken: null,

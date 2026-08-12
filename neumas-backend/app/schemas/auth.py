@@ -3,6 +3,7 @@ Authentication schemas.
 """
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -100,6 +101,8 @@ class SignupRequest(BaseModel):
     password: str = Field(..., min_length=8)
     org_name: str = Field(..., min_length=2, max_length=255, description="Organization name")
     property_name: str = Field(..., min_length=2, max_length=255, description="Property name")
+    org_type: str | None = Field(None, max_length=64, description="Organization type")
+    property_address: str | None = Field(None, max_length=500, description="First property address")
     role: str = Field(default="admin", description="Role (admin for creators)")
 
 
@@ -124,6 +127,9 @@ class ProfileResponse(BaseModel):
     property_id: UUID
     property_name: str
     role: str
+    org_type: str | None = None
+    workspace_experience: str = "NEEDS_PERSONA"
+    is_invited_user: bool = False
 
 
 class DigestPreferencesResponse(BaseModel):
@@ -165,7 +171,50 @@ class GoogleCompleteRequest(BaseModel):
 
     org_name: str | None = Field(None, min_length=2, max_length=255, description="Organization name")
     property_name: str | None = Field(None, min_length=2, max_length=255, description="Property name")
+    org_type: str | None = Field(None, max_length=64, description="Workspace persona")
+    property_type: str | None = Field(None, max_length=64, description="First property type")
     role: str = Field(default="admin", description="Role for the new account owner")
+
+
+OnboardingStatus = Literal["NOT_STARTED", "IN_PROGRESS", "ACTIVATED", "SKIPPED"]
+
+
+class OnboardingStateResponse(BaseModel):
+    """Canonical onboarding state for the current organization/workspace."""
+
+    organization_id: UUID
+    property_id: UUID | None = None
+    org_type: str | None = None
+    workspace_experience: str = "NEEDS_PERSONA"
+    is_invited_user: bool = False
+    has_properties: bool = False
+    property_type: str | None = None
+    address: str | None = None
+    onboarding_status: OnboardingStatus
+    onboarding_started_at: datetime | None = None
+    onboarding_completed_at: datetime | None = None
+    onboarding_version: int = 1
+    onboarding_source: str | None = None
+    country: str | None = None
+    currency: str | None = None
+    has_scans: bool = False
+    has_inventory_activity: bool = False
+    is_complete: bool = False
+    requires_onboarding: bool = True
+
+
+class OnboardingStateUpdate(BaseModel):
+    """Partial update for canonical onboarding state."""
+
+    onboarding_status: OnboardingStatus | None = None
+    onboarding_source: str | None = Field(default=None, max_length=128)
+    org_type: str | None = Field(default=None, max_length=64)
+    org_name: str | None = Field(default=None, min_length=2, max_length=255)
+    country: str | None = Field(default=None, max_length=64)
+    currency: str | None = Field(default=None, max_length=16)
+    property_name: str | None = Field(default=None, min_length=2, max_length=255)
+    property_type: str | None = Field(default=None, max_length=64)
+    address: str | None = Field(default=None, max_length=500)
 
 
 class InviteUserRequest(BaseModel):

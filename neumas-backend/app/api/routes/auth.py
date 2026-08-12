@@ -18,6 +18,8 @@ from app.schemas.auth import (
     DigestPreferencesUpdate,
     LoginRequest,
     LoginResponse,
+    OnboardingStateResponse,
+    OnboardingStateUpdate,
     ProfileResponse,
     RefreshTokenRequest,
     SignupRequest,
@@ -182,6 +184,10 @@ async def get_me(
 
     org_name = getattr(user, "organization_name", "") or ""
     property_name = ""
+    org_type = None
+    workspace_experience = "NEEDS_PERSONA"
+    is_invited_user = user.role != "admin"
+    has_properties = False
 
     try:
         client = await get_async_supabase_admin()
@@ -189,13 +195,14 @@ async def get_me(
             if not org_name:
                 org_row = await (
                     client.table("organizations")
-                    .select("name")
+                    .select("name, org_type")
                     .eq("id", str(user.organization_id))
                     .limit(1)
                     .execute()
                 )
                 if org_row.data:
                     org_name = org_row.data[0].get("name") or ""
+                    org_type = auth_service.normalize_org_type(org_row.data[0].get("org_type"))
 
             prop_row = await (
                 client.table("properties")
@@ -206,8 +213,16 @@ async def get_me(
             )
             if prop_row.data:
                 property_name = prop_row.data[0].get("name") or ""
+                has_properties = True
     except Exception as exc:
         logger.warning("Failed to enrich /me profile names", error=str(exc))
+
+    if org_type == "FNB":
+        workspace_experience = "INVITED" if is_invited_user else "FNB"
+    elif org_type == "HOUSEHOLD":
+        workspace_experience = "INVITED" if is_invited_user else "HOUSEHOLD"
+    elif has_properties:
+        workspace_experience = "LEGACY_FNB"
 
     return ProfileResponse(
         user_id=user.id,
@@ -218,6 +233,9 @@ async def get_me(
         property_id=default_property_id,
         property_name=property_name,
         role=user.role,
+        org_type=org_type,
+        workspace_experience=workspace_experience,
+        is_invited_user=is_invited_user,
     )
 
 
@@ -376,6 +394,8 @@ async def complete_google_oauth(
     default_org = email.split("@")[0].replace(".", " ").title() + " Organization" if email else "My Organization"
     org_name = (body.get("org_name") or "").strip() or default_org
     property_name = (body.get("property_name") or "").strip() or "Main Property"
+    org_type = (body.get("org_type") or "").strip() or None
+    property_type = (body.get("property_type") or "").strip() or None
     role: str = body.get("role") or "admin"
 
     try:
@@ -384,6 +404,8 @@ async def complete_google_oauth(
             email=email,
             org_name=org_name,
             property_name=property_name,
+            org_type=org_type,
+            property_type=property_type,
             role=role,
         )
     except Exception as exc:
@@ -419,3 +441,26 @@ async def logout(
     """
     logger.info("User logged out", user_id=str(user.id))
     return None
+
+
+@router.get(
+    "/onboarding",
+    response_model=OnboardingStateResponse,
+    summary="Get canonical onboarding state",
+)
+async def get_onboarding_state(
+    user: Annotated[UserInfo, Depends(get_current_user)],
+) -> OnboardingStateResponse:
+    return await auth_service.get_onboarding_state(user)
+
+
+@router.patch(
+    "/onboarding",
+    response_model=OnboardingStateResponse,
+    summary="Update canonical onboarding state",
+)
+async def patch_onboarding_state(
+    body: OnboardingStateUpdate,
+    user: Annotated[UserInfo, Depends(get_current_user)],
+) -> OnboardingStateResponse:
+    return await auth_service.update_onboarding_state(user, body)

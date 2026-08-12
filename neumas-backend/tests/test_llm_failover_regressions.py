@@ -94,6 +94,7 @@ def test_gemini_model_defaults_to_current_flash_model(monkeypatch):
 
 
 def test_password_only_redis_url_is_not_forced_to_default_user(monkeypatch):
+    monkeypatch.delenv("REDIS_URL", raising=False)
     monkeypatch.delenv("REDISHOST", raising=False)
     monkeypatch.setenv("CELERY_BROKER_URL", "redis://:secret@redis.railway.internal:6379/0")
 

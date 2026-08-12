@@ -231,6 +231,181 @@ class TestAuthEndpoints:
             status.HTTP_401_UNAUTHORIZED,
         ]
 
+    @pytest.mark.asyncio
+    async def test_get_onboarding_state_legacy_complete_from_scans(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+    ):
+        class _MockUser:
+            id = uuid4()
+            auth_id = uuid4()
+            email = "chef@example.com"
+            full_name = "Chef"
+            role = "admin"
+            organization_id = uuid4()
+            organization_name = ""
+            default_property_id = uuid4()
+            is_active = True
+
+        user = _MockUser()
+
+        class _MockQuery:
+            def __init__(self, payload, count: int | None = None):
+                self.data = payload
+                self.count = count
+
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args, **_kwargs):
+                return self
+
+            def single(self):
+                return self
+
+            def limit(self, *_args, **_kwargs):
+                return self
+
+            async def execute(self):
+                return self
+
+        class _MockClient:
+            def table(self, name: str):
+                if name == "organizations":
+                    return _MockQuery(
+                        {
+                            "id": str(user.organization_id),
+                            "onboarding_status": "NOT_STARTED",
+                            "onboarding_version": 1,
+                        }
+                    )
+                if name == "properties":
+                    return _MockQuery([{"id": str(user.default_property_id), "name": "Main Kitchen"}])
+                if name == "scans":
+                    return _MockQuery([], count=1)
+                if name == "inventory_movements":
+                    return _MockQuery([], count=0)
+                raise AssertionError(f"unexpected table {name}")
+
+        async def _override_user():
+            return user
+
+        app.dependency_overrides[get_current_user] = _override_user
+        try:
+            with patch("app.services.auth_service.get_async_supabase_admin", new_callable=AsyncMock) as mock_admin:
+                mock_admin.return_value = _MockClient()
+                response = await client.get("/api/auth/onboarding", headers=auth_headers)
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["has_scans"] is True
+            assert data["is_complete"] is True
+            assert data["requires_onboarding"] is False
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
+
+    @pytest.mark.asyncio
+    async def test_patch_onboarding_state_updates_org_and_property(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+    ):
+        class _MockUser:
+            id = uuid4()
+            auth_id = uuid4()
+            email = "chef@example.com"
+            full_name = "Chef"
+            role = "admin"
+            organization_id = uuid4()
+            organization_name = ""
+            default_property_id = uuid4()
+            is_active = True
+
+        user = _MockUser()
+        updates: list[tuple[str, dict]] = []
+
+        class _MockQuery:
+            def __init__(self, table_name: str, payload, count: int | None = None):
+                self.table_name = table_name
+                self.data = payload
+                self.count = count
+
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args, **_kwargs):
+                return self
+
+            def single(self):
+                return self
+
+            def limit(self, *_args, **_kwargs):
+                return self
+
+            def update(self, payload):
+                updates.append((self.table_name, payload))
+                return self
+
+            async def execute(self):
+                return self
+
+        class _MockClient:
+            def table(self, name: str):
+                if name == "organizations":
+                    if any(table == "organizations" for table, _payload in updates):
+                        return _MockQuery(
+                            name,
+                            {
+                                "id": str(user.organization_id),
+                                "onboarding_status": "SKIPPED",
+                                "onboarding_version": 1,
+                                "onboarding_source": "self_serve",
+                            },
+                        )
+                    return _MockQuery(
+                        name,
+                        {
+                            "id": str(user.organization_id),
+                            "onboarding_status": "NOT_STARTED",
+                            "onboarding_version": 1,
+                        },
+                    )
+                if name == "properties":
+                    if any(table == "properties" for table, _payload in updates):
+                        return _MockQuery(
+                            name,
+                            [{"id": str(user.default_property_id), "address": "123 Main", "property_type": "Hotel"}],
+                        )
+                    return _MockQuery(name, [{"id": str(user.default_property_id)}])
+                if name == "scans":
+                    return _MockQuery(name, [], count=0)
+                if name == "inventory_movements":
+                    return _MockQuery(name, [], count=0)
+                raise AssertionError(f"unexpected table {name}")
+
+        async def _override_user():
+            return user
+
+        app.dependency_overrides[get_current_user] = _override_user
+        try:
+            with patch("app.services.auth_service.get_async_supabase_admin", new_callable=AsyncMock) as mock_admin:
+                mock_admin.return_value = _MockClient()
+                response = await client.patch(
+                    "/api/auth/onboarding",
+                    headers=auth_headers,
+                    json={
+                        "onboarding_status": "SKIPPED",
+                        "onboarding_source": "self_serve",
+                        "address": "123 Main",
+                        "property_type": "Hotel",
+                    },
+                )
+            assert response.status_code == status.HTTP_200_OK
+            assert any(table == "organizations" for table, _payload in updates)
+            assert any(table == "properties" for table, _payload in updates)
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
+
 
 class TestAuthDependencies:
     """Tests for authentication dependencies."""

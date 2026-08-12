@@ -17,7 +17,17 @@ export interface ProfileResponse {
   property_id: string;
   property_name: string;
   role: string;
+  org_type?: string | null;
+  workspace_experience?: WorkspaceExperience;
+  is_invited_user?: boolean;
 }
+
+export type WorkspaceExperience =
+  | "FNB"
+  | "HOUSEHOLD"
+  | "LEGACY_FNB"
+  | "NEEDS_PERSONA"
+  | "INVITED";
 
 export interface LoginRequest {
   email: string;
@@ -38,6 +48,8 @@ export interface SignupRequest {
   password: string;
   org_name: string;
   property_name: string;
+  org_type?: string | null;
+  property_address?: string | null;
   role?: string;
 }
 
@@ -62,6 +74,42 @@ export interface DigestPreferencesUpdateRequest {
   timezone?: string;
   safety_buffer_days?: number;
   preferred_currency?: string;
+}
+
+export type OnboardingStatus = "NOT_STARTED" | "IN_PROGRESS" | "ACTIVATED" | "SKIPPED";
+
+export interface OnboardingStateResponse {
+  organization_id: string;
+  property_id?: string | null;
+  org_type?: string | null;
+  workspace_experience?: WorkspaceExperience;
+  is_invited_user?: boolean;
+  has_properties?: boolean;
+  property_type?: string | null;
+  address?: string | null;
+  onboarding_status: OnboardingStatus;
+  onboarding_started_at?: string | null;
+  onboarding_completed_at?: string | null;
+  onboarding_version: number;
+  onboarding_source?: string | null;
+  country?: string | null;
+  currency?: string | null;
+  has_scans: boolean;
+  has_inventory_activity: boolean;
+  is_complete: boolean;
+  requires_onboarding: boolean;
+}
+
+export interface OnboardingStateUpdateRequest {
+  onboarding_status?: OnboardingStatus;
+  onboarding_source?: string;
+  org_type?: string | null;
+  org_name?: string | null;
+  country?: string | null;
+  currency?: string | null;
+  property_name?: string | null;
+  property_type?: string | null;
+  address?: string | null;
 }
 
 export interface PropertyStockHealth {

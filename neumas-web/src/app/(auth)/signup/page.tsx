@@ -40,7 +40,7 @@ const step1Schema = z
 
 const step2Schema = z.object({
   org_name: z.string().min(2, "At least 2 characters").max(255),
-  org_type: z.string().min(1, "Select a type"),
+  org_type: z.string().optional(),
 });
 
 const step3Schema = z.object({
@@ -55,12 +55,8 @@ type Step3 = z.infer<typeof step3Schema>;
 // ── Org types ─────────────────────────────────────────────────────────────────
 
 const ORG_TYPES = [
-  { value: "restaurant",  label: "Restaurant" },
-  { value: "hotel",       label: "Hotel" },
-  { value: "cafe",        label: "Café / Bakery" },
-  { value: "bar",         label: "Bar / Pub" },
-  { value: "catering",    label: "Catering" },
-  { value: "other",       label: "Other" },
+  { value: "FNB", label: "F&B Business" },
+  { value: "HOUSEHOLD", label: "Home & Household" },
 ];
 
 // ── Step progress indicator ────────────────────────────────────────────────────
@@ -147,6 +143,8 @@ export default function SignupPage() {
         password:      merged.password!,
         org_name:      merged.org_name!,
         property_name: merged.property_name!,
+        org_type:      merged.org_type ?? null,
+        property_address: merged.address ?? null,
       });
       saveAuth(res);
       track("user_signed_in", { email: merged.email! });
@@ -289,12 +287,12 @@ export default function SignupPage() {
                     />
                   </Field>
 
-                  <Field label="Type" error={form2.formState.errors.org_type?.message}>
+                  <Field label="Workspace (optional)" error={form2.formState.errors.org_type?.message}>
                     <select
                       className="w-full h-11 px-3 rounded-md bg-surface-1 border border-border/60 text-sm text-foreground focus:outline-none focus:border-cyan-500/70 focus:ring-1 focus:ring-cyan-500/30 transition-all"
                       {...form2.register("org_type")}
                     >
-                      <option value="">Select type…</option>
+                      <option value="">Choose after sign-up…</option>
                       {ORG_TYPES.map(({ value, label }) => (
                         <option key={value} value={value}>{label}</option>
                       ))}

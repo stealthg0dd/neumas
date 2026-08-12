@@ -12,7 +12,12 @@ import {
   Camera,
 } from "lucide-react";
 import { toast } from "sonner";
-import { postScanUpload, getScanStatus, googleComplete } from "@/lib/api/endpoints";
+import {
+  postScanUpload,
+  getScanStatus,
+  googleComplete,
+  updateOnboardingState,
+} from "@/lib/api/endpoints";
 import type { LoginResponse } from "@/lib/api/types";
 import { setOnboardingComplete } from "@/lib/onboarding";
 import { saveSession, setAccessToken } from "@/lib/auth-session";
@@ -404,7 +409,11 @@ function StepReady({ orgName, onFinish }: { orgName: string; onFinish: () => voi
   );
 }
 
-export default function ClientOnboardPage() {
+export default function ClientOnboardPage({
+  selectedOrgType = "FNB",
+}: {
+  selectedOrgType?: "FNB" | "HOUSEHOLD";
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasSession = useAuthStore(selectHasSession);
@@ -416,6 +425,7 @@ export default function ClientOnboardPage() {
   const [outlets, setOutlets] = useState([{ name: "", type: "Restaurant" }]);
   const [busy, setBusy] = useState(false);
   const [provisionedSession, setProvisionedSession] = useState<LoginResponse | null>(null);
+  const [completionMode, setCompletionMode] = useState<"activated" | "skipped">("activated");
 
   // Make the Supabase JWT available to the Axios interceptor immediately.
   // We still provision the Google user before upload, but this keeps any early
@@ -425,9 +435,14 @@ export default function ClientOnboardPage() {
   }, [supabaseJwt]);
 
   const primaryPropertyName = outlets[0]?.name.trim() || "Main Property";
+  const primaryPropertyType =
+    selectedOrgType === "HOUSEHOLD" ? "HOUSEHOLD" : (outlets[0]?.type ?? "Restaurant");
 
   const ensureProvisioned = useCallback(
     async (propertyName = primaryPropertyName): Promise<boolean> => {
+      if (hasSession) {
+        return true;
+      }
       if (!isGoogleOnboarding || !supabaseJwt) {
         return true;
       }
@@ -438,8 +453,10 @@ export default function ClientOnboardPage() {
       setBusy(true);
       try {
         const resp = await googleComplete(supabaseJwt, {
-          org_name: orgName.trim(),
+          org_name: orgName.trim() || "My Workspace",
           property_name: propertyName,
+          org_type: selectedOrgType,
+          property_type: primaryPropertyType,
           role: "admin",
         });
         const { createClient } = await import("@/utils/supabase/client");
@@ -468,15 +485,43 @@ export default function ClientOnboardPage() {
         setBusy(false);
       }
     },
-    [isGoogleOnboarding, orgName, primaryPropertyName, provisionedSession?.profile?.property_id, supabaseJwt]
+    [
+      isGoogleOnboarding,
+      orgName,
+      primaryPropertyName,
+      primaryPropertyType,
+      hasSession,
+      provisionedSession?.profile?.property_id,
+      selectedOrgType,
+      supabaseJwt,
+    ]
   );
 
   const moveToUploadStep = useCallback(async () => {
     const ok = await ensureProvisioned();
     if (ok) {
+      try {
+        await updateOnboardingState({
+          onboarding_status: "IN_PROGRESS",
+          onboarding_source: isGoogleOnboarding ? "google_oauth" : "self_serve",
+          org_type: selectedOrgType,
+          org_name: orgName.trim() || null,
+          property_name: primaryPropertyName,
+          property_type: primaryPropertyType,
+        });
+      } catch {
+        // Best-effort only; preserve current flow.
+      }
       setStep(3);
     }
-  }, [ensureProvisioned]);
+  }, [
+    ensureProvisioned,
+    isGoogleOnboarding,
+    orgName,
+    primaryPropertyName,
+    primaryPropertyType,
+    selectedOrgType,
+  ]);
 
   useEffect(() => {
     if (hasHydrated && !hasSession && !isGoogleOnboarding) {
@@ -490,9 +535,33 @@ export default function ClientOnboardPage() {
         setBusy(false);
         return;
       }
+      try {
+        await updateOnboardingState({
+          onboarding_status: completionMode === "activated" ? "ACTIVATED" : "SKIPPED",
+          onboarding_source: "google_oauth",
+          org_type: selectedOrgType,
+          org_name: orgName.trim() || null,
+          property_name: primaryPropertyName,
+          property_type: primaryPropertyType,
+        });
+      } catch {
+        // Preserve current UX via local fallback.
+      }
       setOnboardingComplete();
       router.replace("/dashboard");
     } else {
+      try {
+        await updateOnboardingState({
+          onboarding_status: completionMode === "activated" ? "ACTIVATED" : "SKIPPED",
+          onboarding_source: "self_serve",
+          org_type: selectedOrgType,
+          org_name: orgName.trim() || null,
+          property_name: primaryPropertyName,
+          property_type: primaryPropertyType,
+        });
+      } catch {
+        // Preserve current UX via local fallback.
+      }
       setOnboardingComplete();
       router.replace("/dashboard");
     }
@@ -523,7 +592,7 @@ export default function ClientOnboardPage() {
           <div className="rounded-3xl border border-black/[0.06] bg-white p-8 shadow-sm">
             {step === 1 && (<StepWelcome orgName={orgName} setOrgName={setOrgName} onNext={() => setStep(2)} />)}
             {step === 2 && (<StepOutlets outlets={outlets} setOutlets={setOutlets} onNext={() => void moveToUploadStep()} onBack={() => setStep(1)} />)}
-            {step === 3 && (<StepUpload onNext={() => setStep(4)} onBack={() => setStep(2)} onSkip={() => setStep(4)} />)}
+            {step === 3 && (<StepUpload onNext={() => { setCompletionMode("activated"); setStep(4); }} onBack={() => setStep(2)} onSkip={() => { setCompletionMode("skipped"); setStep(4); }} />)}
             {step === 4 && <StepReady orgName={orgName} onFinish={finish} />}
             {busy && (<div className="absolute inset-0 flex items-center justify-center bg-white/80 z-50"><Loader2 className="h-8 w-8 animate-spin text-[#0071a3]" /></div>)}
           </div>

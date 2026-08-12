@@ -36,6 +36,14 @@ class OrganizationResponse(OrganizationBase):
     settings: dict[str, Any]
     subscription_tier: str
     subscription_status: str
+    org_type: str | None = None
+    onboarding_status: str | None = None
+    onboarding_started_at: datetime | None = None
+    onboarding_completed_at: datetime | None = None
+    onboarding_version: int | None = None
+    onboarding_source: str | None = None
+    country: str | None = None
+    currency: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -67,6 +75,7 @@ class PropertyBase(BaseModel):
 
     name: str = Field(..., min_length=2, max_length=255)
     address: str | None = None
+    property_type: str | None = None
     timezone: str = "UTC"
 
 
@@ -93,6 +102,8 @@ class PropertyResponse(PropertyBase):
     id: UUID
     organization_id: UUID
     settings: dict[str, Any]
+    onboarding_order: int | None = None
+    is_primary: bool = False
     is_active: bool
     created_at: datetime
     updated_at: datetime

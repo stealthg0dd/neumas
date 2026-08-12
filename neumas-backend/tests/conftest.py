@@ -140,12 +140,27 @@ def mock_shopping_repo():
 
 @pytest.fixture(autouse=True)
 def reset_settings():
-    """Reset settings between tests."""
+    """Reset settings and shared in-memory state between tests."""
     from app.core.config import get_settings
+    from app.core.security import rate_limiter, settings as security_settings
+
+    original_security_redis_url = security_settings.REDIS_URL
+    original_security_private_url = security_settings.REDIS_PRIVATE_URL
+    original_security_broker_url = security_settings.CELERY_BROKER_URL
 
     get_settings.cache_clear()
+    security_settings.REDIS_URL = ""
+    security_settings.REDIS_PRIVATE_URL = ""
+    security_settings.CELERY_BROKER_URL = ""
+    rate_limiter._local_cache.clear()
+    rate_limiter._redis_client = None
     yield
     get_settings.cache_clear()
+    security_settings.REDIS_URL = original_security_redis_url
+    security_settings.REDIS_PRIVATE_URL = original_security_private_url
+    security_settings.CELERY_BROKER_URL = original_security_broker_url
+    rate_limiter._local_cache.clear()
+    rate_limiter._redis_client = None
 
 
 # Helper functions for tests

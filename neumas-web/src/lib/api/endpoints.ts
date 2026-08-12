@@ -86,6 +86,8 @@ import type {
   DigestPreferencesUpdateRequest,
   LoginRequest,
   LoginResponse,
+  OnboardingStateResponse,
+  OnboardingStateUpdateRequest,
   SignupRequest,
   SignupResponse,
   ProfileResponse,
@@ -120,7 +122,13 @@ import { normalizeShoppingListStatus } from "@/lib/operations";
  */
 export async function googleComplete(
   supabaseAccessToken: string,
-  body?: { org_name: string; property_name: string; role?: string }
+  body?: {
+    org_name: string;
+    property_name: string;
+    org_type?: string;
+    property_type?: string;
+    role?: string;
+  }
 ): Promise<LoginResponse> {
   const data = await post<LoginResponse>(
     "/api/auth/google/complete",
@@ -169,6 +177,18 @@ export async function updateDigestPreferences(
   payload: DigestPreferencesUpdateRequest
 ): Promise<DigestPreferencesResponse> {
   return patch<DigestPreferencesResponse>("/api/auth/preferences/digest", payload);
+}
+
+/** GET /api/auth/onboarding */
+export async function getOnboardingState(): Promise<OnboardingStateResponse> {
+  return get<OnboardingStateResponse>("/api/auth/onboarding");
+}
+
+/** PATCH /api/auth/onboarding */
+export async function updateOnboardingState(
+  payload: OnboardingStateUpdateRequest
+): Promise<OnboardingStateResponse> {
+  return patch<OnboardingStateResponse>("/api/auth/onboarding", payload);
 }
 
 /** POST /api/auth/refresh */

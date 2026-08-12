@@ -4,6 +4,7 @@ Authentication service for user authentication and authorization.
 
 import re
 import secrets
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -19,6 +20,8 @@ from app.db.supabase_client import get_async_supabase_admin, get_auth_client
 from app.schemas.auth import (
     CurrentUserContext,
     LoginResponse,
+    OnboardingStateResponse,
+    OnboardingStateUpdate,
     ProfileResponse,
     SignupRequest,
     SignupResponse,
@@ -28,6 +31,10 @@ from app.schemas.auth import (
 from supabase import create_async_client
 
 logger = get_logger(__name__)
+
+
+def _utcnow() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 def generate_slug(name: str) -> str:
@@ -107,8 +114,63 @@ def _build_user_insert_payload_variants(
     ]
 
 
+def _normalize_org_type(value: str | None) -> str | None:
+    raw = (value or "").strip()
+    if not raw:
+        return None
+
+    normalized = raw.upper().replace("-", "_").replace(" ", "_")
+    legacy_fnb_values = {
+        "RESTAURANT",
+        "HOTEL",
+        "CAFE",
+        "CAFÉ",
+        "BAR",
+        "CATERING",
+        "OTHER",
+        "FNB_BUSINESS",
+        "FOOD_AND_BEVERAGE",
+    }
+    if normalized in legacy_fnb_values:
+        return "FNB"
+    if normalized == "HOME":
+        return "HOUSEHOLD"
+    if normalized in {"FNB", "HOUSEHOLD", "RETAIL_BUSINESS"}:
+        return normalized
+    return raw
+
+
+def _is_invited_user(role: str) -> bool:
+    return role != "admin"
+
+
+def _resolve_workspace_experience(
+    *,
+    org_type: str | None,
+    role: str,
+    has_properties: bool,
+    has_scans: bool,
+    has_inventory_activity: bool,
+    onboarding_source: str | None = None,
+) -> str:
+    normalized_org_type = _normalize_org_type(org_type)
+    if normalized_org_type == "FNB":
+        return "INVITED" if _is_invited_user(role) else "FNB"
+    if normalized_org_type == "HOUSEHOLD":
+        return "INVITED" if _is_invited_user(role) else "HOUSEHOLD"
+    if has_scans or has_inventory_activity or (has_properties and not onboarding_source):
+        # Compatibility path only: preserve routing for legacy workspaces
+        # without mutating org_type in-place.
+        return "LEGACY_FNB"
+    return "NEEDS_PERSONA"
+
+
 class AuthService:
     """Service for authentication and authorization."""
+
+    @staticmethod
+    def normalize_org_type(value: str | None) -> str | None:
+        return _normalize_org_type(value)
 
     async def validate_token(self, token: str) -> dict[str, Any]:
         """
@@ -334,6 +396,7 @@ class AuthService:
         #       the session tokens.  It is never reused.
         # ---------------------------------------------------------------------
         admin_client = await get_async_supabase_admin()
+        normalized_org_type = _normalize_org_type(request.org_type)
         auth_id: UUID | None = None  # tracked for rollback
 
         try:
@@ -383,6 +446,11 @@ class AuthService:
                 org_response = await admin_client.table("organizations").insert({
                     "name": request.org_name,
                     "slug": org_slug,
+                    "org_type": normalized_org_type,
+                    "onboarding_status": "IN_PROGRESS",
+                    "onboarding_started_at": _utcnow(),
+                    "onboarding_version": 1,
+                    "onboarding_source": "signup",
                 }).execute()
             except PostgRESTAPIError as exc:
                 _handle_pgrst_error(exc, context="organizations.insert")
@@ -401,6 +469,10 @@ class AuthService:
                     "organization_id": str(org_id),
                     "name": request.property_name,
                     "type": "hotel",
+                    "property_type": normalized_org_type,
+                    "address": request.property_address,
+                    "onboarding_order": 1,
+                    "is_primary": True,
                 }).execute()
             except PostgRESTAPIError as exc:
                 _handle_pgrst_error(exc, context="properties.insert")
@@ -474,6 +546,13 @@ class AuthService:
             property_id=property_id,
             property_name=request.property_name,
             role=request.role,
+            org_type=normalized_org_type,
+            workspace_experience=(
+                "INVITED" if _is_invited_user(request.role) and normalized_org_type else
+                normalized_org_type if normalized_org_type in {"FNB", "HOUSEHOLD"} else
+                "NEEDS_PERSONA"
+            ),
+            is_invited_user=_is_invited_user(request.role),
         )
 
         logger.info("Signup completed successfully", user_id=str(user_id), org_id=str(org_id))
@@ -545,6 +624,7 @@ class AuthService:
         )
         org = org_response.data
         org_name = org.get("name", "") if org else ""
+        normalized_org_type = _normalize_org_type((org or {}).get("org_type"))
 
         # Get primary property (first active one)
         props_response = await (
@@ -557,6 +637,7 @@ class AuthService:
             .execute()
         )
         primary_prop = props_response.data[0] if props_response.data else None
+        has_properties = bool(props_response.data)
 
         # Backfill default_property_id if missing (users created before the fix).
         if primary_prop and not user.get("default_property_id"):
@@ -583,6 +664,16 @@ class AuthService:
             property_id=UUID(primary_prop["id"]) if primary_prop else None,
             property_name=primary_prop.get("name", "") if primary_prop else None,
             role=user["role"],
+            org_type=normalized_org_type,
+            workspace_experience=_resolve_workspace_experience(
+                org_type=normalized_org_type,
+                role=user["role"],
+                has_properties=has_properties,
+                has_scans=False,
+                has_inventory_activity=False,
+                onboarding_source=(org or {}).get("onboarding_source"),
+            ),
+            is_invited_user=_is_invited_user(user["role"]),
         )
 
         return LoginResponse(
@@ -614,12 +705,13 @@ class AuthService:
 
         org_resp = await (
             admin_client.table("organizations")
-            .select("name")
+            .select("name, org_type")
             .eq("id", str(org_id))
             .single()
             .execute()
         )
         fetched_org_name = org_resp.data.get("name", "") if org_resp.data else ""
+        normalized_org_type = _normalize_org_type((org_resp.data or {}).get("org_type"))
 
         props = await (
             admin_client.table("properties")
@@ -647,6 +739,16 @@ class AuthService:
             property_id=UUID(prop["id"]),
             property_name=prop.get("name", ""),
             role=user["role"],
+            org_type=normalized_org_type,
+            workspace_experience=_resolve_workspace_experience(
+                org_type=normalized_org_type,
+                role=user["role"],
+                has_properties=True,
+                has_scans=False,
+                has_inventory_activity=False,
+                onboarding_source=(org_resp.data or {}).get("onboarding_source"),
+            ),
+            is_invited_user=_is_invited_user(user["role"]),
         )
 
     async def complete_google_signup(
@@ -655,6 +757,8 @@ class AuthService:
         email: str,
         org_name: str,
         property_name: str,
+        org_type: str | None = None,
+        property_type: str | None = None,
         role: str = "admin",
     ) -> ProfileResponse:
         """
@@ -675,6 +779,8 @@ class AuthService:
             ProfileResponse with org_id, property_id, etc.
         """
         admin_client = await get_async_supabase_admin()
+        normalized_org_type = _normalize_org_type(org_type)
+        normalized_property_type = _normalize_org_type(property_type) or property_type
 
         # -- Idempotency check: user record may already exist -----------------
         existing = await (
@@ -691,12 +797,13 @@ class AuthService:
 
             org_resp = await (
                 admin_client.table("organizations")
-                .select("name")
+                .select("name, org_type")
                 .eq("id", str(org_id))
                 .single()
                 .execute()
             )
             fetched_org_name = org_resp.data.get("name", "") if org_resp.data else ""
+            fetched_org_type = _normalize_org_type((org_resp.data or {}).get("org_type"))
 
             props = await (
                 admin_client.table("properties")
@@ -720,6 +827,9 @@ class AuthService:
                     "organization_id": str(org_id),
                     "name": property_name,
                     "type": "hotel",
+                    "property_type": normalized_property_type,
+                    "onboarding_order": 1,
+                    "is_primary": True,
                 }).execute()
                 if not prop_resp.data:
                     raise ValueError("Failed to create property for existing Google user")
@@ -737,6 +847,16 @@ class AuthService:
                 property_id=UUID(prop["id"]),
                 property_name=prop.get("name", ""),
                 role=user["role"],
+                org_type=fetched_org_type,
+            workspace_experience=_resolve_workspace_experience(
+                org_type=fetched_org_type,
+                role=user["role"],
+                has_properties=True,
+                has_scans=False,
+                has_inventory_activity=False,
+                onboarding_source=(org_resp.data or {}).get("onboarding_source"),
+            ),
+                is_invited_user=_is_invited_user(user["role"]),
             )
 
         # -- Create org, property, user ----------------------------------------
@@ -748,6 +868,11 @@ class AuthService:
             org_resp = await admin_client.table("organizations").insert({
                 "name": org_name,
                 "slug": org_slug,
+                "org_type": normalized_org_type,
+                "onboarding_status": "IN_PROGRESS",
+                "onboarding_started_at": _utcnow(),
+                "onboarding_version": 1,
+                "onboarding_source": "google_oauth",
             }).execute()
             if not org_resp.data:
                 raise ValueError("Failed to create organization")
@@ -759,6 +884,9 @@ class AuthService:
                 "organization_id": str(org_id),
                 "name": property_name,
                 "type": "hotel",
+                "property_type": normalized_property_type,
+                "onboarding_order": 1,
+                "is_primary": True,
             }).execute()
             if not prop_resp.data:
                 raise ValueError("Failed to create property")
@@ -830,6 +958,306 @@ class AuthService:
             property_id=property_id,
             property_name=property_name,
             role=role,
+            org_type=normalized_org_type,
+            workspace_experience=(
+                "INVITED" if _is_invited_user(role) and normalized_org_type else
+                normalized_org_type if normalized_org_type in {"FNB", "HOUSEHOLD"} else
+                "NEEDS_PERSONA"
+            ),
+            is_invited_user=_is_invited_user(role),
+        )
+
+    async def get_onboarding_state(self, user: UserInfo) -> OnboardingStateResponse:
+        admin_client = await get_async_supabase_admin()
+
+        org_response = await (
+            admin_client.table("organizations")
+            .select("*")
+            .eq("id", str(user.organization_id))
+            .single()
+            .execute()
+        )
+        org = org_response.data or {}
+        normalized_org_type = _normalize_org_type(org.get("org_type"))
+
+        property_id = user.default_property_id
+        prop: dict[str, Any] | None = None
+        has_properties = False
+        if property_id:
+            prop_response = await (
+                admin_client.table("properties")
+                .select("*")
+                .eq("id", str(property_id))
+                .eq("organization_id", str(user.organization_id))
+                .limit(1)
+                .execute()
+            )
+            if prop_response.data:
+                prop = prop_response.data[0]
+                has_properties = True
+        if not has_properties:
+            props_response = await (
+                admin_client.table("properties")
+                .select("id")
+                .eq("organization_id", str(user.organization_id))
+                .eq("is_active", True)
+                .limit(1)
+                .execute()
+            )
+            has_properties = bool(props_response.data)
+
+        scans_response = await (
+            admin_client.table("scans")
+            .select("id", count="exact")
+            .eq("organization_id", str(user.organization_id))
+            .limit(1)
+            .execute()
+        )
+        has_scans = bool(getattr(scans_response, "count", None) or scans_response.data)
+
+        movements_response = await (
+            admin_client.table("inventory_movements")
+            .select("id", count="exact")
+            .eq("organization_id", str(user.organization_id))
+            .limit(1)
+            .execute()
+        )
+        has_inventory_activity = bool(
+            getattr(movements_response, "count", None) or movements_response.data
+        )
+
+        status = str(org.get("onboarding_status") or "NOT_STARTED")
+        is_complete = status in {"ACTIVATED", "SKIPPED"} or has_scans or has_inventory_activity
+        workspace_experience = _resolve_workspace_experience(
+            org_type=normalized_org_type,
+            role=user.role,
+            has_properties=has_properties,
+            has_scans=has_scans,
+            has_inventory_activity=has_inventory_activity,
+            onboarding_source=org.get("onboarding_source"),
+        )
+
+        return OnboardingStateResponse(
+            organization_id=user.organization_id,
+            property_id=property_id,
+            org_type=normalized_org_type,
+            workspace_experience=workspace_experience,
+            is_invited_user=_is_invited_user(user.role),
+            has_properties=has_properties,
+            property_type=(prop or {}).get("property_type"),
+            address=(prop or {}).get("address"),
+            onboarding_status=status,  # type: ignore[arg-type]
+            onboarding_started_at=org.get("onboarding_started_at"),
+            onboarding_completed_at=org.get("onboarding_completed_at"),
+            onboarding_version=int(org.get("onboarding_version") or 1),
+            onboarding_source=org.get("onboarding_source"),
+            country=org.get("country"),
+            currency=org.get("currency"),
+            has_scans=has_scans,
+            has_inventory_activity=has_inventory_activity,
+            is_complete=is_complete,
+            requires_onboarding=not is_complete and workspace_experience != "INVITED",
+        )
+
+    async def update_onboarding_state(
+        self,
+        user: UserInfo,
+        update: OnboardingStateUpdate,
+    ) -> OnboardingStateResponse:
+        if update.onboarding_status == "ACTIVATED":
+            return await self.mark_onboarding_activated(
+                user,
+                onboarding_source=update.onboarding_source,
+                org_type=update.org_type,
+                org_name=update.org_name,
+                country=update.country,
+                currency=update.currency,
+                property_name=update.property_name,
+                property_type=update.property_type,
+                address=update.address,
+            )
+        if update.onboarding_status == "SKIPPED":
+            return await self.mark_onboarding_skipped(
+                user,
+                onboarding_source=update.onboarding_source,
+                org_type=update.org_type,
+                org_name=update.org_name,
+                country=update.country,
+                currency=update.currency,
+                property_name=update.property_name,
+                property_type=update.property_type,
+                address=update.address,
+            )
+        return await self.mark_onboarding_started(
+            user,
+            onboarding_source=update.onboarding_source,
+            org_type=update.org_type,
+            org_name=update.org_name,
+            country=update.country,
+            currency=update.currency,
+            property_name=update.property_name,
+            property_type=update.property_type,
+            address=update.address,
+        )
+
+    async def mark_onboarding_started(
+        self,
+        user: UserInfo,
+        *,
+        onboarding_source: str | None = None,
+        org_type: str | None = None,
+        org_name: str | None = None,
+        country: str | None = None,
+        currency: str | None = None,
+        property_name: str | None = None,
+        property_type: str | None = None,
+        address: str | None = None,
+    ) -> OnboardingStateResponse:
+        current = await self.get_onboarding_state(user)
+        admin_client = await get_async_supabase_admin()
+        org_update: dict[str, Any] = {"onboarding_status": "IN_PROGRESS"}
+        if current.onboarding_started_at is None:
+            org_update["onboarding_started_at"] = _utcnow()
+        if onboarding_source:
+            org_update["onboarding_source"] = onboarding_source
+        if org_type is not None:
+            org_update["org_type"] = _normalize_org_type(org_type)
+        if org_name is not None:
+            org_update["name"] = org_name
+        if country is not None:
+            org_update["country"] = country
+        if currency is not None:
+            org_update["currency"] = currency
+        await (
+            admin_client.table("organizations")
+            .update(org_update)
+            .eq("id", str(user.organization_id))
+            .execute()
+        )
+        await self._update_primary_property_metadata(
+            user,
+            property_name=property_name,
+            property_type=property_type,
+            address=address,
+        )
+        return await self.get_onboarding_state(user)
+
+    async def mark_onboarding_activated(
+        self,
+        user: UserInfo,
+        *,
+        onboarding_source: str | None = None,
+        org_type: str | None = None,
+        org_name: str | None = None,
+        country: str | None = None,
+        currency: str | None = None,
+        property_name: str | None = None,
+        property_type: str | None = None,
+        address: str | None = None,
+    ) -> OnboardingStateResponse:
+        current = await self.get_onboarding_state(user)
+        admin_client = await get_async_supabase_admin()
+        org_update: dict[str, Any] = {
+            "onboarding_status": "ACTIVATED",
+            "onboarding_completed_at": _utcnow(),
+        }
+        if current.onboarding_started_at is None:
+            org_update["onboarding_started_at"] = _utcnow()
+        if onboarding_source:
+            org_update["onboarding_source"] = onboarding_source
+        if org_type is not None:
+            org_update["org_type"] = _normalize_org_type(org_type)
+        if org_name is not None:
+            org_update["name"] = org_name
+        if country is not None:
+            org_update["country"] = country
+        if currency is not None:
+            org_update["currency"] = currency
+        await (
+            admin_client.table("organizations")
+            .update(org_update)
+            .eq("id", str(user.organization_id))
+            .execute()
+        )
+        await self._update_primary_property_metadata(
+            user,
+            property_name=property_name,
+            property_type=property_type,
+            address=address,
+        )
+        return await self.get_onboarding_state(user)
+
+    async def mark_onboarding_skipped(
+        self,
+        user: UserInfo,
+        *,
+        onboarding_source: str | None = None,
+        org_type: str | None = None,
+        org_name: str | None = None,
+        country: str | None = None,
+        currency: str | None = None,
+        property_name: str | None = None,
+        property_type: str | None = None,
+        address: str | None = None,
+    ) -> OnboardingStateResponse:
+        current = await self.get_onboarding_state(user)
+        admin_client = await get_async_supabase_admin()
+        org_update: dict[str, Any] = {
+            "onboarding_status": "SKIPPED",
+            "onboarding_completed_at": _utcnow(),
+        }
+        if current.onboarding_started_at is None:
+            org_update["onboarding_started_at"] = _utcnow()
+        if onboarding_source:
+            org_update["onboarding_source"] = onboarding_source
+        if org_type is not None:
+            org_update["org_type"] = _normalize_org_type(org_type)
+        if org_name is not None:
+            org_update["name"] = org_name
+        if country is not None:
+            org_update["country"] = country
+        if currency is not None:
+            org_update["currency"] = currency
+        await (
+            admin_client.table("organizations")
+            .update(org_update)
+            .eq("id", str(user.organization_id))
+            .execute()
+        )
+        await self._update_primary_property_metadata(
+            user,
+            property_name=property_name,
+            property_type=property_type,
+            address=address,
+        )
+        return await self.get_onboarding_state(user)
+
+    async def _update_primary_property_metadata(
+        self,
+        user: UserInfo,
+        *,
+        property_name: str | None = None,
+        property_type: str | None = None,
+        address: str | None = None,
+    ) -> None:
+        if not user.default_property_id:
+            return
+        payload: dict[str, Any] = {}
+        if property_name is not None:
+            payload["name"] = property_name
+        if property_type is not None:
+            payload["property_type"] = _normalize_org_type(property_type) or property_type
+        if address is not None:
+            payload["address"] = address
+        if not payload:
+            return
+        admin_client = await get_async_supabase_admin()
+        await (
+            admin_client.table("properties")
+            .update(payload)
+            .eq("id", str(user.default_property_id))
+            .eq("organization_id", str(user.organization_id))
+            .execute()
         )
 
     async def refresh_session(self, refresh_token: str) -> "TokenResponse":

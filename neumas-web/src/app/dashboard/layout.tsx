@@ -10,9 +10,14 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { listScans } from "@/lib/api/endpoints";
-import { isOnboardingComplete } from "@/lib/onboarding";
+import {
+  fetchCanonicalOnboardingState,
+  isOnboardingComplete,
+  shouldRequireOnboarding,
+} from "@/lib/onboarding";
 import { useAuthStore, selectHasSession } from "@/lib/store/auth";
 import { get } from "@/lib/api/client";
+import { resolveWorkspaceExperience } from "@/lib/workspace-experience";
 
 export default function DashboardLayout({
   children,
@@ -22,6 +27,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const hasSession = useAuthStore(selectHasSession);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
+  const profile = useAuthStore((s) => s.profile);
 
   const [workerOk, setWorkerOk] = useState<boolean | null>(null);
   const [allowDashboard, setAllowDashboard] = useState(false);
@@ -43,10 +49,21 @@ export default function DashboardLayout({
     let cancelled = false;
     (async () => {
       try {
-        const scans = await listScans({ limit: 1 });
+        const [scans, onboarding] = await Promise.all([
+          listScans({ limit: 1 }),
+          fetchCanonicalOnboardingState(),
+        ]);
         if (cancelled) return;
-        if (scans.length === 0 && !isOnboardingComplete()) {
-          router.replace("/onboard");
+        if (
+          shouldRequireOnboarding({
+            onboarding,
+            hasLocalCompletion: isOnboardingComplete(),
+            hasScans: scans.length > 0,
+            workspaceExperience: resolveWorkspaceExperience(profile, onboarding),
+          })
+        ) {
+          const experience = resolveWorkspaceExperience(profile, onboarding);
+          router.replace(experience === "HOUSEHOLD" ? "/onboard/home" : "/onboard");
           return;
         }
       } catch {
@@ -57,7 +74,7 @@ export default function DashboardLayout({
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, hasSession, router]);
+  }, [hasHydrated, hasSession, profile, router]);
 
   useEffect(() => {
     if (!hasHydrated || hasSession) return;

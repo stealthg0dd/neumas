@@ -123,11 +123,19 @@ CREATE TABLE IF NOT EXISTS organizations (
   id                  uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   name                text        NOT NULL,
   slug                text        NOT NULL UNIQUE,
+  org_type            text,
   plan                text        NOT NULL DEFAULT 'free',
   subscription_status text        NOT NULL DEFAULT 'active',
   max_properties      integer     NOT NULL DEFAULT 1,
   max_users           integer     NOT NULL DEFAULT 5,
   settings            jsonb       NOT NULL DEFAULT '{}',
+  onboarding_status   text        NOT NULL DEFAULT 'NOT_STARTED',
+  onboarding_started_at timestamptz,
+  onboarding_completed_at timestamptz,
+  onboarding_version  integer     NOT NULL DEFAULT 1,
+  onboarding_source   text,
+  country             text,
+  currency            text,
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now()
 );
@@ -139,11 +147,20 @@ ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_status text     
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_properties      integer     NOT NULL DEFAULT 1;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_users           integer     NOT NULL DEFAULT 5;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS settings            jsonb       NOT NULL DEFAULT '{}';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS org_type            text;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_status   text        NOT NULL DEFAULT 'NOT_STARTED';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_started_at timestamptz;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_version  integer     NOT NULL DEFAULT 1;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_source   text;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS country             text;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS currency            text;
 
 COMMENT ON COLUMN organizations.plan IS
   'Billing tier: free(50docs/2users/1prop) | pilot(500/10/5) | pro(5000/25/20) | enterprise(unlimited).';
 
 CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
+CREATE INDEX IF NOT EXISTS idx_organizations_onboarding_status ON organizations(onboarding_status);
 ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
 
 
@@ -158,10 +175,13 @@ CREATE TABLE IF NOT EXISTS properties (
   organization_id uuid        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   name            text        NOT NULL,
   type            text        NOT NULL DEFAULT 'restaurant',
+  property_type   text,
   address         text,
   timezone        text        NOT NULL DEFAULT 'UTC',
   currency        text        NOT NULL DEFAULT 'USD',
   settings        jsonb       NOT NULL DEFAULT '{}',
+  onboarding_order integer,
+  is_primary      boolean     NOT NULL DEFAULT false,
   is_active       boolean     NOT NULL DEFAULT true,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
@@ -172,9 +192,13 @@ CREATE TABLE IF NOT EXISTS properties (
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS type     text    NOT NULL DEFAULT 'restaurant';
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS currency text    NOT NULL DEFAULT 'USD';
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS settings jsonb   NOT NULL DEFAULT '{}';
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS property_type text;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS onboarding_order integer;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_primary boolean NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_properties_org  ON properties(organization_id);
 CREATE INDEX IF NOT EXISTS idx_properties_type ON properties(type);
+CREATE INDEX IF NOT EXISTS idx_properties_org_primary ON properties(organization_id, is_primary);
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
 
