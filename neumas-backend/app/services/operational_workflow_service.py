@@ -8,12 +8,13 @@ scan evidence has already been posted safely.
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from app.api.deps import TenantContext
-from app.core.logging import get_logger
+from app.core.logging import get_logger, log_business_event
 from app.db.supabase_client import get_async_supabase_admin
 from app.services.alert_service import AlertService
 from app.services.executive_briefing_service import ExecutiveBriefingService
@@ -43,6 +44,7 @@ class OperationalWorkflowService:
         from app.services.pattern_agent import recompute_patterns_for_property
         from app.services.predict_agent import recompute_predictions_for_property
 
+        workflow_started = time.perf_counter()
         client = await get_async_supabase_admin()
         if client is None:
             raise RuntimeError("Supabase admin client unavailable")
@@ -130,13 +132,17 @@ class OperationalWorkflowService:
             "baseline",
             recompute_patterns_for_property(tenant.property_id, org_id=str(tenant.org_id)),
         )
+        eligibility_started = time.perf_counter()
         forecast_eligibility = await self._forecast_eligibility.evaluate_forecast_eligibility(
             tenant.org_id,
             tenant.property_id,
             role=tenant.role,
             user_id=tenant.user_id,
         )
-        stage_details["forecast_eligibility"] = forecast_eligibility.to_dict()
+        stage_details["forecast_eligibility"] = {
+            **forecast_eligibility.to_dict(),
+            "elapsed_ms": int((time.perf_counter() - eligibility_started) * 1000),
+        }
 
         prediction_result = None
         if forecast_eligibility.reason_code == "ELIGIBLE":
@@ -177,7 +183,23 @@ class OperationalWorkflowService:
             reorder_result=reorder_result,
             alerts_result=alerts_result,
         )
-        stage_details["next_best_action"] = next_action
+        stage_details["next_best_action"] = {
+            **next_action,
+            "elapsed_ms": int((time.perf_counter() - workflow_started) * 1000),
+        }
+        stage_details["workflow_timing"] = {
+            "ledger_to_forecast_eligibility_ms": int(
+                stage_details["forecast_eligibility"].get("elapsed_ms") or 0
+            ),
+            "forecast_to_recommendation_ms": int(
+                (stage_details.get("predictions") or {}).get("elapsed_ms") or 0
+            ) + int((stage_details.get("reorder") or {}).get("elapsed_ms") or 0),
+            "recommendation_to_dashboard_action_ms": int(
+                (stage_details["next_best_action"].get("elapsed_ms") or 0)
+                - int((stage_details.get("reorder") or {}).get("elapsed_ms") or 0)
+            ),
+            "total_downstream_ms": int((time.perf_counter() - workflow_started) * 1000),
+        }
         stage_details["downstream"] = {
             "status": "completed" if not errors else "partial_failed",
             "completed_at": datetime.now(UTC).isoformat(),
@@ -193,6 +215,22 @@ class OperationalWorkflowService:
             stage_errors=stage_errors,
             status=final_status,
             current_stage="completed",
+        )
+        log_business_event(
+            "scan.operational_workflow_completed",
+            property_id=str(tenant.property_id),
+            user_id=str(tenant.user_id),
+            scan_id=str(scan_id),
+            status=final_status,
+            baseline_status=str((stage_details.get("baseline") or {}).get("status") or "unknown"),
+            prediction_status=str((stage_details.get("predictions") or {}).get("status") or "unknown"),
+            reorder_status=str((stage_details.get("reorder") or {}).get("status") or "unknown"),
+            alert_status=str((stage_details.get("alerts") or {}).get("status") or "unknown"),
+            ledger_to_forecast_eligibility_ms=stage_details["workflow_timing"]["ledger_to_forecast_eligibility_ms"],
+            forecast_to_recommendation_ms=stage_details["workflow_timing"]["forecast_to_recommendation_ms"],
+            recommendation_to_dashboard_action_ms=stage_details["workflow_timing"]["recommendation_to_dashboard_action_ms"],
+            total_downstream_ms=stage_details["workflow_timing"]["total_downstream_ms"],
+            error_count=len(errors),
         )
 
         return {
