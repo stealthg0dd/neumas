@@ -96,7 +96,7 @@ async def forecast(
 async def list_predictions(
     tenant: TenantContext = require_property(),
     urgency: Annotated[str | None, Query(description="Filter by urgency: critical, urgent, soon, later")] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[dict]:
     """
     Returns stockout predictions sorted by urgency (critical first) then

@@ -327,6 +327,7 @@ export default function NewScanPage() {
           item_name: e.name,
           new_qty: e.quantity,
           unit: e.unit,
+          trigger_prediction: false,
         }))
       );
       toast.success("Pantry updated.");

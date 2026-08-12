@@ -362,7 +362,7 @@ async def get_completion_with_failover(
     chain: list[tuple[str, str, Any]] = [
         ("anthropic", "claude-3-5-sonnet", _call_anthropic),
         ("openai", "gpt-4o", _call_openai),
-        ("google", "gemini-1.5-flash", _call_google),
+        ("google", settings.GEMINI_MODEL, _call_google),
     ]
 
     failures: list[str] = []

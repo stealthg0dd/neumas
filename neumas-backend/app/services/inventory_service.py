@@ -25,6 +25,21 @@ from app.schemas.inventory import (
 logger = get_logger(__name__)
 
 
+def _is_background_queue_error(exc: Exception) -> bool:
+    error = str(exc).lower()
+    return any(
+        marker in error
+        for marker in (
+            "redis",
+            "retry limit",
+            "connection",
+            "broker",
+            "result store",
+            "celery",
+        )
+    )
+
+
 def _compute_stock_status(item: dict[str, Any]) -> str:
     """Derive stock_status from quantity vs reorder_point / min_quantity."""
     qty = Decimal(str(item.get("quantity") or 0))
@@ -267,19 +282,29 @@ class InventoryService:
 
         # Optionally trigger prediction regeneration
         if request.trigger_prediction:
-            task = celery_app.send_task(
-                "app.tasks.prediction_tasks.regenerate_predictions",
-                args=[str(request.property_id), str(item_id)],
-                queue="neumas.predictions",
-            )
-            prediction_task_id = task.id
+            try:
+                task = celery_app.send_task(
+                    "agents.recompute_predictions_for_property",
+                    args=[str(request.property_id)],
+                    queue="neumas.predictions",
+                )
+                prediction_task_id = task.id
 
-            logger.info(
-                "Triggered prediction regeneration",
-                property_id=str(request.property_id),
-                item_id=str(item_id),
-                task_id=prediction_task_id,
-            )
+                logger.info(
+                    "Triggered prediction regeneration",
+                    property_id=str(request.property_id),
+                    item_id=str(item_id),
+                    task_id=prediction_task_id,
+                )
+            except Exception as exc:
+                if not _is_background_queue_error(exc):
+                    raise
+                logger.warning(
+                    "Inventory saved but prediction regeneration was not queued",
+                    property_id=str(request.property_id),
+                    item_id=str(item_id),
+                    error=str(exc),
+                )
 
         return InventoryUpdateResponse(
             item_id=item_id,

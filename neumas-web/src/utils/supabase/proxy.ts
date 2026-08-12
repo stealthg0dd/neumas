@@ -6,6 +6,10 @@ import { getCanonicalAppUrl, isLegacyAppHost } from "@/lib/app-url";
 
 import { getSupabaseCookieOptions, getSupabasePublishableKey, getSupabaseUrl } from "./shared";
 
+function isSupabaseAuthCookie(name: string): boolean {
+  return name.startsWith("sb-") && name.includes("-auth-token");
+}
+
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -18,6 +22,18 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl, 308);
   }
 
+  const isProtectedPath =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/app") || pathname.startsWith("/admin");
+  if (isProtectedPath) {
+    const hasSupabaseSessionCookie = request.cookies
+      .getAll()
+      .some(({ name }) => isSupabaseAuthCookie(name));
+    if (!hasSupabaseSessionCookie) {
+      const loginUrl = new URL("/auth", request.url);
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl, 307);
+    }
+  }
   const response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -56,10 +72,10 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isProtectedPath =
+  const requiresAuthenticatedUser =
     pathname.startsWith("/dashboard") || pathname.startsWith("/app") || pathname.startsWith("/admin");
 
-  if (isProtectedPath && !user) {
+  if (requiresAuthenticatedUser && !user) {
     const loginUrl = new URL("/auth", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl, 307);

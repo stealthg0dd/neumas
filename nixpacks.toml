@@ -13,5 +13,8 @@ cmds = [
   "python -m pip install ./neumas-backend",
 ]
 
+[phases.build]
+cmds = ["python -m pip check"]
+
 [start]
 cmd = "bash start.sh"

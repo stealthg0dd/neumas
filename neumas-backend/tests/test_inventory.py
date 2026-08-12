@@ -3,13 +3,18 @@ Tests for inventory endpoints.
 """
 
 from uuid import uuid4
+from decimal import Decimal
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from app.api.deps import TenantContext
 from app.schemas.auth import UserInfo
+from app.schemas.inventory import InventoryUpdateRequest
+from app.services.inventory_service import InventoryService
 
 
 @pytest.fixture
@@ -222,6 +227,57 @@ class TestBulkUpdate:
             status.HTTP_200_OK,
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
+
+
+class TestInventoryUpsertService:
+    """Tests for direct inventory upsert behavior."""
+
+    @pytest.mark.asyncio
+    async def test_prediction_enqueue_failure_does_not_fail_save(self, monkeypatch):
+        """Saving inventory should succeed even if Redis/Celery is down."""
+        property_id = uuid4()
+        item_id = uuid4()
+        tenant = TenantContext(
+            user_id=uuid4(),
+            org_id=uuid4(),
+            property_id=property_id,
+            role="staff",
+            jwt="test-token",
+        )
+
+        repo = AsyncMock()
+        repo.get_by_name.return_value = None
+        repo.create.return_value = {
+            "id": str(item_id),
+            "property_id": str(property_id),
+            "name": "Saffron Pumpkin Seed",
+            "quantity": "1",
+            "unit": "unit",
+        }
+        monkeypatch.setattr(
+            "app.services.inventory_service.get_inventory_repository",
+            AsyncMock(return_value=repo),
+        )
+
+        def fail_send_task(*_args, **_kwargs):
+            raise RuntimeError("Retry limit exceeded while trying to reconnect to the Celery result store backend")
+
+        monkeypatch.setattr("app.services.inventory_service.celery_app.send_task", fail_send_task)
+
+        result = await InventoryService().upsert_item_by_name(
+            InventoryUpdateRequest(
+                property_id=property_id,
+                item_name="Saffron Pumpkin Seed",
+                new_qty=Decimal("1"),
+                unit="unit",
+                trigger_prediction=True,
+            ),
+            tenant,
+        )
+
+        assert result.item_id == item_id
+        assert result.created is True
+        assert result.prediction_task_id is None
 
 
 class TestCategories:

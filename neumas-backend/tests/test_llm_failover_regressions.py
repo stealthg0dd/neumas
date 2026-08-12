@@ -9,6 +9,7 @@ from app.services.llm_failover import (
     _call_google,
     get_completion_with_failover,
 )
+from app.core.config import Settings
 
 
 @pytest.mark.anyio
@@ -73,3 +74,29 @@ async def test_failover_chain_reports_google_dependency_issue_cleanly(monkeypatc
     assert "anthropic: anthropic quota" in message
     assert "openai: openai quota" in message
     assert "google: Google GenAI dependency missing" in message
+
+
+def test_gemini_api_key_alias_populates_google_api_key(monkeypatch):
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
+
+    settings = Settings()
+
+    assert settings.GOOGLE_API_KEY == "gemini-key"
+
+
+def test_gemini_model_defaults_to_current_flash_model(monkeypatch):
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+
+    settings = Settings()
+
+    assert settings.GEMINI_MODEL == "gemini-2.5-flash-lite"
+
+
+def test_password_only_redis_url_is_not_forced_to_default_user(monkeypatch):
+    monkeypatch.delenv("REDISHOST", raising=False)
+    monkeypatch.setenv("CELERY_BROKER_URL", "redis://:secret@redis.railway.internal:6379/0")
+
+    settings = Settings()
+
+    assert settings.celery_broker == "redis://:secret@redis.railway.internal:6379/0"

@@ -1,5 +1,6 @@
 const CACHE_NAME = "neumas-shell-v2";
 const SHELL_ASSETS = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
+const NEVER_CACHE_PATHS = ["/dashboard", "/auth", "/api", "/_next/static", "/_next/data"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -7,17 +8,43 @@ self.addEventListener("install", (event) => {
   );
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
-    ).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      )
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  if (event.request.url.startsWith("chrome-extension://")) return;
+  const requestUrl = new URL(event.request.url);
+
+  if (requestUrl.origin !== self.location.origin) return;
+  if (NEVER_CACHE_PATHS.some((path) => requestUrl.pathname.startsWith(path))) return;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (event.request.destination === "document") {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (event.request.destination === "script" || event.request.destination === "style") {
+    return;
+  }
 
   const url = new URL(event.request.url);
   if (event.request.mode === "navigate" && (url.pathname === "/dashboard" || url.pathname.startsWith("/dashboard/"))) {
@@ -38,6 +65,10 @@ self.addEventListener("fetch", (event) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
         if (!response || response.status !== 200 || response.type !== "basic") {
+          return response;
+        }
+        const cacheControl = response.headers.get("cache-control") || "";
+        if (cacheControl.includes("no-store") || cacheControl.includes("private")) {
           return response;
         }
         const copy = response.clone();

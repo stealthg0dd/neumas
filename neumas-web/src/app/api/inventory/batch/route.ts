@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest) {
       item_name: u.item_name,
       new_qty: u.new_qty,
       unit: u.unit ?? "unit",
-      trigger_prediction: u.trigger_prediction ?? true,
+      trigger_prediction: u.trigger_prediction ?? false,
     };
 
     const res = await fetch(`${BACKEND_URL}/api/inventory/update`, {

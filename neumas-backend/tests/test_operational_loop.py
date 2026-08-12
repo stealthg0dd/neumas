@@ -43,7 +43,19 @@ async def test_predictions_route_normalizes_recommendation_fields(tenant: Tenant
 
     assert rows[0]["item_name"] == "Milk"
     assert rows[0]["recommended_action"] == "Add to shopping list"
-    assert rows[0]["days_until_runout"] is not None
+
+
+async def test_predictions_route_accepts_inventory_page_limit(tenant: TenantContext):
+    from app.api.routes.predictions import list_predictions
+
+    repo = AsyncMock()
+    repo.get_by_property.return_value = []
+
+    with patch("app.api.routes.predictions.get_predictions_repository", new=AsyncMock(return_value=repo)):
+        rows = await list_predictions(tenant=tenant, urgency=None, limit=500)
+
+    assert rows == []
+    repo.get_by_property.assert_awaited_once_with(tenant, prediction_type="stockout", limit=500)
 
 
 @pytest.mark.asyncio

@@ -129,7 +129,21 @@ class Settings(BaseSettings):
     # AI/LLM API Keys
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API key")
     ANTHROPIC_API_KEY: str = Field(default="", description="Anthropic API key")
-    GOOGLE_API_KEY: str = Field(default="", description="Google AI (Gemini) API key")
+    GOOGLE_API_KEY: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "GOOGLE_API_KEY",
+            "GEMINI_API_KEY",
+            "GOOGLE_AI_API_KEY",
+            "GOOGLE_GENERATIVE_AI_API_KEY",
+        ),
+        description="Google AI (Gemini) API key",
+    )
+    GEMINI_MODEL: str = Field(
+        default="gemini-2.5-flash-lite",
+        validation_alias=AliasChoices("GEMINI_MODEL", "GOOGLE_MODEL", "GOOGLE_AI_MODEL"),
+        description="Gemini model used for Google LLM fallback",
+    )
 
     # Email delivery
     SENDGRID_API_KEY: str = Field(default="", description="SendGrid API key for transactional email")
@@ -276,16 +290,16 @@ class Settings(BaseSettings):
     def _resolved_redis_url(self) -> str:
         """Pick the best available Redis URL and normalise the scheme.
 
-        Priority (Railway monorepo deployment):
-        1. REDIS_PRIVATE_URL
-        2. REDIS_URL
-        3. CELERY_BROKER_URL
-        4. Individual vars (REDISHOST/REDISPORT/REDISPASSWORD)
+        Priority (monorepo + Railway safe default):
+        1. CELERY_BROKER_URL - explicit operator override.
+        2. REDIS_PRIVATE_URL - Railway composite internal URL.
+        3. REDIS_URL - external composite URL / local fallback.
+        4. Individual vars (REDISHOST/REDISPORT/REDISPASSWORD).
         """
         for _name, value in (
+            ("CELERY_BROKER_URL", self.CELERY_BROKER_URL),
             ("REDIS_PRIVATE_URL", self.REDIS_PRIVATE_URL),
             ("REDIS_URL", self.REDIS_URL),
-            ("CELERY_BROKER_URL", self.CELERY_BROKER_URL),
         ):
             normalized = self._normalized_redis_candidate(value)
             if normalized:
