@@ -24,9 +24,9 @@ import {
 } from "recharts";
 
 import {
+  getDecisionCenter,
   getOnboardingState,
   getAnalyticsSummary,
-  getDocumentReviewQueue,
   getOrgPropertyStockHealth,
   getRestockPreview,
   listInventoryItems,
@@ -34,10 +34,10 @@ import {
   listPredictions,
   listScans,
   type Alert,
-  type Document,
 } from "@/lib/api/endpoints";
 import type {
   AnalyticsSummary,
+  DecisionCenterResponse,
   InventoryItem,
   OnboardingStateResponse,
   OrgPropertyStockHealthResponse,
@@ -66,6 +66,35 @@ const EMPTY_SUMMARY: AnalyticsSummary = {
   urgency_breakdown: { critical: 0, urgent: 0, soon: 0, later: 0 },
 };
 
+const EMPTY_DECISION_CENTER: DecisionCenterResponse = {
+  generated_at: new Date(0).toISOString(),
+  workspace_experience: "FNB",
+  action_queue: [],
+  latest_activity: null,
+  ahead: {
+    stock_risk_count: 0,
+    next_7_day_purchase_need: null,
+    waste_risk_count: null,
+    forecast_confidence: null,
+    learning_state: null,
+  },
+  impact: {
+    mode: "baseline",
+    headline: "Building your operating baseline.",
+    stockouts_avoided: null,
+    waste_avoided: null,
+    purchasing_variance: null,
+    decisions_automated: null,
+  },
+  next_best_action: {
+    action_type: "no_action",
+    title: "Upload your next purchase document",
+    detail: "Neumas will keep learning as new evidence arrives.",
+    cta_label: "Open scans",
+    cta_href: "/dashboard/scans/new",
+  },
+};
+
 type TrendPoint = { date: string; value: number };
 
 function formatMoney(value: number): string {
@@ -90,11 +119,11 @@ export default function DashboardPage() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [scans, setScans] = useState<Scan[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [reviewQueue, setReviewQueue] = useState<Document[]>([]);
   const [inventoryTrend, setInventoryTrend] = useState<TrendPoint[]>([]);
   const [orgHealth, setOrgHealth] = useState<OrgPropertyStockHealthResponse | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingStateResponse | null>(null);
   const [forecastSpend7d, setForecastSpend7d] = useState(0);
+  const [decisionCenter, setDecisionCenter] = useState<DecisionCenterResponse>(EMPTY_DECISION_CENTER);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -106,20 +135,20 @@ export default function DashboardPage() {
         predictionsRes,
         scansRes,
         inventoryRes,
-        reviewRes,
         restockRes,
         orgHealthRes,
         onboardingRes,
+        decisionCenterRes,
       ] = await Promise.all([
         getAnalyticsSummary().catch(() => EMPTY_SUMMARY),
         listAlerts({ state: "open", page_size: 20 }).catch(() => ({ alerts: [], open_count: 0, page: 1, page_size: 20 })),
         listPredictions({ limit: 8 }).catch(() => []),
         listScans({ limit: 20 }).catch(() => []),
         listInventoryItems({ limit: 200 }).catch(() => ({ items: [], total: 0, page: 1, page_size: 0, low_stock_count: 0 })),
-        getDocumentReviewQueue().catch(() => []),
         getRestockPreview({ runout_threshold_days: 7 }).catch(() => ({ vendors: [], runout_threshold_days: 7, generated_at: new Date().toISOString() })),
         isAdmin ? getOrgPropertyStockHealth().catch(() => null) : Promise.resolve(null),
         getOnboardingState().catch(() => null),
+        getDecisionCenter(workspaceExperience).catch(() => EMPTY_DECISION_CENTER),
       ]);
 
       setSummary(analyticsRes);
@@ -127,22 +156,22 @@ export default function DashboardPage() {
       setPredictions(predictionsRes);
       setScans(scansRes);
       setInventoryItems(inventoryRes.items ?? []);
-      setReviewQueue(reviewRes);
       setOrgHealth(orgHealthRes);
       setOnboarding(onboardingRes);
-      setInventoryTrend((analyticsRes.inventory_value_history ?? []).map((point) => ({
+      setDecisionCenter(decisionCenterRes);
+      setInventoryTrend((analyticsRes.inventory_value_history ?? []).map((point: { date: string; value: number | string | null }) => ({
         date: point.date,
         value: Number(point.value ?? 0),
       })));
 
-      const spend = (restockRes.vendors ?? []).reduce((sum, vendor) => sum + Number(vendor.total_estimated_cost ?? 0), 0);
+      const spend = (restockRes.vendors ?? []).reduce((sum: number, vendor) => sum + Number(vendor.total_estimated_cost ?? 0), 0);
       setForecastSpend7d(Number(spend.toFixed(2)));
     } catch (err) {
       captureUIError("dashboard_command_center_load", err);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, workspaceExperience]);
 
   useEffect(() => {
     void load();
@@ -169,21 +198,6 @@ export default function DashboardPage() {
     [alerts]
   );
 
-  const nextBestActionHref = scans.length === 0
-    ? "/dashboard/scans/new"
-    : predictedStockoutAlerts.length > 0
-      ? "/dashboard/restock"
-      : reviewQueue.length > 0
-        ? "/dashboard/documents"
-        : "/dashboard/predictions";
-
-  const nextBestActionText = scans.length === 0
-    ? "Upload your first receipt"
-    : predictedStockoutAlerts.length > 0
-      ? "Review restock recommendations"
-      : reviewQueue.length > 0
-        ? "Review scanned documents"
-        : "Upload your next purchase document";
   const recommendation = topOperationalRecommendation(predictions, alerts);
   const lowPantryItems = useMemo(
     () => inventoryItems.filter((item) => item.stock_status === "low_stock" || item.stock_status === "out_of_stock"),
@@ -459,7 +473,9 @@ export default function DashboardPage() {
             <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Procurement Forecast</p>
             <TrendingUp className="h-4 w-4 text-amber-500" />
           </div>
-          <p className="mt-3 text-3xl font-bold text-gray-900">{formatMoney(forecastSpend7d)}</p>
+          <p className="mt-3 text-3xl font-bold text-gray-900">
+            {formatMoney(decisionCenter.ahead.next_7_day_purchase_need ?? forecastSpend7d)}
+          </p>
           <p className="mt-1 text-xs text-gray-500">Estimated spend needed over the next 7 days.</p>
         </div>
 
@@ -470,6 +486,106 @@ export default function DashboardPage() {
           </div>
           <p className="mt-3 text-3xl font-bold text-gray-900">{scanSuccessRate}%</p>
           <p className="mt-1 text-xs text-gray-500">Success rate from recent OCR attempts ({scans.length} scans).</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Today&apos;s Actions</h3>
+              <p className="text-xs text-gray-500">Prioritized operator decisions from the live workflow.</p>
+            </div>
+            <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
+              {decisionCenter.action_queue.length} queued
+            </span>
+          </div>
+          {decisionCenter.action_queue.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+              No urgent operator decisions are waiting right now.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {decisionCenter.action_queue.map((action: DecisionCenterResponse["action_queue"][number]) => (
+                <div key={`${action.priority}-${action.action_type}-${action.cta_href}`} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
+                          {action.priority}
+                        </span>
+                        <p className="text-sm font-semibold text-gray-900">{action.title}</p>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-600">{action.detail}</p>
+                    </div>
+                    {action.value ? (
+                      <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-gray-700">
+                        {action.value}
+                      </span>
+                    ) : null}
+                  </div>
+                  <Link href={action.cta_href} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-sky-700 hover:text-sky-800">
+                    {action.cta_label}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-gray-500">What Happened</p>
+            {decisionCenter.latest_activity ? (
+              <div className="mt-2 space-y-2">
+                <p className="text-sm font-semibold text-gray-900">{decisionCenter.latest_activity.detail}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
+                    {decisionCenter.latest_activity.items_updated
+                      ? `${decisionCenter.latest_activity.items_updated} item(s) updated`
+                      : "Item counts will appear after posted evidence."}
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
+                    {decisionCenter.latest_activity.supplier_name
+                      ? `Supplier identified: ${decisionCenter.latest_activity.supplier_name}`
+                      : "Supplier identification will appear when available."}
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
+                    {decisionCenter.latest_activity.invoice_total != null
+                      ? `${formatMoney(decisionCenter.latest_activity.invoice_total)} purchase recorded`
+                      : "Invoice value is shown only when extraction is reliable."}
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
+                    Downstream analysis: {decisionCenter.latest_activity.downstream_status ?? "pending"}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">Operational workflow summaries appear after the first posted scan.</p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-gray-500">What&apos;s Ahead</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-gray-500">Stock risk</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">{decisionCenter.ahead.stock_risk_count}</p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-gray-500">Forecast confidence</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">
+                  {decisionCenter.ahead.forecast_confidence != null
+                    ? `${Math.round(decisionCenter.ahead.forecast_confidence * 100)}%`
+                    : "Learning"}
+                </p>
+              </div>
+            </div>
+            {decisionCenter.ahead.learning_state ? (
+              <p className="mt-3 text-sm text-gray-500">{decisionCenter.ahead.learning_state}</p>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -515,7 +631,9 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Latest Scan Status</p>
-            <p className="mt-2 text-sm font-semibold text-gray-900">{newestScanLabel(scans)}</p>
+            <p className="mt-2 text-sm font-semibold text-gray-900">
+              {decisionCenter.latest_activity?.status ? decisionCenter.latest_activity.status.replace(/_/g, " ") : newestScanLabel(scans)}
+            </p>
             <p className="mt-2 text-xs text-gray-500">Processing quality improves after each approved document.</p>
             <Link href="/dashboard/scans" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-sky-700 hover:text-sky-800">
               Open scans
@@ -525,10 +643,10 @@ export default function DashboardPage() {
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Next Best Action</p>
-            <p className="mt-2 text-sm font-semibold text-gray-900">{nextBestActionText}</p>
-            <p className="mt-1 text-xs text-gray-500">Guided by scan freshness, predicted stockouts, and pending review queue.</p>
-            <Link href={nextBestActionHref} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800">
-              Continue journey
+            <p className="mt-2 text-sm font-semibold text-gray-900">{decisionCenter.next_best_action.title}</p>
+            <p className="mt-1 text-xs text-gray-500">{decisionCenter.next_best_action.detail}</p>
+            <Link href={decisionCenter.next_best_action.cta_href} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+              {decisionCenter.next_best_action.cta_label}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -539,31 +657,19 @@ export default function DashboardPage() {
           <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Recommended Next Move</h3>
-                <p className="text-xs text-gray-500">The most urgent step in the scan to shopping loop.</p>
+                <h3 className="text-sm font-semibold text-gray-900">Impact</h3>
+                <p className="text-xs text-gray-500">Measured outcomes only, or a baseline-building state.</p>
               </div>
               <Sparkles className="h-4 w-4 text-sky-700" />
             </div>
-            {recommendation ? (
+            {decisionCenter.impact.mode === "measured" && recommendation ? (
               <div className="mt-4 space-y-2">
-                <p className="text-lg font-semibold text-gray-900">
-                  {recommendation.itemName}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {recommendation.reason}
-                </p>
-                <p className="text-sm font-medium text-gray-800">
-                  Action: {recommendation.action}
-                  {recommendation.timeHorizonDays != null ? ` over the next ${recommendation.timeHorizonDays} day(s)` : ""}
-                  {recommendation.confidence != null ? ` · confidence ${Math.round(recommendation.confidence * 100)}%` : ""}
-                </p>
-                <Link href="/dashboard/shopping" className="inline-flex items-center gap-2 rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800">
-                  Build shopping list
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                <p className="text-lg font-semibold text-gray-900">{decisionCenter.impact.headline}</p>
+                <p className="text-sm text-gray-600">{recommendation.reason}</p>
+                <p className="text-sm font-medium text-gray-800">Action: {recommendation.action}</p>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-gray-500">Upload your next purchase document so Neumas can keep learning and refresh recommendations automatically.</p>
+              <p className="mt-4 text-sm text-gray-500">{decisionCenter.impact.headline}</p>
             )}
           </div>
         </div>
@@ -604,13 +710,15 @@ export default function DashboardPage() {
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
               <p className="font-semibold text-gray-900">Inventory health snapshot</p>
               <p className="mt-1 text-xs text-gray-600">
-                {summary.items_tracked} tracked items, {summary.urgency_breakdown.critical + summary.urgency_breakdown.urgent} high-risk forecast signals.
+                {summary.items_tracked} tracked items, {decisionCenter.ahead.stock_risk_count} active stock-risk signals.
               </p>
             </div>
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
               <p className="font-semibold text-gray-900">Historical baseline confidence</p>
               <p className="mt-1 text-xs text-gray-600">
-                Current confidence at {Math.round(summary.avg_confidence_pct)}%. More weekly scans improve trend stability.
+                {decisionCenter.ahead.forecast_confidence != null
+                  ? `Current confidence at ${Math.round(decisionCenter.ahead.forecast_confidence * 100)}%.`
+                  : "Confidence will appear after enough evaluated evidence exists."}
               </p>
             </div>
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
@@ -621,7 +729,7 @@ export default function DashboardPage() {
                     {prediction.inventory_item?.name ?? "Item"}: {predictionReason(prediction)}
                   </li>
                 ))}
-                {predictions.length === 0 && <li>Run a new forecast to generate recommendation candidates.</li>}
+                {predictions.length === 0 && <li>{decisionCenter.ahead.learning_state ?? "Upload the next evidence cycle to keep learning."}</li>}
               </ul>
             </div>
           </div>

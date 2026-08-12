@@ -14,6 +14,7 @@ from app.db.repositories.inventory import get_inventory_repository
 from app.schemas.inventory import (
     BurnRateRecomputeRequest,
     BurnRateRecomputeResponse,
+    InventoryIntelligenceResponse,
     InventoryItemCreate,
     InventoryItemResponse,
     InventoryItemSummary,
@@ -24,6 +25,7 @@ from app.schemas.inventory import (
     VendorOrderExportResponse,
 )
 from app.services.entitlement_service import EntitlementService
+from app.services.inventory_intelligence_service import InventoryIntelligenceService
 from app.services.inventory_service import InventoryService
 from app.services.restock_service import RestockService
 
@@ -32,6 +34,7 @@ router = APIRouter()
 
 # Service instance
 inventory_service = InventoryService()
+inventory_intelligence_service = InventoryIntelligenceService()
 restock_service = RestockService()
 entitlement_service = EntitlementService()
 
@@ -102,6 +105,22 @@ async def get_item(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve inventory item",
         )
+
+
+@router.get(
+    "/{item_id}/intelligence",
+    response_model=InventoryIntelligenceResponse,
+    summary="Get inventory item intelligence",
+    description="Explain an inventory row using ledger, prediction, and shopping evidence.",
+)
+async def get_item_intelligence(
+    item_id: UUID,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> InventoryIntelligenceResponse:
+    item = await inventory_intelligence_service.get_item_intelligence(item_id, tenant)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found")
+    return item
 
 
 @router.post(

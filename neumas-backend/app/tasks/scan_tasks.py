@@ -13,7 +13,6 @@ import asyncio
 import time
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
 
 from app.core.celery_app import celery_app, neumas_task
 from app.core.constants import SCAN_SUCCESS_STATUSES

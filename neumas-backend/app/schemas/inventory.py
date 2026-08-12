@@ -317,6 +317,31 @@ class InventorySearchRequest(BaseModel):
     max_quantity: Decimal | None = None
 
 
+class InventoryTimelineEvent(BaseModel):
+    event_type: str
+    title: str
+    detail: str
+    created_at: datetime
+    reference_id: str | None = None
+    reference_type: str | None = None
+
+
+class InventoryIntelligenceResponse(BaseModel):
+    item: InventoryItemResponse
+    last_observed_at: datetime | None = None
+    last_purchased_at: datetime | None = None
+    latest_price: Decimal | None = None
+    supplier_name: str | None = None
+    recent_usage_rate: Decimal | None = None
+    predicted_depletion_at: datetime | None = None
+    forecast_confidence: Decimal | None = None
+    low_stock_status: str | None = None
+    expiry_status: str | None = None
+    reorder_state: str | None = None
+    learning_notes: list[str] = Field(default_factory=list)
+    timeline: list[InventoryTimelineEvent] = Field(default_factory=list)
+
+
 # Forward references
 InventoryItemResponse.model_rebuild()
 CategoryTree.model_rebuild()

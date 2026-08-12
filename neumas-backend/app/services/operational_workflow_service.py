@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Post-scan operational workflow coordinator.
 
@@ -7,6 +5,8 @@ This service intentionally coordinates existing domain services without
 re-implementing their business logic. It begins only after inventory-affecting
 scan evidence has already been posted safely.
 """
+
+from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
@@ -166,7 +166,10 @@ class OperationalWorkflowService:
             ),
         )
         alerts_result = await _run_stage("alerts", self._alerts.evaluate_inventory(tenant))
-        briefing_result = await _run_stage("executive_insights", self._briefing.get_briefing(tenant, days=7))
+        briefing_result = await _run_stage(
+            "executive_insights",
+            self._briefing.get_briefing(tenant, days=7, force_refresh=True),
+        )
 
         next_action = self._derive_next_best_action(
             processed=processed,

@@ -35,10 +35,11 @@ import {
   adjustQuantity,
   deleteInventoryItem,
   getDigestPreferences,
+  getInventoryItemIntelligence,
   listInventoryItems,
   listPredictions,
 } from "@/lib/api/endpoints";
-import type { InventoryItem, Prediction } from "@/lib/api/types";
+import type { InventoryIntelligenceResponse, InventoryItem, Prediction } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/currency";
 import { confidenceToPercent, getFeatures } from "@/lib/prediction-display";
@@ -112,11 +113,13 @@ function ConfidenceCell({ itemId, predByItem }: { itemId: string; predByItem: Ma
 function InventoryMobileCard({
   item,
   predByItem,
+  onDetail,
   onDelete,
   onEdit,
 }: {
   item: InventoryItem;
   predByItem: Map<string, Prediction>;
+  onDetail: () => void;
   onDelete: () => void;
   onEdit: () => void;
 }) {
@@ -201,6 +204,14 @@ function InventoryMobileCard({
             <div className="flex shrink-0 flex-col gap-2">
               <button
                 type="button"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[var(--border)] text-xs font-semibold text-[#0071a3]"
+                onClick={onDetail}
+                aria-label="Why this item"
+              >
+                Why
+              </button>
+              <button
+                type="button"
                 className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)]"
                 onClick={onEdit}
                 aria-label="Edit quantity"
@@ -239,6 +250,9 @@ export default function InventoryPage() {
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [editedQuantity, setEditedQuantity] = useState("");
   const [savingQuantity, setSavingQuantity] = useState(false);
+  const [detailItem, setDetailItem] = useState<InventoryItem | null>(null);
+  const [detailData, setDetailData] = useState<InventoryIntelligenceResponse | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [mobileVisibleCount, setMobileVisibleCount] = useState(MOBILE_BATCH_SIZE);
@@ -372,6 +386,21 @@ export default function InventoryPage() {
   function openQuantityEditor(item: InventoryItem) {
     setEditItem(item);
     setEditedQuantity(String(item.quantity));
+  }
+
+  async function openDetail(item: InventoryItem) {
+    setDetailItem(item);
+    setDetailLoading(true);
+    try {
+      const data = await getInventoryItemIntelligence(item.id);
+      setDetailData(data);
+    } catch (err) {
+      captureUIError("inventory_intelligence", err);
+      toast.error("Could not load item details.");
+      setDetailData(null);
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   async function confirmQuantityUpdate() {
@@ -524,14 +553,15 @@ export default function InventoryPage() {
                       <th className="px-4 py-3 font-medium font-mono">Qty</th>
                       <th className="px-4 py-3 font-medium font-mono">Expiry</th>
                       <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Intelligence</th>
                       <th className="px-4 py-3 font-medium">AI confidence</th>
-                      <th className="px-4 py-3 font-medium w-24">Actions</th>
+                      <th className="px-4 py-3 font-medium w-28">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {desktopSlice.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-16 text-center text-[var(--text-secondary)]">
+                        <td colSpan={8} className="px-4 py-16 text-center text-[var(--text-secondary)]">
                           <div className="space-y-2">
                             <p className="font-medium text-[var(--text-primary)]">Inventory is empty</p>
                             <p className="text-sm text-[var(--text-secondary)]">Add your first receipt scan to populate stock automatically.</p>
@@ -578,10 +608,31 @@ export default function InventoryPage() {
                               </span>
                             </td>
                             <td className="px-4 py-3">
+                              <div className="space-y-1 text-xs text-[var(--text-secondary)]">
+                                <p>
+                                  {item.average_daily_usage
+                                    ? `Usage ${item.average_daily_usage}/${item.unit}/day`
+                                    : "Usage learning"}
+                                </p>
+                                <p>
+                                  {predByItem.get(item.id)?.predicted_depletion_date
+                                    ? `Depletion ${new Date(predByItem.get(item.id)!.predicted_depletion_date as string).toLocaleDateString("en-SG", { timeZone: "Asia/Singapore" })}`
+                                    : "Forecast needs more history"}
+                                </p>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
                               <ConfidenceCell itemId={item.id} predByItem={predByItem} />
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#0071a3] hover:bg-[#0071a3]/10"
+                                  onClick={() => void openDetail(item)}
+                                >
+                                  Why
+                                </button>
                                 <button
                                   type="button"
                                   className="rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[#0071a3]/10 hover:text-[#0071a3]"
@@ -656,6 +707,7 @@ export default function InventoryPage() {
                   <InventoryMobileCard
                     item={item}
                     predByItem={predByItem}
+                    onDetail={() => void openDetail(item)}
                     onEdit={() => openQuantityEditor(item)}
                     onDelete={() => setDeleteItem(item)}
                   />
@@ -721,6 +773,103 @@ export default function InventoryPage() {
                   {savingQuantity ? "Saving…" : "Save"}
                 </Button>
               </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={!!detailItem}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDetailItem(null);
+                setDetailData(null);
+              }
+            }}
+          >
+            <DialogContent className="max-w-2xl rounded-2xl border-[var(--border)] bg-[var(--surface)]">
+              <DialogHeader>
+                <DialogTitle>{detailItem?.name ?? "Inventory detail"}</DialogTitle>
+              </DialogHeader>
+              {detailLoading ? (
+                <div className="space-y-3">
+                  <div className="h-16 animate-pulse rounded-xl bg-gray-100" />
+                  <div className="h-24 animate-pulse rounded-xl bg-gray-100" />
+                </div>
+              ) : detailData ? (
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Current quantity</p>
+                      <p className="mt-2 font-semibold text-[var(--text-primary)]">
+                        {detailData.item.quantity} {detailData.item.unit}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Supplier</p>
+                      <p className="mt-2 font-semibold text-[var(--text-primary)]">{detailData.supplier_name ?? "Not mapped"}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Latest price</p>
+                      <p className="mt-2 font-semibold text-[var(--text-primary)]">
+                        {detailData.latest_price != null ? formatCurrency(detailData.latest_price, preferredCurrency) : "Still learning"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Recent usage</p>
+                      <p className="mt-2 font-semibold text-[var(--text-primary)]">
+                        {detailData.recent_usage_rate != null ? `${detailData.recent_usage_rate}/${detailData.item.unit}/day` : "Still learning"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Predicted depletion</p>
+                      <p className="mt-2 font-semibold text-[var(--text-primary)]">
+                        {detailData.predicted_depletion_at
+                          ? new Date(detailData.predicted_depletion_at).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })
+                          : "Needs more history"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-sm">
+                      <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Reorder state</p>
+                      <p className="mt-2 font-semibold capitalize text-[var(--text-primary)]">
+                        {(detailData.reorder_state ?? "not linked").replace(/_/g, " ")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {detailData.learning_notes.length > 0 ? (
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
+                      <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Learning state</p>
+                      <div className="mt-2 space-y-1 text-sm text-[var(--text-secondary)]">
+                        {detailData.learning_notes.map((note) => (
+                          <p key={note}>{note}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-xl border border-[var(--border)] bg-white p-3">
+                    <p className="text-xs uppercase tracking-[0.14em] text-[var(--text-muted)]">Evidence timeline</p>
+                    <div className="mt-3 space-y-3">
+                      {detailData.timeline.length === 0 ? (
+                        <p className="text-sm text-[var(--text-secondary)]">No explainability events are available yet.</p>
+                      ) : (
+                        detailData.timeline.map((event) => (
+                          <div key={`${event.event_type}-${event.created_at}-${event.reference_id ?? "none"}`} className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-semibold text-[var(--text-primary)]">{event.title}</p>
+                              <p className="text-xs text-[var(--text-muted)]">
+                                {new Date(event.created_at).toLocaleString("en-SG", { timeZone: "Asia/Singapore" })}
+                              </p>
+                            </div>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">{event.detail}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-[var(--text-secondary)]">Item intelligence is unavailable right now.</p>
+              )}
             </DialogContent>
           </Dialog>
         </>

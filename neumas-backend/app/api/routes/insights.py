@@ -13,12 +13,15 @@ from app.api.deps import TenantContext, get_tenant_context
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.supabase_client import get_async_supabase_admin
+from app.schemas.decision_center import DecisionCenterResponse
+from app.services.decision_center_service import DecisionCenterService
 from app.services.executive_briefing_service import ExecutiveBriefingService
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 briefing_service = ExecutiveBriefingService()
+decision_center_service = DecisionCenterService()
 
 
 @router.get("/executive-briefing")
@@ -26,6 +29,15 @@ async def executive_briefing(
     tenant: TenantContext = Depends(get_tenant_context),
 ) -> dict[str, Any]:
     return await briefing_service.get_briefing(tenant, days=7)
+
+
+@router.get("/decision-center", response_model=DecisionCenterResponse)
+async def decision_center(
+    workspace_experience: str | None = Query(default=None),
+    tenant: TenantContext = Depends(get_tenant_context),
+) -> DecisionCenterResponse:
+    resolved = workspace_experience or ("HOUSEHOLD" if str(tenant.role).lower() == "resident" else "FNB")
+    return await decision_center_service.build(tenant, workspace_experience=resolved)
 
 
 @router.get("/posts")

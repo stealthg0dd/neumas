@@ -281,6 +281,31 @@ export interface InventoryListResponse {
   low_stock_count: number;
 }
 
+export interface InventoryTimelineEvent {
+  event_type: string;
+  title: string;
+  detail: string;
+  created_at: string;
+  reference_id?: string | null;
+  reference_type?: string | null;
+}
+
+export interface InventoryIntelligenceResponse {
+  item: InventoryItem;
+  last_observed_at?: string | null;
+  last_purchased_at?: string | null;
+  latest_price?: number | null;
+  supplier_name?: string | null;
+  recent_usage_rate?: number | null;
+  predicted_depletion_at?: string | null;
+  forecast_confidence?: number | null;
+  low_stock_status?: string | null;
+  expiry_status?: string | null;
+  reorder_state?: string | null;
+  learning_notes: string[];
+  timeline: InventoryTimelineEvent[];
+}
+
 /** POST /api/inventory/update — upsert by name */
 export interface InventoryUpdateRequest {
   property_id: string;
@@ -402,6 +427,65 @@ export interface ExecutiveBriefingResponse {
   generated_at: string;
   bullets: string[];
   log_count: number;
+}
+
+export interface DecisionActionCard {
+  priority: "P0" | "P1" | "P2";
+  action_type: string;
+  title: string;
+  detail: string;
+  value: string | null;
+  confidence: number | null;
+  cta_label: string;
+  cta_href: string;
+}
+
+export interface DecisionLatestActivity {
+  title: string;
+  detail: string;
+  status: string;
+  scan_id?: string | null;
+  document_count?: number | null;
+  items_updated?: number | null;
+  supplier_name?: string | null;
+  invoice_total?: number | null;
+  canonicalization_status?: string | null;
+  downstream_status?: string | null;
+}
+
+export interface DecisionAheadState {
+  stock_risk_count: number;
+  next_7_day_purchase_need?: number | null;
+  waste_risk_count?: number | null;
+  forecast_confidence?: number | null;
+  learning_state?: string | null;
+}
+
+export interface DecisionImpactState {
+  mode: "baseline" | "measured";
+  headline: string;
+  stockouts_avoided?: number | null;
+  waste_avoided?: number | null;
+  purchasing_variance?: number | null;
+  decisions_automated?: number | null;
+}
+
+export interface DecisionNextBestAction {
+  action_type: string;
+  title: string;
+  detail: string;
+  cta_label: string;
+  cta_href: string;
+}
+
+export interface DecisionCenterResponse {
+  generated_at: string;
+  workspace_experience: string;
+  action_queue: DecisionActionCard[];
+  latest_activity?: DecisionLatestActivity | null;
+  ahead: DecisionAheadState;
+  impact: DecisionImpactState;
+  next_best_action: DecisionNextBestAction;
 }
 
 export interface ForecastEligibilityResponse {

@@ -15,12 +15,21 @@ logger = get_logger(__name__)
 class ExecutiveBriefingService:
     """Summarize recent audit activity into three executive bullets."""
 
+    _SETTINGS_KEY = "executive_briefing_cache"
+
     async def get_briefing(
         self,
         tenant: TenantContext,
         days: int = 7,
+        *,
+        force_refresh: bool = False,
     ) -> dict[str, Any]:
         client = await get_async_supabase_admin()
+        if not force_refresh:
+            cached = await self._read_cached_briefing(client, tenant, days)
+            if cached is not None:
+                return cached
+
         since = (datetime.now(UTC) - timedelta(days=days)).isoformat()
 
         query = (
@@ -37,13 +46,71 @@ class ExecutiveBriefingService:
         response = await query.execute()
         logs = response.data or []
         bullets = await self._llm_summary(logs, days)
-
-        return {
+        payload = {
             "period_days": days,
             "generated_at": datetime.now(UTC).isoformat(),
             "bullets": bullets[:3],
             "log_count": len(logs),
         }
+        await self._write_cached_briefing(client, tenant, payload)
+        return payload
+
+    async def _read_cached_briefing(
+        self,
+        client: Any,
+        tenant: TenantContext,
+        days: int,
+    ) -> dict[str, Any] | None:
+        response = await (
+            client.table("organizations")
+            .select("settings")
+            .eq("id", str(tenant.org_id))
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        settings = rows[0].get("settings") if rows else {}
+        cache = settings.get(self._SETTINGS_KEY) if isinstance(settings, dict) else None
+        if not isinstance(cache, dict):
+            return None
+
+        property_key = str(tenant.property_id or "org")
+        cached = cache.get(property_key)
+        if not isinstance(cached, dict):
+            return None
+
+        generated_at_raw = cached.get("generated_at")
+        if not generated_at_raw:
+            return None
+        try:
+            generated_at = datetime.fromisoformat(str(generated_at_raw).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if generated_at < datetime.now(UTC) - timedelta(hours=6):
+            return None
+        if int(cached.get("period_days") or 0) != days:
+            return None
+        return cached
+
+    async def _write_cached_briefing(
+        self,
+        client: Any,
+        tenant: TenantContext,
+        payload: dict[str, Any],
+    ) -> None:
+        response = await (
+            client.table("organizations")
+            .select("settings")
+            .eq("id", str(tenant.org_id))
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        settings = dict(rows[0].get("settings") or {}) if rows else {}
+        cache = dict(settings.get(self._SETTINGS_KEY) or {})
+        cache[str(tenant.property_id or "org")] = payload
+        settings[self._SETTINGS_KEY] = cache
+        await client.table("organizations").update({"settings": settings}).eq("id", str(tenant.org_id)).execute()
 
     def _fallback_bullets(self, logs: list[dict[str, Any]], days: int) -> list[str]:
         if not logs:

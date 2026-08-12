@@ -82,6 +82,7 @@ function normalizeInventoryListPayload(
 import type {
   BurnRateRecomputeRequest,
   BurnRateRecomputeResponse,
+  DecisionCenterResponse,
   DigestPreferencesResponse,
   DigestPreferencesUpdateRequest,
   LoginRequest,
@@ -93,6 +94,7 @@ import type {
   ProfileResponse,
   InventoryItem,
   InventoryItemCreate,
+  InventoryIntelligenceResponse,
   InventoryItemUpdate,
   InventoryListResponse,
   InventoryUpdateRequest,
@@ -551,6 +553,15 @@ export async function getExecutiveBriefing(): Promise<ExecutiveBriefingResponse>
   return get<ExecutiveBriefingResponse>("/api/insights/executive-briefing");
 }
 
+/** GET /api/insights/decision-center */
+export async function getDecisionCenter(
+  workspaceExperience?: string
+): Promise<DecisionCenterResponse> {
+  return get<DecisionCenterResponse>("/api/insights/decision-center", workspaceExperience
+    ? { workspace_experience: workspaceExperience }
+    : undefined);
+}
+
 /** GET /api/alerts/{alertId} */
 export async function getAlert(alertId: string): Promise<Alert> {
   return get<Alert>(`/api/alerts/${alertId}`);
@@ -564,6 +575,13 @@ export async function snoozeAlert(alertId: string, snoozeUntil: string): Promise
 /** POST /api/alerts/{alertId}/resolve */
 export async function resolveAlert(alertId: string): Promise<Alert> {
   return post<Alert>(`/api/alerts/${alertId}/resolve`, {});
+}
+
+/** GET /api/inventory/{itemId}/intelligence */
+export async function getInventoryItemIntelligence(
+  itemId: string
+): Promise<InventoryIntelligenceResponse> {
+  return get<InventoryIntelligenceResponse>(`/api/inventory/${itemId}/intelligence`);
 }
 
 // ============================================================================
