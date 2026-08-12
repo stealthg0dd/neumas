@@ -18,6 +18,8 @@ import {
 import { useAuthStore, selectHasSession } from "@/lib/store/auth";
 import { get } from "@/lib/api/client";
 import { resolveWorkspaceExperience } from "@/lib/workspace-experience";
+import { isRouteAllowedForWorkspace } from "@/lib/navigation";
+import { usePathname } from "next/navigation";
 
 export default function DashboardLayout({
   children,
@@ -25,6 +27,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname() ?? "/dashboard";
   const hasSession = useAuthStore(selectHasSession);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const profile = useAuthStore((s) => s.profile);
@@ -66,6 +69,11 @@ export default function DashboardLayout({
           router.replace(experience === "HOUSEHOLD" ? "/onboard/home" : "/onboard");
           return;
         }
+        const experience = resolveWorkspaceExperience(profile, onboarding);
+        if (!isRouteAllowedForWorkspace(pathname, experience, profile?.role)) {
+          router.replace("/dashboard");
+          return;
+        }
       } catch {
         /* allow dashboard if scan check fails */
       }
@@ -74,7 +82,7 @@ export default function DashboardLayout({
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, hasSession, profile, router]);
+  }, [hasHydrated, hasSession, pathname, profile, router]);
 
   useEffect(() => {
     if (!hasHydrated || hasSession) return;

@@ -226,6 +226,16 @@ class ActivationChecklistStep(BaseModel):
     completed: bool = False
 
 
+class HouseholdOnboardingProfile(BaseModel):
+    household_name: str | None = None
+    household_size: int | None = None
+    shopping_frequency: str | None = None
+    favorite_stores: list[str] = Field(default_factory=list)
+    waste_reduction_goal: str | None = None
+    monthly_grocery_budget: float | None = None
+    dietary_preferences: list[str] = Field(default_factory=list)
+
+
 class OnboardingStateResponse(BaseModel):
     """Canonical onboarding state for the current organization/workspace."""
 
@@ -237,6 +247,9 @@ class OnboardingStateResponse(BaseModel):
     is_invited_user: bool = False
     has_properties: bool = False
     target_outlet_count: int | None = None
+    household_profile: HouseholdOnboardingProfile = Field(
+        default_factory=HouseholdOnboardingProfile
+    )
     outlets: list[OnboardingOutletResponse] = Field(default_factory=list)
     activation_milestones: ActivationMilestonesResponse = Field(
         default_factory=ActivationMilestonesResponse
@@ -269,6 +282,12 @@ class OnboardingStateUpdate(BaseModel):
     country: str | None = Field(default=None, max_length=64)
     currency: str | None = Field(default=None, max_length=16)
     outlet_count: int | None = Field(default=None, ge=1, le=500)
+    household_size: int | None = Field(default=None, ge=1, le=50)
+    shopping_frequency: str | None = Field(default=None, max_length=64)
+    favorite_stores: list[str] = Field(default_factory=list, max_length=10)
+    waste_reduction_goal: str | None = Field(default=None, max_length=255)
+    monthly_grocery_budget: float | None = Field(default=None, ge=0)
+    dietary_preferences: list[str] = Field(default_factory=list, max_length=12)
     data_start_choice: str | None = Field(default=None, max_length=64)
     idempotency_key: str | None = Field(default=None, max_length=128)
     outlets: list[OnboardingOutletInput] = Field(default_factory=list)

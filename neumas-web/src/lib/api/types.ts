@@ -75,6 +75,16 @@ export interface ActivationChecklistStep {
   completed: boolean;
 }
 
+export interface HouseholdOnboardingProfile {
+  household_name?: string | null;
+  household_size?: number | null;
+  shopping_frequency?: string | null;
+  favorite_stores: string[];
+  waste_reduction_goal?: string | null;
+  monthly_grocery_budget?: number | null;
+  dietary_preferences: string[];
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -133,6 +143,7 @@ export interface OnboardingStateResponse {
   is_invited_user?: boolean;
   has_properties?: boolean;
   target_outlet_count?: number | null;
+  household_profile?: HouseholdOnboardingProfile;
   outlets?: OnboardingOutletResponse[];
   activation_milestones?: ActivationMilestonesResponse;
   activation_checklist?: ActivationChecklistStep[];
@@ -161,6 +172,12 @@ export interface OnboardingStateUpdateRequest {
   country?: string | null;
   currency?: string | null;
   outlet_count?: number | null;
+  household_size?: number | null;
+  shopping_frequency?: string | null;
+  favorite_stores?: string[];
+  waste_reduction_goal?: string | null;
+  monthly_grocery_budget?: number | null;
+  dietary_preferences?: string[];
   data_start_choice?: string | null;
   idempotency_key?: string | null;
   outlets?: OnboardingOutletInput[];

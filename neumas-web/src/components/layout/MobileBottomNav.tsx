@@ -2,47 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Camera, Home, Package, ShoppingCart, TrendingUp } from "lucide-react";
 
+import { useAuthStore } from "@/lib/store/auth";
+import { getNavigationForWorkspace } from "@/lib/navigation";
+import { resolveWorkspaceExperience } from "@/lib/workspace-experience";
 import { cn } from "@/lib/utils";
-
-const NAV_ITEMS = [
-  {
-    label: "Home",
-    icon: Home,
-    href: "/dashboard",
-    isActive: (pathname: string) => pathname === "/dashboard" || pathname === "/dashboard/",
-  },
-  {
-    label: "Inventory",
-    icon: Package,
-    href: "/dashboard/inventory",
-    isActive: (pathname: string) => pathname.startsWith("/dashboard/inventory"),
-  },
-  {
-    label: "Scans",
-    icon: Camera,
-    href: "/dashboard/scans",
-    isActive: (pathname: string) => pathname.startsWith("/dashboard/scans"),
-  },
-  {
-    label: "Forecast",
-    icon: TrendingUp,
-    href: "/dashboard/predictions",
-    isActive: (pathname: string) => pathname.startsWith("/dashboard/predictions"),
-  },
-  {
-    label: "Shopping",
-    icon: ShoppingCart,
-    href: "/dashboard/shopping",
-    isActive: (pathname: string) =>
-      pathname.startsWith("/dashboard/shopping") ||
-      pathname.startsWith("/dashboard/alerts"),
-  },
-];
 
 export function MobileBottomNav() {
   const pathname = usePathname() ?? "";
+  const profile = useAuthStore((s) => s.profile);
+  const navigation = getNavigationForWorkspace(
+    resolveWorkspaceExperience(profile),
+    profile?.role
+  );
+  const items = navigation.primary.slice(0, 5);
 
   return (
     <nav
@@ -51,8 +24,8 @@ export function MobileBottomNav() {
       aria-label="Mobile navigation"
     >
       <div className="grid grid-cols-5 gap-1 px-2 pt-2">
-        {NAV_ITEMS.map((item) => {
-          const active = item.isActive(pathname);
+        {items.map((item) => {
+          const active = item.match ? item.match(pathname) : pathname === item.href;
           return (
             <Link
               key={item.href}

@@ -22,6 +22,7 @@ from app.schemas.auth import (
     ActivationChecklistStep,
     ActivationMilestonesResponse,
     CurrentUserContext,
+    HouseholdOnboardingProfile,
     LoginResponse,
     OnboardingOutletInput,
     OnboardingOutletResponse,
@@ -312,14 +313,23 @@ class AuthService:
             if condition and key not in persisted:
                 persisted[key] = now
 
-        business_setup_completed = bool(
-            (org.get("name") or "").strip()
-            and _normalize_org_type(org.get("org_type")) == "FNB"
-            and _normalize_business_type(org.get("business_type"))
-            and (org.get("country") or "").strip()
-            and (org.get("currency") or "").strip()
-            and int((settings.get("target_outlet_count") or 0) or 0) > 0
-        )
+        normalized_org_type = _normalize_org_type(org.get("org_type"))
+        if normalized_org_type == "HOUSEHOLD":
+            business_setup_completed = bool(
+                (org.get("name") or "").strip()
+                and (org.get("country") or "").strip()
+                and (org.get("currency") or "").strip()
+                and int((settings.get("household_size") or 0) or 0) > 0
+            )
+        else:
+            business_setup_completed = bool(
+                (org.get("name") or "").strip()
+                and normalized_org_type == "FNB"
+                and _normalize_business_type(org.get("business_type"))
+                and (org.get("country") or "").strip()
+                and (org.get("currency") or "").strip()
+                and int((settings.get("target_outlet_count") or 0) or 0) > 0
+            )
         _mark("business_setup_completed", business_setup_completed)
         _mark("first_property_created", counts["properties"] > 0)
         _mark("first_document_uploaded", counts["scans"] > 0)
@@ -346,7 +356,46 @@ class AuthService:
         milestones: ActivationMilestonesResponse,
         *,
         vendor_count: int,
+        org_type: str | None = None,
     ) -> list[ActivationChecklistStep]:
+        if _normalize_org_type(org_type) == "HOUSEHOLD":
+            return [
+                ActivationChecklistStep(
+                    id="scan_first_receipt",
+                    label="Scan first grocery receipt",
+                    description="Use the existing receipt pipeline to seed pantry state.",
+                    href="/dashboard/scans/new",
+                    completed=milestones.first_document_uploaded,
+                ),
+                ActivationChecklistStep(
+                    id="review_detected_items",
+                    label="Review detected items",
+                    description="Approve the first receipt so pantry items post to the ledger.",
+                    href="/dashboard/documents",
+                    completed=milestones.first_document_approved,
+                ),
+                ActivationChecklistStep(
+                    id="check_running_low",
+                    label="Check running low items",
+                    description="See what needs topping up before the next shop.",
+                    href="/dashboard/shopping",
+                    completed=milestones.first_reorder_reviewed,
+                ),
+                ActivationChecklistStep(
+                    id="review_use_soon",
+                    label="Review use soon items",
+                    description="Use alerts and expiry risk to reduce waste.",
+                    href="/dashboard/alerts",
+                    completed=milestones.first_document_approved,
+                ),
+                ActivationChecklistStep(
+                    id="review_spending",
+                    label="Review spending snapshot",
+                    description="Track grocery spend once receipts establish a baseline.",
+                    href="/dashboard/analytics",
+                    completed=milestones.first_document_uploaded,
+                ),
+            ]
         return [
             ActivationChecklistStep(
                 id="upload_first_invoice",
@@ -391,6 +440,32 @@ class AuthService:
                 completed=False,
             ),
         ]
+
+    @staticmethod
+    def _build_household_profile(settings: dict[str, Any], org_name: str | None) -> HouseholdOnboardingProfile:
+        favorite_stores = settings.get("favorite_stores")
+        dietary_preferences = settings.get("dietary_preferences")
+        return HouseholdOnboardingProfile(
+            household_name=(org_name or "").strip() or None,
+            household_size=int((settings.get("household_size") or 0) or 0) or None,
+            shopping_frequency=(settings.get("shopping_frequency") or None),
+            favorite_stores=[
+                str(store).strip()
+                for store in (favorite_stores if isinstance(favorite_stores, list) else [])
+                if str(store).strip()
+            ],
+            waste_reduction_goal=(settings.get("waste_reduction_goal") or None),
+            monthly_grocery_budget=(
+                float(settings["monthly_grocery_budget"])
+                if settings.get("monthly_grocery_budget") not in (None, "")
+                else None
+            ),
+            dietary_preferences=[
+                str(pref).strip()
+                for pref in (dietary_preferences if isinstance(dietary_preferences, list) else [])
+                if str(pref).strip()
+            ],
+        )
 
     async def validate_token(self, token: str) -> dict[str, Any]:
         """
@@ -1294,6 +1369,7 @@ class AuthService:
         checklist = self._build_activation_checklist(
             milestones,
             vendor_count=counts["vendors"],
+            org_type=normalized_org_type,
         )
 
         return OnboardingStateResponse(
@@ -1305,6 +1381,7 @@ class AuthService:
             is_invited_user=_is_invited_user(user.role),
             has_properties=has_properties,
             target_outlet_count=int((settings.get("target_outlet_count") or 0) or 0) or None,
+            household_profile=self._build_household_profile(settings, org.get("name")),
             outlets=outlets,
             activation_milestones=milestones,
             activation_checklist=checklist,
@@ -1342,6 +1419,12 @@ class AuthService:
                 country=update.country,
                 currency=update.currency,
                 outlet_count=update.outlet_count,
+                household_size=update.household_size,
+                shopping_frequency=update.shopping_frequency,
+                favorite_stores=update.favorite_stores,
+                waste_reduction_goal=update.waste_reduction_goal,
+                monthly_grocery_budget=update.monthly_grocery_budget,
+                dietary_preferences=update.dietary_preferences,
                 data_start_choice=update.data_start_choice,
                 idempotency_key=update.idempotency_key,
                 outlets=update.outlets,
@@ -1359,6 +1442,12 @@ class AuthService:
                 country=update.country,
                 currency=update.currency,
                 outlet_count=update.outlet_count,
+                household_size=update.household_size,
+                shopping_frequency=update.shopping_frequency,
+                favorite_stores=update.favorite_stores,
+                waste_reduction_goal=update.waste_reduction_goal,
+                monthly_grocery_budget=update.monthly_grocery_budget,
+                dietary_preferences=update.dietary_preferences,
                 data_start_choice=update.data_start_choice,
                 idempotency_key=update.idempotency_key,
                 outlets=update.outlets,
@@ -1375,6 +1464,12 @@ class AuthService:
             country=update.country,
             currency=update.currency,
             outlet_count=update.outlet_count,
+            household_size=update.household_size,
+            shopping_frequency=update.shopping_frequency,
+            favorite_stores=update.favorite_stores,
+            waste_reduction_goal=update.waste_reduction_goal,
+            monthly_grocery_budget=update.monthly_grocery_budget,
+            dietary_preferences=update.dietary_preferences,
             data_start_choice=update.data_start_choice,
             idempotency_key=update.idempotency_key,
             outlets=update.outlets,
@@ -1394,6 +1489,12 @@ class AuthService:
         country: str | None = None,
         currency: str | None = None,
         outlet_count: int | None = None,
+        household_size: int | None = None,
+        shopping_frequency: str | None = None,
+        favorite_stores: list[str] | None = None,
+        waste_reduction_goal: str | None = None,
+        monthly_grocery_budget: float | None = None,
+        dietary_preferences: list[str] | None = None,
         data_start_choice: str | None = None,
         idempotency_key: str | None = None,
         outlets: list[OnboardingOutletInput] | None = None,
@@ -1427,6 +1528,12 @@ class AuthService:
         await self._update_activation_settings(
             user.organization_id,
             outlet_count=outlet_count,
+            household_size=household_size,
+            shopping_frequency=shopping_frequency,
+            favorite_stores=favorite_stores,
+            waste_reduction_goal=waste_reduction_goal,
+            monthly_grocery_budget=monthly_grocery_budget,
+            dietary_preferences=dietary_preferences,
             data_start_choice=data_start_choice,
         )
         await self._sync_onboarding_outlets(
@@ -1453,6 +1560,12 @@ class AuthService:
         country: str | None = None,
         currency: str | None = None,
         outlet_count: int | None = None,
+        household_size: int | None = None,
+        shopping_frequency: str | None = None,
+        favorite_stores: list[str] | None = None,
+        waste_reduction_goal: str | None = None,
+        monthly_grocery_budget: float | None = None,
+        dietary_preferences: list[str] | None = None,
         data_start_choice: str | None = None,
         idempotency_key: str | None = None,
         outlets: list[OnboardingOutletInput] | None = None,
@@ -1489,6 +1602,12 @@ class AuthService:
         await self._update_activation_settings(
             user.organization_id,
             outlet_count=outlet_count,
+            household_size=household_size,
+            shopping_frequency=shopping_frequency,
+            favorite_stores=favorite_stores,
+            waste_reduction_goal=waste_reduction_goal,
+            monthly_grocery_budget=monthly_grocery_budget,
+            dietary_preferences=dietary_preferences,
             data_start_choice=data_start_choice,
         )
         await self._sync_onboarding_outlets(
@@ -1515,6 +1634,12 @@ class AuthService:
         country: str | None = None,
         currency: str | None = None,
         outlet_count: int | None = None,
+        household_size: int | None = None,
+        shopping_frequency: str | None = None,
+        favorite_stores: list[str] | None = None,
+        waste_reduction_goal: str | None = None,
+        monthly_grocery_budget: float | None = None,
+        dietary_preferences: list[str] | None = None,
         data_start_choice: str | None = None,
         idempotency_key: str | None = None,
         outlets: list[OnboardingOutletInput] | None = None,
@@ -1551,6 +1676,12 @@ class AuthService:
         await self._update_activation_settings(
             user.organization_id,
             outlet_count=outlet_count,
+            household_size=household_size,
+            shopping_frequency=shopping_frequency,
+            favorite_stores=favorite_stores,
+            waste_reduction_goal=waste_reduction_goal,
+            monthly_grocery_budget=monthly_grocery_budget,
+            dietary_preferences=dietary_preferences,
             data_start_choice=data_start_choice,
         )
         await self._sync_onboarding_outlets(
@@ -1571,14 +1702,45 @@ class AuthService:
         organization_id: UUID,
         *,
         outlet_count: int | None = None,
+        household_size: int | None = None,
+        shopping_frequency: str | None = None,
+        favorite_stores: list[str] | None = None,
+        waste_reduction_goal: str | None = None,
+        monthly_grocery_budget: float | None = None,
+        dietary_preferences: list[str] | None = None,
         data_start_choice: str | None = None,
     ) -> None:
-        if outlet_count is None and data_start_choice is None:
+        if (
+            outlet_count is None
+            and household_size is None
+            and shopping_frequency is None
+            and favorite_stores is None
+            and waste_reduction_goal is None
+            and monthly_grocery_budget is None
+            and dietary_preferences is None
+            and data_start_choice is None
+        ):
             return
 
         def mutate(current: dict[str, Any]) -> dict[str, Any]:
             if outlet_count is not None:
                 current["target_outlet_count"] = outlet_count
+            if household_size is not None:
+                current["household_size"] = household_size
+            if shopping_frequency is not None:
+                current["shopping_frequency"] = shopping_frequency
+            if favorite_stores is not None:
+                current["favorite_stores"] = [
+                    str(store).strip() for store in favorite_stores if str(store).strip()
+                ]
+            if waste_reduction_goal is not None:
+                current["waste_reduction_goal"] = waste_reduction_goal
+            if monthly_grocery_budget is not None:
+                current["monthly_grocery_budget"] = monthly_grocery_budget
+            if dietary_preferences is not None:
+                current["dietary_preferences"] = [
+                    str(pref).strip() for pref in dietary_preferences if str(pref).strip()
+                ]
             if data_start_choice is not None:
                 current["data_start_choice"] = data_start_choice
             return current

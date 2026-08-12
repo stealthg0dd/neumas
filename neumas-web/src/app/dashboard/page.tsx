@@ -29,6 +29,7 @@ import {
   getDocumentReviewQueue,
   getOrgPropertyStockHealth,
   getRestockPreview,
+  listInventoryItems,
   listAlerts,
   listPredictions,
   listScans,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/api/endpoints";
 import type {
   AnalyticsSummary,
+  InventoryItem,
   OnboardingStateResponse,
   OrgPropertyStockHealthResponse,
   Prediction,
@@ -45,9 +47,12 @@ import type {
 import { useAuthStore } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/currency";
+import { daysUntilExpiry, expiryTone, getExpiryIso, pantryCategoryTab } from "@/lib/inventory-dates";
 import { predictionReason, topOperationalRecommendation } from "@/lib/operations";
 import { ExecutiveBriefing } from "@/components/dashboard/insights/ExecutiveBriefing";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { resolveWorkspaceExperience } from "@/lib/workspace-experience";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const EMPTY_SUMMARY: AnalyticsSummary = {
   spend_total: 0,
@@ -78,11 +83,13 @@ function newestScanLabel(scans: Scan[]): string {
 export default function DashboardPage() {
   const profile = useAuthStore((s) => s.profile);
   const isAdmin = profile?.role === "admin" || profile?.role === "super_admin";
+  const workspaceExperience = resolveWorkspaceExperience(profile);
 
   const [summary, setSummary] = useState<AnalyticsSummary>(EMPTY_SUMMARY);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [scans, setScans] = useState<Scan[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [reviewQueue, setReviewQueue] = useState<Document[]>([]);
   const [inventoryTrend, setInventoryTrend] = useState<TrendPoint[]>([]);
   const [orgHealth, setOrgHealth] = useState<OrgPropertyStockHealthResponse | null>(null);
@@ -98,6 +105,7 @@ export default function DashboardPage() {
         alertsRes,
         predictionsRes,
         scansRes,
+        inventoryRes,
         reviewRes,
         restockRes,
         orgHealthRes,
@@ -107,6 +115,7 @@ export default function DashboardPage() {
         listAlerts({ state: "open", page_size: 20 }).catch(() => ({ alerts: [], open_count: 0, page: 1, page_size: 20 })),
         listPredictions({ limit: 8 }).catch(() => []),
         listScans({ limit: 20 }).catch(() => []),
+        listInventoryItems({ limit: 200 }).catch(() => ({ items: [], total: 0, page: 1, page_size: 0, low_stock_count: 0 })),
         getDocumentReviewQueue().catch(() => []),
         getRestockPreview({ runout_threshold_days: 7 }).catch(() => ({ vendors: [], runout_threshold_days: 7, generated_at: new Date().toISOString() })),
         isAdmin ? getOrgPropertyStockHealth().catch(() => null) : Promise.resolve(null),
@@ -117,6 +126,7 @@ export default function DashboardPage() {
       setAlerts(alertsRes.alerts);
       setPredictions(predictionsRes);
       setScans(scansRes);
+      setInventoryItems(inventoryRes.items ?? []);
       setReviewQueue(reviewRes);
       setOrgHealth(orgHealthRes);
       setOnboarding(onboardingRes);
@@ -175,6 +185,221 @@ export default function DashboardPage() {
         ? "Review scanned documents"
         : "Run a fresh forecast";
   const recommendation = topOperationalRecommendation(predictions, alerts);
+  const lowPantryItems = useMemo(
+    () => inventoryItems.filter((item) => item.stock_status === "low_stock" || item.stock_status === "out_of_stock"),
+    [inventoryItems]
+  );
+  const useSoonItems = useMemo(
+    () =>
+      inventoryItems.filter((item) => {
+        const tone = expiryTone(daysUntilExpiry(getExpiryIso(item)));
+        return tone === "urgent" || tone === "expired";
+      }),
+    [inventoryItems]
+  );
+  const categoryCount = useMemo(
+    () => new Set(inventoryItems.map((item) => pantryCategoryTab(item.category?.name)).filter(Boolean)).size,
+    [inventoryItems]
+  );
+  const savingsThisMonth = useMemo(() => {
+    if (summary.spend_history.length < 2) return null;
+    const latest = Number(summary.spend_history.at(-1)?.amount ?? 0);
+    const previous = Number(summary.spend_history.at(-2)?.amount ?? 0);
+    if (previous <= 0 || latest >= previous) return null;
+    return Number((previous - latest).toFixed(2));
+  }, [summary.spend_history]);
+
+  if (workspaceExperience === "HOUSEHOLD") {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Household snapshot</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-gray-900">Household Home</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Track pantry state, what is running low, what to use soon, and what to buy next.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Refresh view
+          </button>
+        </div>
+
+        {onboarding?.activation_checklist && onboarding.activation_checklist.length > 0 && (
+          <OnboardingChecklist steps={onboarding.activation_checklist} />
+        )}
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Pantry Items</p>
+            <p className="mt-3 text-3xl font-bold text-gray-900">{inventoryItems.length}</p>
+            <p className="mt-1 text-xs text-gray-500">
+              {inventoryItems.length ? "Built from shared receipts, review, and inventory posting." : "Scan a receipt to build your first pantry baseline."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Running Low</p>
+            <p className="mt-3 text-3xl font-bold text-gray-900">{lowPantryItems.length}</p>
+            <p className="mt-1 text-xs text-gray-500">
+              {lowPantryItems.length ? "Items eligible for your next smart list." : "No running-low signals yet."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Use Soon</p>
+            <p className="mt-3 text-3xl font-bold text-gray-900">{useSoonItems.length}</p>
+            <p className="mt-1 text-xs text-gray-500">
+              {useSoonItems.length ? "Expiry-aware prompts from pantry metadata." : "No use-soon items until expiry evidence exists."}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Savings This Month</p>
+            <p className="mt-3 text-2xl font-bold text-gray-900">
+              {savingsThisMonth !== null ? formatMoney(savingsThisMonth) : "Start scanning"}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {savingsThisMonth !== null ? "Estimated from recent spend trend." : "Start scanning receipts to establish your savings baseline."}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Next Shop</h2>
+                <p className="text-xs text-gray-500">Shared shopping engine, household framing.</p>
+              </div>
+              <Link href="/dashboard/shopping" className="text-xs font-semibold text-sky-700 hover:underline">
+                Open smart list
+              </Link>
+            </div>
+            {lowPantryItems.length === 0 ? (
+              <div className="mt-4">
+                <EmptyState
+                  icon={Upload}
+                  badge="Get started"
+                  headline="No refill list yet"
+                  body="Scan a grocery receipt or add pantry items manually to build your first smart list."
+                  cta={{ label: "Scan receipt", href: "/dashboard/scans/new" }}
+                  secondaryCta={{ label: "Open pantry", href: "/dashboard/inventory" }}
+                />
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {lowPantryItems.slice(0, 5).map((item) => (
+                  <div key={item.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {item.category?.name ?? "Pantry"} · {item.quantity} {item.unit}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                        {item.stock_status === "out_of_stock" ? "Out" : "Low"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <h2 className="text-sm font-semibold text-gray-900">Use Soon</h2>
+              <p className="mt-1 text-xs text-gray-500">Surface items that should be used before they go to waste.</p>
+              <div className="mt-4 space-y-3">
+                {useSoonItems.length === 0 ? (
+                  <p className="text-sm text-gray-500">Expiry prompts will appear here after receipts capture suitable metadata.</p>
+                ) : (
+                  useSoonItems.slice(0, 4).map((item) => (
+                    <div key={item.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                      <p className="text-xs text-gray-500">{item.category?.name ?? "Pantry item"}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <h2 className="text-sm font-semibold text-gray-900">Pantry Health</h2>
+              <p className="mt-1 text-xs text-gray-500">Useful signals instead of empty zeroes.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Categories</p>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">{categoryCount || "—"}</p>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Recent receipts</p>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">{scans.length}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Recent Receipts</h2>
+                <p className="text-xs text-gray-500">Existing receipt pipeline, household shell.</p>
+              </div>
+              <Link href="/dashboard/scans" className="text-xs font-semibold text-sky-700 hover:underline">
+                View history
+              </Link>
+            </div>
+            <div className="mt-4 space-y-3">
+              {scans.length === 0 ? (
+                <p className="text-sm text-gray-500">No receipts yet. Scan your first grocery receipt to get started.</p>
+              ) : (
+                scans.slice(0, 4).map((scan) => (
+                  <div key={scan.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-gray-900">Receipt upload</p>
+                    <p className="text-xs text-gray-500">
+                      {scan.status.replace(/_/g, " ")} · {scan.created_at ? new Date(scan.created_at).toLocaleString() : "Recently uploaded"}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Spending Snapshot</h2>
+                <p className="text-xs text-gray-500">No fabricated savings or spend lines.</p>
+              </div>
+              <Link href="/dashboard/analytics" className="text-xs font-semibold text-sky-700 hover:underline">
+                Open spending
+              </Link>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Tracked spend</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">
+                  {summary.spend_total > 0 ? formatMoney(summary.spend_total) : "Waiting for data"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Receipt confidence</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">
+                  {summary.avg_confidence_pct > 0 ? `${Math.round(summary.avg_confidence_pct)}%` : "Build baseline"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

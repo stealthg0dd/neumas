@@ -3,34 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  Package,
-  Camera,
-  TrendingUp,
-  ShoppingCart,
-  BarChart3,
-  Bell,
-  Settings,
   LogOut,
-  Shield,
 } from "lucide-react";
 
 import { useAuthStore } from "@/lib/store/auth";
 import { logout } from "@/lib/api/endpoints";
 import { cn } from "@/lib/utils";
-
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/inventory", label: "Inventory", icon: Package },
-  { href: "/dashboard/scans", label: "Scans", icon: Camera },
-  { href: "/dashboard/predictions", label: "Predictions", icon: TrendingUp },
-  { href: "/dashboard/shopping", label: "Shopping", icon: ShoppingCart },
-  { href: "/dashboard/analytics", label: "Insights", icon: BarChart3 },
-  { href: "/dashboard/alerts", label: "Alerts", icon: Bell },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
-
-const ADMIN_NAV_ITEMS = [{ href: "/dashboard/admin", label: "Admin", icon: Shield }];
+import { getNavigationForWorkspace } from "@/lib/navigation";
+import { resolveWorkspaceExperience } from "@/lib/workspace-experience";
 
 interface SidebarProps {
   className?: string;
@@ -42,8 +22,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
   const clearAuth = useAuthStore((s) => s.clearAuth);
-  const isAdmin = profile?.role === "admin";
   const displayName = profile?.full_name || profile?.email?.split("@")[0] || "User";
+  const workspaceExperience = resolveWorkspaceExperience(profile);
+  const navigation = getNavigationForWorkspace(workspaceExperience, profile?.role);
+  const subtitle = workspaceExperience === "HOUSEHOLD"
+    ? "Pantry and grocery intelligence"
+    : "Shift-ready control center";
 
   async function handleLogout() {
     try {
@@ -66,14 +50,14 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
       <div className="flex h-16 shrink-0 items-center border-b border-gray-100 px-5">
         <div>
           <span className="block text-lg font-semibold text-gray-900">Neumas</span>
-          <span className="block text-xs text-gray-400">Shift-ready control center</span>
+          <span className="block text-xs text-gray-400">{subtitle}</span>
         </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <div className="space-y-1">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+          {navigation.primary.map(({ href, label, icon: Icon, match }) => {
+            const active = match ? match(pathname) : pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
             return (
               <Link
                 key={href}
@@ -93,14 +77,14 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           })}
         </div>
 
-        {isAdmin && (
+        {navigation.admin.length > 0 && (
           <div className="mt-5 border-t border-gray-100 pt-4">
             <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-              Admin
+              {workspaceExperience === "HOUSEHOLD" ? "Workspace" : "Admin"}
             </p>
             <div className="space-y-1">
-              {ADMIN_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href || pathname.startsWith(`${href}/`);
+              {navigation.admin.map(({ href, label, icon: Icon, match }) => {
+                const active = match ? match(pathname) : pathname === href || pathname.startsWith(`${href}/`);
                 return (
                   <Link
                     key={href}
