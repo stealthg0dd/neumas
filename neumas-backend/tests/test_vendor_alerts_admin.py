@@ -511,9 +511,10 @@ class TestEvaluationTasks:
         pred_resp = MagicMock(data=[{
             "id": pred_id,
             "predicted_value": 10.0,
+            "prediction_type": "stockout",
             "actual_value": None,
         }])
-        mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.is_.return_value.gte.return_value.lte.return_value.order.return_value.limit.return_value.execute = AsyncMock(
+        mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.in_.return_value.is_.return_value.gte.return_value.lte.return_value.order.return_value.limit.return_value.execute = AsyncMock(
             return_value=pred_resp
         )
 
@@ -544,7 +545,7 @@ class TestEvaluationTasks:
 
         mock_client = MagicMock()
         empty_resp = MagicMock(data=[])
-        mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.is_.return_value.gte.return_value.lte.return_value.order.return_value.limit.return_value.execute = AsyncMock(
+        mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.in_.return_value.is_.return_value.gte.return_value.lte.return_value.order.return_value.limit.return_value.execute = AsyncMock(
             return_value=empty_resp
         )
 

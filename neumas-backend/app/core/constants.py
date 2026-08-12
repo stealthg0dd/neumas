@@ -5,6 +5,8 @@ Keep model pricing up to date when providers change their rates.
 All USD prices are per 1000 tokens.
 """
 
+from enum import StrEnum
+
 # ---------------------------------------------------------------------------
 # Extraction / confidence
 # ---------------------------------------------------------------------------
@@ -48,6 +50,23 @@ NO_RECENT_SCAN_DAYS = 7
 # Reorder engine defaults
 REORDER_HORIZON_DAYS = 14        # Planning horizon in days
 REORDER_SAFETY_BUFFER = 0.20     # 20% safety stock buffer
+
+
+# ---------------------------------------------------------------------------
+# Predictions
+# ---------------------------------------------------------------------------
+
+
+class PredictionType(StrEnum):
+    """Canonical prediction taxonomy persisted in the predictions table."""
+
+    DEMAND = "demand"
+    STOCKOUT = "stockout"
+    REORDER = "reorder"
+
+
+ACTIVE_OPERATIONAL_FORECAST_TYPE = PredictionType.STOCKOUT
+EVALUATION_TARGET_PREDICTION_TYPES = frozenset({PredictionType.STOCKOUT})
 
 # ---------------------------------------------------------------------------
 # LLM model cost estimates (USD per 1000 tokens, approximate)

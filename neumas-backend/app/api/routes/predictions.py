@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.api.deps import TenantContext, get_tenant_context, require_property
 from app.core.celery_app import celery_app
+from app.core.constants import ACTIVE_OPERATIONAL_FORECAST_TYPE
 from app.core.logging import get_logger
 from app.db.repositories.predictions import get_predictions_repository
 from app.services.entitlement_service import EntitlementService
@@ -109,7 +110,11 @@ async def list_predictions(
     """
     try:
         repo = await get_predictions_repository(tenant)
-        rows = await repo.get_by_property(tenant, prediction_type="stockout", limit=limit)
+        rows = await repo.get_by_property(
+            tenant,
+            prediction_type=ACTIVE_OPERATIONAL_FORECAST_TYPE,
+            limit=limit,
+        )
     except Exception as e:
         # Return an empty list rather than a 500 so the frontend degrades
         # gracefully instead of crashing on .filter() of undefined.

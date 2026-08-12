@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from app.core.constants import PredictionType
 from app.core.logging import get_logger
 from app.db.supabase_client import get_async_supabase_admin
 from supabase._async.client import AsyncClient
@@ -253,7 +254,7 @@ class PredictionsRepository:
             self.client.table(self.table)
             .select("*, inventory_item:inventory_items(id, name, quantity)")
             .eq("property_id", str(tenant.property_id))
-            .eq("prediction_type", "stockout")
+            .eq("prediction_type", PredictionType.STOCKOUT)
             .gte("prediction_date", now.isoformat())
             .lte("prediction_date", end_date.isoformat())
             .order("prediction_date")
@@ -279,7 +280,7 @@ class PredictionsRepository:
             admin_client.table(self.table)
             .select("*, inventory_item:inventory_items(id, name, quantity, min_quantity, max_quantity, reorder_point, unit, cost_per_unit, category_id)")
             .eq("property_id", str(property_id))
-            .eq("prediction_type", "stockout")
+            .eq("prediction_type", PredictionType.STOCKOUT)
             .gte("prediction_date", now.isoformat())
             .lte("prediction_date", end_date.isoformat())
             .order("prediction_date")
@@ -301,7 +302,7 @@ class PredictionsRepository:
             self.client.table(self.table)
             .select("*, inventory_item:inventory_items(id, name, quantity, min_quantity)")
             .eq("property_id", str(tenant.property_id))
-            .eq("prediction_type", "reorder")
+            .eq("prediction_type", PredictionType.REORDER)
             .order("prediction_date")
             .limit(50)
             .execute()

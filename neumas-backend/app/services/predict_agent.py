@@ -38,6 +38,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
+from app.core.constants import PredictionType
 from app.core.logging import get_logger
 from app.db.supabase_client import get_async_supabase_admin
 
@@ -247,7 +248,7 @@ async def _upsert_prediction(
         "org_id": str(org_id),
         "organization_id": str(org_id),
         "item_id": str(item_id),
-        "prediction_type": "stockout",
+        "prediction_type": PredictionType.STOCKOUT,
         "prediction_date": prediction_date.isoformat(),
         "predicted_depletion_date": prediction_date.isoformat(),
         "predicted_value": str(round(predicted_value, 4)),
@@ -272,7 +273,7 @@ async def _upsert_prediction(
         .select("id")
         .eq("property_id", str(property_id))
         .eq("item_id", str(item_id))
-        .eq("prediction_type", "stockout")
+        .eq("prediction_type", PredictionType.STOCKOUT)
         .execute()
     )
 
@@ -569,7 +570,7 @@ class PredictAgent:
             client.table("predictions")
             .select("*, inventory_item:inventory_items(id, name, unit, quantity)")
             .eq("property_id", str(property_id))
-            .eq("prediction_type", "stockout")
+            .eq("prediction_type", PredictionType.STOCKOUT)
             .lte("prediction_date", cutoff)
             .gte("confidence", str(confidence_threshold))
             .order("prediction_date")
