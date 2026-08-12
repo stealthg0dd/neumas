@@ -37,6 +37,8 @@ class OrganizationResponse(OrganizationBase):
     subscription_tier: str
     subscription_status: str
     org_type: str | None = None
+    business_type: str | None = None
+    activation_milestones: dict[str, Any] = Field(default_factory=dict)
     onboarding_status: str | None = None
     onboarding_started_at: datetime | None = None
     onboarding_completed_at: datetime | None = None
@@ -103,6 +105,7 @@ class PropertyResponse(PropertyBase):
     organization_id: UUID
     settings: dict[str, Any]
     onboarding_order: int | None = None
+    onboarding_key: str | None = None
     is_primary: bool = False
     is_active: bool
     created_at: datetime

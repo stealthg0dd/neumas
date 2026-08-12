@@ -124,11 +124,13 @@ CREATE TABLE IF NOT EXISTS organizations (
   name                text        NOT NULL,
   slug                text        NOT NULL UNIQUE,
   org_type            text,
+  business_type       text,
   plan                text        NOT NULL DEFAULT 'free',
   subscription_status text        NOT NULL DEFAULT 'active',
   max_properties      integer     NOT NULL DEFAULT 1,
   max_users           integer     NOT NULL DEFAULT 5,
   settings            jsonb       NOT NULL DEFAULT '{}',
+  activation_milestones jsonb     NOT NULL DEFAULT '{}',
   onboarding_status   text        NOT NULL DEFAULT 'NOT_STARTED',
   onboarding_started_at timestamptz,
   onboarding_completed_at timestamptz,
@@ -148,6 +150,8 @@ ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_properties      integer  
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_users           integer     NOT NULL DEFAULT 5;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS settings            jsonb       NOT NULL DEFAULT '{}';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS org_type            text;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS business_type       text;
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS activation_milestones jsonb     NOT NULL DEFAULT '{}';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_status   text        NOT NULL DEFAULT 'NOT_STARTED';
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_started_at timestamptz;
 ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_completed_at timestamptz;
@@ -180,6 +184,7 @@ CREATE TABLE IF NOT EXISTS properties (
   timezone        text        NOT NULL DEFAULT 'UTC',
   currency        text        NOT NULL DEFAULT 'USD',
   settings        jsonb       NOT NULL DEFAULT '{}',
+  onboarding_key  text,
   onboarding_order integer,
   is_primary      boolean     NOT NULL DEFAULT false,
   is_active       boolean     NOT NULL DEFAULT true,
@@ -192,6 +197,7 @@ CREATE TABLE IF NOT EXISTS properties (
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS type     text    NOT NULL DEFAULT 'restaurant';
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS currency text    NOT NULL DEFAULT 'USD';
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS settings jsonb   NOT NULL DEFAULT '{}';
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS onboarding_key text;
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS property_type text;
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS onboarding_order integer;
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_primary boolean NOT NULL DEFAULT false;
@@ -199,6 +205,7 @@ ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_primary boolean NOT NULL DEFA
 CREATE INDEX IF NOT EXISTS idx_properties_org  ON properties(organization_id);
 CREATE INDEX IF NOT EXISTS idx_properties_type ON properties(type);
 CREATE INDEX IF NOT EXISTS idx_properties_org_primary ON properties(organization_id, is_primary);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_properties_org_onboarding_key ON properties(organization_id, onboarding_key) WHERE onboarding_key IS NOT NULL;
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
 

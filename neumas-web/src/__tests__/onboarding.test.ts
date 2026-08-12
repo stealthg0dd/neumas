@@ -34,6 +34,27 @@ describe("onboarding compatibility gating", () => {
     ).toBe(false);
   });
 
+  it("keeps F&B users out of onboarding once dashboard unlock is granted server-side", () => {
+    expect(
+      shouldRequireOnboarding({
+        onboarding: {
+          organization_id: "org-1",
+          property_id: "prop-1",
+          onboarding_status: "IN_PROGRESS",
+          onboarding_version: 1,
+          dashboard_unlocked: true,
+          has_scans: false,
+          has_inventory_activity: false,
+          is_complete: true,
+          requires_onboarding: false,
+        },
+        hasLocalCompletion: false,
+        hasScans: false,
+        workspaceExperience: "FNB",
+      })
+    ).toBe(false);
+  });
+
   it("routes a brand-new user with no backend completion and no scans to onboarding", () => {
     expect(
       shouldRequireOnboarding({

@@ -14,12 +14,14 @@ function loadServiceWorker(env: {
 }
 
 describe("service worker /dashboard navigation", () => {
-  it("bypasses the cache and goes straight to the network for /dashboard navigations", async () => {
+  it("bypasses the cache and lets the browser hit the network for /dashboard navigations", async () => {
     const listeners: Record<string, (event: unknown) => void> = {};
     const self: Record<string, unknown> = {
       addEventListener: (name: string, cb: (event: unknown) => void) => {
         listeners[name] = cb;
       },
+      location: { origin: "https://www.neumas.cc" },
+      clients: { claim: vi.fn() },
       skipWaiting: vi.fn(),
     };
 
@@ -48,11 +50,8 @@ describe("service worker /dashboard navigation", () => {
 
     (listeners.fetch as (event: unknown) => void)(event);
 
-    expect(respondWith).toHaveBeenCalledTimes(1);
-    const result = await respondWith.mock.calls[0][0];
-
-    expect(result).toBe(networkResponse);
-    expect(fetchMock).toHaveBeenCalledWith(event.request);
+    expect(respondWith).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(cachesMatch).not.toHaveBeenCalled();
   });
 
@@ -62,6 +61,8 @@ describe("service worker /dashboard navigation", () => {
       addEventListener: (name: string, cb: (event: unknown) => void) => {
         listeners[name] = cb;
       },
+      location: { origin: "https://www.neumas.cc" },
+      clients: { claim: vi.fn() },
       skipWaiting: vi.fn(),
     };
 
@@ -83,7 +84,8 @@ describe("service worker /dashboard navigation", () => {
       request: {
         method: "GET",
         url: "https://www.neumas.cc/icon-192.png",
-        mode: "navigate",
+        mode: "same-origin",
+        destination: "image",
       },
       respondWith,
     };
@@ -98,12 +100,14 @@ describe("service worker /dashboard navigation", () => {
 });
 
 describe("service worker /api requests", () => {
-  it("bypasses the cache and goes straight to the network for /api/ GET requests", async () => {
+  it("bypasses the cache and lets the browser hit the network for /api/ GET requests", async () => {
     const listeners: Record<string, (event: unknown) => void> = {};
     const self: Record<string, unknown> = {
       addEventListener: (name: string, cb: (event: unknown) => void) => {
         listeners[name] = cb;
       },
+      location: { origin: "https://www.neumas.cc" },
+      clients: { claim: vi.fn() },
       skipWaiting: vi.fn(),
     };
 
@@ -132,11 +136,8 @@ describe("service worker /api requests", () => {
 
     (listeners.fetch as (event: unknown) => void)(event);
 
-    expect(respondWith).toHaveBeenCalledTimes(1);
-    const result = await respondWith.mock.calls[0][0];
-
-    expect(result).toBe(networkResponse);
-    expect(fetchMock).toHaveBeenCalledWith(event.request);
+    expect(respondWith).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(cachesMatch).not.toHaveBeenCalled();
   });
 });

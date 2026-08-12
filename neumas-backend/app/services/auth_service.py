@@ -4,6 +4,7 @@ Authentication service for user authentication and authorization.
 
 import re
 import secrets
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -18,8 +19,12 @@ from app.core.security import (
 )
 from app.db.supabase_client import get_async_supabase_admin, get_auth_client
 from app.schemas.auth import (
+    ActivationChecklistStep,
+    ActivationMilestonesResponse,
     CurrentUserContext,
     LoginResponse,
+    OnboardingOutletInput,
+    OnboardingOutletResponse,
     OnboardingStateResponse,
     OnboardingStateUpdate,
     ProfileResponse,
@@ -31,6 +36,17 @@ from app.schemas.auth import (
 from supabase import create_async_client
 
 logger = get_logger(__name__)
+
+_FNB_BUSINESS_TYPES: set[str] = {
+    "Restaurant",
+    "Cafe / Bakery",
+    "Cloud Kitchen",
+    "Catering",
+    "Hotel / Hospitality",
+    "Food Manufacture",
+    "Bar / Pub",
+    "Other",
+}
 
 
 def _utcnow() -> str:
@@ -144,6 +160,43 @@ def _is_invited_user(role: str) -> bool:
     return role != "admin"
 
 
+def _normalize_business_type(value: str | None) -> str | None:
+    raw = (value or "").strip()
+    if not raw:
+        return None
+
+    aliases = {
+        "Cafe / Bakery": {"Café / Bakery", "Cafe / Bakery"},
+        "Cloud Kitchen": {"Cloud Kitchen"},
+        "Food Manufacture": {"Food Manufacture", "Food Manufacturing"},
+        "Hotel / Hospitality": {"Hotel / Hospitality", "Hotel", "Hospitality"},
+        "Bar / Pub": {"Bar / Pub", "Bar", "Pub"},
+    }
+    for canonical, options in aliases.items():
+        if raw in options:
+            return canonical
+    if raw in _FNB_BUSINESS_TYPES:
+        return raw
+    return raw
+
+
+def _property_type_slug(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    mapping = {
+        "restaurant": "restaurant",
+        "cafe / bakery": "cafe",
+        "café / bakery": "cafe",
+        "cloud kitchen": "cloud_kitchen",
+        "catering": "catering",
+        "hotel / hospitality": "hotel",
+        "food manufacture": "manufacture",
+        "bar / pub": "bar",
+        "other": "other",
+        "household": "household",
+    }
+    return mapping.get(raw, re.sub(r"[^a-z0-9]+", "_", raw).strip("_") or "other")
+
+
 def _resolve_workspace_experience(
     *,
     org_type: str | None,
@@ -171,6 +224,173 @@ class AuthService:
     @staticmethod
     def normalize_org_type(value: str | None) -> str | None:
         return _normalize_org_type(value)
+
+    @staticmethod
+    def normalize_business_type(value: str | None) -> str | None:
+        return _normalize_business_type(value)
+
+    @staticmethod
+    def _coerce_settings(settings_value: Any) -> dict[str, Any]:
+        return settings_value if isinstance(settings_value, dict) else {}
+
+    @staticmethod
+    def _coerce_activation_milestones(value: Any) -> dict[str, str]:
+        if not isinstance(value, dict):
+            return {}
+        return {
+            str(key): str(ts)
+            for key, ts in value.items()
+            if isinstance(key, str) and isinstance(ts, str) and ts.strip()
+        }
+
+    async def _update_organization_settings(
+        self,
+        organization_id: UUID,
+        mutate: Callable[[dict[str, Any]], dict[str, Any]],
+    ) -> dict[str, Any]:
+        admin_client = await get_async_supabase_admin()
+        org_response = await (
+            admin_client.table("organizations")
+            .select("settings")
+            .eq("id", str(organization_id))
+            .single()
+            .execute()
+        )
+        current_settings = self._coerce_settings((org_response.data or {}).get("settings"))
+        next_settings = mutate({**current_settings})
+        await (
+            admin_client.table("organizations")
+            .update({"settings": next_settings})
+            .eq("id", str(organization_id))
+            .execute()
+        )
+        return next_settings
+
+    async def _get_org_activity_counts(self, organization_id: UUID) -> dict[str, int]:
+        admin_client = await get_async_supabase_admin()
+
+        async def _count(table: str, *, eq: dict[str, Any] | None = None) -> int:
+            query = admin_client.table(table).select("id", count="exact").limit(1)
+            for key, value in (eq or {}).items():
+                query = query.eq(key, value)
+            response = await query.execute()
+            return int(getattr(response, "count", 0) or 0)
+
+        return {
+            "properties": await _count("properties", eq={"organization_id": str(organization_id), "is_active": True}),
+            "scans": await _count("scans", eq={"organization_id": str(organization_id)}),
+            "documents_approved": await _count(
+                "documents",
+                eq={"organization_id": str(organization_id), "status": "approved"},
+            ),
+            "ledger_posts": await _count(
+                "inventory_movements",
+                eq={"organization_id": str(organization_id)},
+            ),
+            "forecasts": await _count(
+                "predictions",
+                eq={"organization_id": str(organization_id)},
+            ),
+            "reorders_reviewed": await _count(
+                "shopping_lists",
+                eq={"organization_id": str(organization_id), "status": "approved"},
+            ),
+            "vendors": await _count("vendors", eq={"organization_id": str(organization_id)}),
+        }
+
+    def _resolve_activation_milestones(
+        self,
+        *,
+        org: dict[str, Any],
+        settings: dict[str, Any],
+        counts: dict[str, int],
+    ) -> tuple[ActivationMilestonesResponse, dict[str, str]]:
+        persisted = self._coerce_activation_milestones(org.get("activation_milestones"))
+        now = _utcnow()
+
+        def _mark(key: str, condition: bool) -> None:
+            if condition and key not in persisted:
+                persisted[key] = now
+
+        business_setup_completed = bool(
+            (org.get("name") or "").strip()
+            and _normalize_org_type(org.get("org_type")) == "FNB"
+            and _normalize_business_type(org.get("business_type"))
+            and (org.get("country") or "").strip()
+            and (org.get("currency") or "").strip()
+            and int((settings.get("target_outlet_count") or 0) or 0) > 0
+        )
+        _mark("business_setup_completed", business_setup_completed)
+        _mark("first_property_created", counts["properties"] > 0)
+        _mark("first_document_uploaded", counts["scans"] > 0)
+        _mark("first_document_approved", counts["documents_approved"] > 0)
+        _mark("first_ledger_post", counts["ledger_posts"] > 0)
+        _mark("first_forecast_generated", counts["forecasts"] > 0)
+        _mark("first_reorder_reviewed", counts["reorders_reviewed"] > 0)
+
+        return (
+            ActivationMilestonesResponse(
+                business_setup_completed="business_setup_completed" in persisted,
+                first_property_created="first_property_created" in persisted,
+                first_document_uploaded="first_document_uploaded" in persisted,
+                first_document_approved="first_document_approved" in persisted,
+                first_ledger_post="first_ledger_post" in persisted,
+                first_forecast_generated="first_forecast_generated" in persisted,
+                first_reorder_reviewed="first_reorder_reviewed" in persisted,
+            ),
+            persisted,
+        )
+
+    def _build_activation_checklist(
+        self,
+        milestones: ActivationMilestonesResponse,
+        *,
+        vendor_count: int,
+    ) -> list[ActivationChecklistStep]:
+        return [
+            ActivationChecklistStep(
+                id="upload_first_invoice",
+                label="Upload first invoice",
+                description="Use the existing document pipeline to seed live inventory.",
+                href="/dashboard/scans/new",
+                completed=milestones.first_document_uploaded,
+            ),
+            ActivationChecklistStep(
+                id="review_extracted_items",
+                label="Review extracted items",
+                description="Approve your first document so inventory posts to the ledger.",
+                href="/dashboard/documents",
+                completed=milestones.first_document_approved,
+            ),
+            ActivationChecklistStep(
+                id="run_first_forecast",
+                label="Run first forecast",
+                description="Generate the first depletion forecast from your current evidence.",
+                href="/dashboard/predictions",
+                completed=milestones.first_forecast_generated,
+            ),
+            ActivationChecklistStep(
+                id="review_first_reorder",
+                label="Review first reorder",
+                description="Approve a reorder plan once forecast risk appears.",
+                href="/dashboard/shopping",
+                completed=milestones.first_reorder_reviewed,
+            ),
+            ActivationChecklistStep(
+                id="add_supplier",
+                label="Add supplier",
+                description="Suppliers improve downstream reorder exports and vendor grouping.",
+                href="/dashboard/vendors",
+                completed=vendor_count > 0,
+            ),
+            ActivationChecklistStep(
+                id="invite_teammate",
+                label="Invite teammate",
+                description="Bring another operator into the workspace once the first flow is live.",
+                href="/dashboard/admin",
+                completed=False,
+            ),
+        ]
 
     async def validate_token(self, token: str) -> dict[str, Any]:
         """
@@ -979,6 +1199,8 @@ class AuthService:
         )
         org = org_response.data or {}
         normalized_org_type = _normalize_org_type(org.get("org_type"))
+        normalized_business_type = _normalize_business_type(org.get("business_type"))
+        settings = self._coerce_settings(org.get("settings"))
 
         property_id = user.default_property_id
         prop: dict[str, Any] | None = None
@@ -995,16 +1217,18 @@ class AuthService:
             if prop_response.data:
                 prop = prop_response.data[0]
                 has_properties = True
+        properties_response = await (
+            admin_client.table("properties")
+            .select("*")
+            .eq("organization_id", str(user.organization_id))
+            .eq("is_active", True)
+            .order("onboarding_order", desc=False)
+            .order("created_at", desc=False)
+            .execute()
+        )
+        properties = properties_response.data or []
         if not has_properties:
-            props_response = await (
-                admin_client.table("properties")
-                .select("id")
-                .eq("organization_id", str(user.organization_id))
-                .eq("is_active", True)
-                .limit(1)
-                .execute()
-            )
-            has_properties = bool(props_response.data)
+            has_properties = bool(properties)
 
         scans_response = await (
             admin_client.table("scans")
@@ -1025,9 +1249,28 @@ class AuthService:
         has_inventory_activity = bool(
             getattr(movements_response, "count", None) or movements_response.data
         )
+        counts = await self._get_org_activity_counts(user.organization_id)
+        milestones, persisted_milestones = self._resolve_activation_milestones(
+            org=org,
+            settings=settings,
+            counts=counts,
+        )
+        if persisted_milestones != self._coerce_activation_milestones(org.get("activation_milestones")):
+            await (
+                admin_client.table("organizations")
+                .update({"activation_milestones": persisted_milestones})
+                .eq("id", str(user.organization_id))
+                .execute()
+            )
 
         status = str(org.get("onboarding_status") or "NOT_STARTED")
-        is_complete = status in {"ACTIVATED", "SKIPPED"} or has_scans or has_inventory_activity
+        dashboard_unlocked = milestones.business_setup_completed and milestones.first_property_created
+        is_complete = (
+            status in {"ACTIVATED", "SKIPPED"}
+            or has_scans
+            or has_inventory_activity
+            or dashboard_unlocked
+        )
         workspace_experience = _resolve_workspace_experience(
             org_type=normalized_org_type,
             role=user.role,
@@ -1036,17 +1279,39 @@ class AuthService:
             has_inventory_activity=has_inventory_activity,
             onboarding_source=org.get("onboarding_source"),
         )
+        outlets = [
+            OnboardingOutletResponse(
+                property_id=UUID(str(row["id"])),
+                onboarding_key=row.get("onboarding_key"),
+                name=row.get("name") or "",
+                property_type=row.get("property_type") or row.get("type"),
+                address=row.get("address"),
+                is_primary=bool(row.get("is_primary") or False),
+                onboarding_order=row.get("onboarding_order"),
+            )
+            for row in properties
+        ]
+        checklist = self._build_activation_checklist(
+            milestones,
+            vendor_count=counts["vendors"],
+        )
 
         return OnboardingStateResponse(
             organization_id=user.organization_id,
             property_id=property_id,
             org_type=normalized_org_type,
+            business_type=normalized_business_type,
             workspace_experience=workspace_experience,
             is_invited_user=_is_invited_user(user.role),
             has_properties=has_properties,
+            target_outlet_count=int((settings.get("target_outlet_count") or 0) or 0) or None,
+            outlets=outlets,
+            activation_milestones=milestones,
+            activation_checklist=checklist,
+            dashboard_unlocked=dashboard_unlocked,
             property_type=(prop or {}).get("property_type"),
             address=(prop or {}).get("address"),
-            onboarding_status=status,  # type: ignore[arg-type]
+            onboarding_status=status,
             onboarding_started_at=org.get("onboarding_started_at"),
             onboarding_completed_at=org.get("onboarding_completed_at"),
             onboarding_version=int(org.get("onboarding_version") or 1),
@@ -1056,7 +1321,10 @@ class AuthService:
             has_scans=has_scans,
             has_inventory_activity=has_inventory_activity,
             is_complete=is_complete,
-            requires_onboarding=not is_complete and workspace_experience != "INVITED",
+            requires_onboarding=(
+                not dashboard_unlocked
+                and workspace_experience not in {"INVITED", "LEGACY_FNB"}
+            ),
         )
 
     async def update_onboarding_state(
@@ -1069,9 +1337,14 @@ class AuthService:
                 user,
                 onboarding_source=update.onboarding_source,
                 org_type=update.org_type,
+                business_type=update.business_type,
                 org_name=update.org_name,
                 country=update.country,
                 currency=update.currency,
+                outlet_count=update.outlet_count,
+                data_start_choice=update.data_start_choice,
+                idempotency_key=update.idempotency_key,
+                outlets=update.outlets,
                 property_name=update.property_name,
                 property_type=update.property_type,
                 address=update.address,
@@ -1081,9 +1354,14 @@ class AuthService:
                 user,
                 onboarding_source=update.onboarding_source,
                 org_type=update.org_type,
+                business_type=update.business_type,
                 org_name=update.org_name,
                 country=update.country,
                 currency=update.currency,
+                outlet_count=update.outlet_count,
+                data_start_choice=update.data_start_choice,
+                idempotency_key=update.idempotency_key,
+                outlets=update.outlets,
                 property_name=update.property_name,
                 property_type=update.property_type,
                 address=update.address,
@@ -1092,9 +1370,14 @@ class AuthService:
             user,
             onboarding_source=update.onboarding_source,
             org_type=update.org_type,
+            business_type=update.business_type,
             org_name=update.org_name,
             country=update.country,
             currency=update.currency,
+            outlet_count=update.outlet_count,
+            data_start_choice=update.data_start_choice,
+            idempotency_key=update.idempotency_key,
+            outlets=update.outlets,
             property_name=update.property_name,
             property_type=update.property_type,
             address=update.address,
@@ -1106,9 +1389,14 @@ class AuthService:
         *,
         onboarding_source: str | None = None,
         org_type: str | None = None,
+        business_type: str | None = None,
         org_name: str | None = None,
         country: str | None = None,
         currency: str | None = None,
+        outlet_count: int | None = None,
+        data_start_choice: str | None = None,
+        idempotency_key: str | None = None,
+        outlets: list[OnboardingOutletInput] | None = None,
         property_name: str | None = None,
         property_type: str | None = None,
         address: str | None = None,
@@ -1122,6 +1410,8 @@ class AuthService:
             org_update["onboarding_source"] = onboarding_source
         if org_type is not None:
             org_update["org_type"] = _normalize_org_type(org_type)
+        if business_type is not None:
+            org_update["business_type"] = _normalize_business_type(business_type)
         if org_name is not None:
             org_update["name"] = org_name
         if country is not None:
@@ -1133,6 +1423,16 @@ class AuthService:
             .update(org_update)
             .eq("id", str(user.organization_id))
             .execute()
+        )
+        await self._update_activation_settings(
+            user.organization_id,
+            outlet_count=outlet_count,
+            data_start_choice=data_start_choice,
+        )
+        await self._sync_onboarding_outlets(
+            user,
+            outlets=outlets or [],
+            idempotency_key=idempotency_key,
         )
         await self._update_primary_property_metadata(
             user,
@@ -1148,9 +1448,14 @@ class AuthService:
         *,
         onboarding_source: str | None = None,
         org_type: str | None = None,
+        business_type: str | None = None,
         org_name: str | None = None,
         country: str | None = None,
         currency: str | None = None,
+        outlet_count: int | None = None,
+        data_start_choice: str | None = None,
+        idempotency_key: str | None = None,
+        outlets: list[OnboardingOutletInput] | None = None,
         property_name: str | None = None,
         property_type: str | None = None,
         address: str | None = None,
@@ -1167,6 +1472,8 @@ class AuthService:
             org_update["onboarding_source"] = onboarding_source
         if org_type is not None:
             org_update["org_type"] = _normalize_org_type(org_type)
+        if business_type is not None:
+            org_update["business_type"] = _normalize_business_type(business_type)
         if org_name is not None:
             org_update["name"] = org_name
         if country is not None:
@@ -1178,6 +1485,16 @@ class AuthService:
             .update(org_update)
             .eq("id", str(user.organization_id))
             .execute()
+        )
+        await self._update_activation_settings(
+            user.organization_id,
+            outlet_count=outlet_count,
+            data_start_choice=data_start_choice,
+        )
+        await self._sync_onboarding_outlets(
+            user,
+            outlets=outlets or [],
+            idempotency_key=idempotency_key,
         )
         await self._update_primary_property_metadata(
             user,
@@ -1193,9 +1510,14 @@ class AuthService:
         *,
         onboarding_source: str | None = None,
         org_type: str | None = None,
+        business_type: str | None = None,
         org_name: str | None = None,
         country: str | None = None,
         currency: str | None = None,
+        outlet_count: int | None = None,
+        data_start_choice: str | None = None,
+        idempotency_key: str | None = None,
+        outlets: list[OnboardingOutletInput] | None = None,
         property_name: str | None = None,
         property_type: str | None = None,
         address: str | None = None,
@@ -1212,6 +1534,8 @@ class AuthService:
             org_update["onboarding_source"] = onboarding_source
         if org_type is not None:
             org_update["org_type"] = _normalize_org_type(org_type)
+        if business_type is not None:
+            org_update["business_type"] = _normalize_business_type(business_type)
         if org_name is not None:
             org_update["name"] = org_name
         if country is not None:
@@ -1224,6 +1548,16 @@ class AuthService:
             .eq("id", str(user.organization_id))
             .execute()
         )
+        await self._update_activation_settings(
+            user.organization_id,
+            outlet_count=outlet_count,
+            data_start_choice=data_start_choice,
+        )
+        await self._sync_onboarding_outlets(
+            user,
+            outlets=outlets or [],
+            idempotency_key=idempotency_key,
+        )
         await self._update_primary_property_metadata(
             user,
             property_name=property_name,
@@ -1231,6 +1565,102 @@ class AuthService:
             address=address,
         )
         return await self.get_onboarding_state(user)
+
+    async def _update_activation_settings(
+        self,
+        organization_id: UUID,
+        *,
+        outlet_count: int | None = None,
+        data_start_choice: str | None = None,
+    ) -> None:
+        if outlet_count is None and data_start_choice is None:
+            return
+
+        def mutate(current: dict[str, Any]) -> dict[str, Any]:
+            if outlet_count is not None:
+                current["target_outlet_count"] = outlet_count
+            if data_start_choice is not None:
+                current["data_start_choice"] = data_start_choice
+            return current
+
+        await self._update_organization_settings(organization_id, mutate)
+
+    async def _sync_onboarding_outlets(
+        self,
+        user: UserInfo,
+        *,
+        outlets: list[OnboardingOutletInput],
+        idempotency_key: str | None,
+    ) -> None:
+        if not outlets:
+            return
+
+        admin_client = await get_async_supabase_admin()
+        existing_response = await (
+            admin_client.table("properties")
+            .select("*")
+            .eq("organization_id", str(user.organization_id))
+            .order("created_at", desc=False)
+            .execute()
+        )
+        existing_rows = existing_response.data or []
+        existing_by_key = {
+            str(row.get("onboarding_key")): row
+            for row in existing_rows
+            if row.get("onboarding_key")
+        }
+        fallback_primary = existing_rows[0] if existing_rows else None
+        chosen_primary_index = next(
+            (index for index, outlet in enumerate(outlets) if outlet.is_primary),
+            0,
+        )
+
+        for index, outlet in enumerate(outlets):
+            outlet_key = outlet.onboarding_key or (
+                f"{idempotency_key}:{index}" if idempotency_key else f"outlet:{index}"
+            )
+            payload = {
+                "name": outlet.name,
+                "property_type": outlet.property_type,
+                "type": _property_type_slug(outlet.property_type),
+                "address": outlet.address,
+                "onboarding_key": outlet_key,
+                "onboarding_order": index + 1,
+                "is_primary": index == chosen_primary_index,
+            }
+
+            existing = existing_by_key.get(outlet_key)
+            if existing:
+                await (
+                    admin_client.table("properties")
+                    .update(payload)
+                    .eq("id", str(existing["id"]))
+                    .eq("organization_id", str(user.organization_id))
+                    .execute()
+                )
+                continue
+
+            if index == 0 and fallback_primary and not fallback_primary.get("onboarding_key"):
+                await (
+                    admin_client.table("properties")
+                    .update(payload)
+                    .eq("id", str(fallback_primary["id"]))
+                    .eq("organization_id", str(user.organization_id))
+                    .execute()
+                )
+                existing_by_key[outlet_key] = {**fallback_primary, **payload}
+                continue
+
+            insert_response = await (
+                admin_client.table("properties")
+                .insert({
+                    "organization_id": str(user.organization_id),
+                    **payload,
+                })
+                .execute()
+            )
+            if insert_response.data:
+                existing_by_key[outlet_key] = insert_response.data[0]
 
     async def _update_primary_property_metadata(
         self,
@@ -1246,7 +1676,8 @@ class AuthService:
         if property_name is not None:
             payload["name"] = property_name
         if property_type is not None:
-            payload["property_type"] = _normalize_org_type(property_type) or property_type
+            payload["property_type"] = property_type
+            payload["type"] = _property_type_slug(property_type)
         if address is not None:
             payload["address"] = address
         if not payload:

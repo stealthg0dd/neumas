@@ -24,6 +24,7 @@ import {
 } from "recharts";
 
 import {
+  getOnboardingState,
   getAnalyticsSummary,
   getDocumentReviewQueue,
   getOrgPropertyStockHealth,
@@ -36,6 +37,7 @@ import {
 } from "@/lib/api/endpoints";
 import type {
   AnalyticsSummary,
+  OnboardingStateResponse,
   OrgPropertyStockHealthResponse,
   Prediction,
   Scan,
@@ -45,6 +47,7 @@ import { captureUIError } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/currency";
 import { predictionReason, topOperationalRecommendation } from "@/lib/operations";
 import { ExecutiveBriefing } from "@/components/dashboard/insights/ExecutiveBriefing";
+import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 
 const EMPTY_SUMMARY: AnalyticsSummary = {
   spend_total: 0,
@@ -83,6 +86,7 @@ export default function DashboardPage() {
   const [reviewQueue, setReviewQueue] = useState<Document[]>([]);
   const [inventoryTrend, setInventoryTrend] = useState<TrendPoint[]>([]);
   const [orgHealth, setOrgHealth] = useState<OrgPropertyStockHealthResponse | null>(null);
+  const [onboarding, setOnboarding] = useState<OnboardingStateResponse | null>(null);
   const [forecastSpend7d, setForecastSpend7d] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -97,6 +101,7 @@ export default function DashboardPage() {
         reviewRes,
         restockRes,
         orgHealthRes,
+        onboardingRes,
       ] = await Promise.all([
         getAnalyticsSummary().catch(() => EMPTY_SUMMARY),
         listAlerts({ state: "open", page_size: 20 }).catch(() => ({ alerts: [], open_count: 0, page: 1, page_size: 20 })),
@@ -105,6 +110,7 @@ export default function DashboardPage() {
         getDocumentReviewQueue().catch(() => []),
         getRestockPreview({ runout_threshold_days: 7 }).catch(() => ({ vendors: [], runout_threshold_days: 7, generated_at: new Date().toISOString() })),
         isAdmin ? getOrgPropertyStockHealth().catch(() => null) : Promise.resolve(null),
+        getOnboardingState().catch(() => null),
       ]);
 
       setSummary(analyticsRes);
@@ -113,6 +119,7 @@ export default function DashboardPage() {
       setScans(scansRes);
       setReviewQueue(reviewRes);
       setOrgHealth(orgHealthRes);
+      setOnboarding(onboardingRes);
       setInventoryTrend((analyticsRes.inventory_value_history ?? []).map((point) => ({
         date: point.date,
         value: Number(point.value ?? 0),
@@ -185,6 +192,12 @@ export default function DashboardPage() {
           Refresh view
         </button>
       </div>
+
+      {onboarding?.workspace_experience === "FNB" &&
+        onboarding.activation_checklist &&
+        onboarding.activation_checklist.length > 0 && (
+          <OnboardingChecklist steps={onboarding.activation_checklist} />
+        )}
 
       {scans.length === 0 && (
         <div className="rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-cyan-50 p-5">

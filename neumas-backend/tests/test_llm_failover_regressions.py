@@ -4,12 +4,12 @@ import builtins
 
 import pytest
 
+from app.core.config import Settings
 from app.services.llm_failover import (
     ProviderFailure,
     _call_google,
     get_completion_with_failover,
 )
-from app.core.config import Settings
 
 
 @pytest.mark.anyio

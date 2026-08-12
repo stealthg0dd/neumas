@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import ClientOnboardPage from "./ClientOnboardPage";
 import { googleComplete, updateOnboardingState } from "@/lib/api/endpoints";
 import type { OnboardingStateResponse } from "@/lib/api/types";
-import type { ProfileResponse } from "@/lib/api/types";
 import { saveSession, setAccessToken } from "@/lib/auth-session";
 import { fetchCanonicalOnboardingState } from "@/lib/onboarding";
 import { useAuthStore, selectHasSession } from "@/lib/store/auth";

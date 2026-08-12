@@ -267,6 +267,14 @@ class TestAuthEndpoints:
             def limit(self, *_args, **_kwargs):
                 return self
 
+            def order(self, *_args, **_kwargs):
+                return self
+
+            def update(self, payload):
+                if isinstance(self.data, dict):
+                    self.data.update(payload)
+                return self
+
             async def execute(self):
                 return self
 
@@ -278,13 +286,17 @@ class TestAuthEndpoints:
                             "id": str(user.organization_id),
                             "onboarding_status": "NOT_STARTED",
                             "onboarding_version": 1,
+                            "settings": {},
+                            "activation_milestones": {},
                         }
                     )
                 if name == "properties":
-                    return _MockQuery([{"id": str(user.default_property_id), "name": "Main Kitchen"}])
-                if name == "scans":
+                    return _MockQuery([{"id": str(user.default_property_id), "name": "Main Kitchen", "is_primary": True}])
+                if name in {"scans"}:
                     return _MockQuery([], count=1)
-                if name == "inventory_movements":
+                if name in {"inventory_movements"}:
+                    return _MockQuery([], count=0)
+                if name in {"documents", "predictions", "shopping_lists", "vendors"}:
                     return _MockQuery([], count=0)
                 raise AssertionError(f"unexpected table {name}")
 
@@ -342,6 +354,9 @@ class TestAuthEndpoints:
             def limit(self, *_args, **_kwargs):
                 return self
 
+            def order(self, *_args, **_kwargs):
+                return self
+
             def update(self, payload):
                 updates.append((self.table_name, payload))
                 return self
@@ -360,6 +375,8 @@ class TestAuthEndpoints:
                                 "onboarding_status": "SKIPPED",
                                 "onboarding_version": 1,
                                 "onboarding_source": "self_serve",
+                                "settings": {},
+                                "activation_milestones": {},
                             },
                         )
                     return _MockQuery(
@@ -368,18 +385,22 @@ class TestAuthEndpoints:
                             "id": str(user.organization_id),
                             "onboarding_status": "NOT_STARTED",
                             "onboarding_version": 1,
+                            "settings": {},
+                            "activation_milestones": {},
                         },
                     )
                 if name == "properties":
                     if any(table == "properties" for table, _payload in updates):
                         return _MockQuery(
                             name,
-                            [{"id": str(user.default_property_id), "address": "123 Main", "property_type": "Hotel"}],
+                            [{"id": str(user.default_property_id), "address": "123 Main", "property_type": "Hotel", "is_primary": True}],
                         )
-                    return _MockQuery(name, [{"id": str(user.default_property_id)}])
+                    return _MockQuery(name, [{"id": str(user.default_property_id), "is_primary": True}])
                 if name == "scans":
                     return _MockQuery(name, [], count=0)
                 if name == "inventory_movements":
+                    return _MockQuery(name, [], count=0)
+                if name in {"documents", "predictions", "shopping_lists", "vendors"}:
                     return _MockQuery(name, [], count=0)
                 raise AssertionError(f"unexpected table {name}")
 
@@ -403,6 +424,162 @@ class TestAuthEndpoints:
             assert response.status_code == status.HTTP_200_OK
             assert any(table == "organizations" for table, _payload in updates)
             assert any(table == "properties" for table, _payload in updates)
+        finally:
+            app.dependency_overrides.pop(get_current_user, None)
+
+    @pytest.mark.asyncio
+    async def test_patch_onboarding_state_persists_multiple_outlets_idempotently(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+    ):
+        class _MockUser:
+            id = uuid4()
+            auth_id = uuid4()
+            email = "chef@example.com"
+            full_name = "Chef"
+            role = "admin"
+            organization_id = uuid4()
+            organization_name = ""
+            default_property_id = uuid4()
+            is_active = True
+
+        user = _MockUser()
+        org_settings = {"target_outlet_count": 2}
+        existing_properties = [
+            {
+                "id": str(user.default_property_id),
+                "organization_id": str(user.organization_id),
+                "name": "Placeholder",
+                "is_primary": True,
+                "onboarding_key": None,
+            }
+        ]
+        inserted_rows: list[dict] = []
+
+        class _MockQuery:
+            def __init__(self, table_name: str, payload, count: int | None = None):
+                self.table_name = table_name
+                self.data = payload
+                self.count = count
+                self._insert_payload = None
+                self._update_payload = None
+
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args, **_kwargs):
+                return self
+
+            def single(self):
+                return self
+
+            def limit(self, *_args, **_kwargs):
+                return self
+
+            def order(self, *_args, **_kwargs):
+                return self
+
+            def update(self, payload):
+                self._update_payload = payload
+                if self.table_name == "organizations" and "settings" in payload:
+                    org_settings.update(payload["settings"])
+                if self.table_name == "properties":
+                    for row in existing_properties:
+                        if row["id"] == str(user.default_property_id):
+                            row.update(payload)
+                return self
+
+            def insert(self, payload):
+                self._insert_payload = payload
+                if self.table_name == "properties":
+                    existing = next(
+                        (row for row in inserted_rows if row.get("onboarding_key") == payload.get("onboarding_key")),
+                        None,
+                    )
+                    if existing is None:
+                        inserted_rows.append(
+                            {
+                                "id": str(uuid4()),
+                                **payload,
+                            }
+                        )
+                return self
+
+            async def execute(self):
+                if self.table_name == "properties" and self._insert_payload:
+                    key = self._insert_payload.get("onboarding_key")
+                    match = next(row for row in inserted_rows if row.get("onboarding_key") == key)
+                    self.data = [match]
+                return self
+
+        class _MockClient:
+            def table(self, name: str):
+                if name == "organizations":
+                    return _MockQuery(
+                        name,
+                        {
+                            "id": str(user.organization_id),
+                            "name": "Org",
+                            "org_type": "FNB",
+                            "business_type": "Restaurant",
+                            "settings": org_settings,
+                            "activation_milestones": {},
+                            "onboarding_status": "IN_PROGRESS",
+                            "onboarding_version": 1,
+                            "onboarding_source": "self_serve",
+                            "country": "Singapore",
+                            "currency": "SGD",
+                        },
+                    )
+                if name == "properties":
+                    combined = existing_properties + inserted_rows
+                    return _MockQuery(name, combined)
+                if name in {"scans", "inventory_movements", "documents", "predictions", "shopping_lists", "vendors"}:
+                    return _MockQuery(name, [], count=0)
+                raise AssertionError(f"unexpected table {name}")
+
+        async def _override_user():
+            return user
+
+        payload = {
+            "onboarding_status": "IN_PROGRESS",
+            "onboarding_source": "self_serve",
+            "org_type": "FNB",
+            "business_type": "Restaurant",
+            "org_name": "Greenleaf",
+            "country": "Singapore",
+            "currency": "SGD",
+            "outlet_count": 2,
+            "idempotency_key": "batch-123",
+            "outlets": [
+                {
+                    "onboarding_key": "batch-123:0",
+                    "name": "Main Kitchen",
+                    "property_type": "Restaurant",
+                    "is_primary": True,
+                },
+                {
+                    "onboarding_key": "batch-123:1",
+                    "name": "Annex Kitchen",
+                    "property_type": "Cloud Kitchen",
+                    "is_primary": False,
+                },
+            ],
+        }
+
+        app.dependency_overrides[get_current_user] = _override_user
+        try:
+            with patch("app.services.auth_service.get_async_supabase_admin", new_callable=AsyncMock) as mock_admin:
+                mock_admin.return_value = _MockClient()
+                first = await client.patch("/api/auth/onboarding", headers=auth_headers, json=payload)
+                second = await client.patch("/api/auth/onboarding", headers=auth_headers, json=payload)
+
+            assert first.status_code == status.HTTP_200_OK
+            assert second.status_code == status.HTTP_200_OK
+            assert len(inserted_rows) == 1
+            assert inserted_rows[0]["name"] == "Annex Kitchen"
+            assert org_settings["target_outlet_count"] == 2
         finally:
             app.dependency_overrides.pop(get_current_user, None)
 

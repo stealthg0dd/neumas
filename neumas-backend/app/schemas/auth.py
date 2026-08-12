@@ -178,6 +178,53 @@ class GoogleCompleteRequest(BaseModel):
 
 OnboardingStatus = Literal["NOT_STARTED", "IN_PROGRESS", "ACTIVATED", "SKIPPED"]
 
+BusinessType = Literal[
+    "Restaurant",
+    "Cafe / Bakery",
+    "Cloud Kitchen",
+    "Catering",
+    "Hotel / Hospitality",
+    "Food Manufacture",
+    "Bar / Pub",
+    "Other",
+]
+
+
+class OnboardingOutletInput(BaseModel):
+    onboarding_key: str | None = Field(default=None, max_length=128)
+    name: str = Field(..., min_length=2, max_length=255)
+    property_type: str = Field(..., min_length=2, max_length=64)
+    address: str | None = Field(default=None, max_length=500)
+    is_primary: bool = False
+
+
+class OnboardingOutletResponse(BaseModel):
+    property_id: UUID
+    onboarding_key: str | None = None
+    name: str
+    property_type: str | None = None
+    address: str | None = None
+    is_primary: bool = False
+    onboarding_order: int | None = None
+
+
+class ActivationMilestonesResponse(BaseModel):
+    business_setup_completed: bool = False
+    first_property_created: bool = False
+    first_document_uploaded: bool = False
+    first_document_approved: bool = False
+    first_ledger_post: bool = False
+    first_forecast_generated: bool = False
+    first_reorder_reviewed: bool = False
+
+
+class ActivationChecklistStep(BaseModel):
+    id: str
+    label: str
+    description: str | None = None
+    href: str | None = None
+    completed: bool = False
+
 
 class OnboardingStateResponse(BaseModel):
     """Canonical onboarding state for the current organization/workspace."""
@@ -185,9 +232,17 @@ class OnboardingStateResponse(BaseModel):
     organization_id: UUID
     property_id: UUID | None = None
     org_type: str | None = None
+    business_type: BusinessType | str | None = None
     workspace_experience: str = "NEEDS_PERSONA"
     is_invited_user: bool = False
     has_properties: bool = False
+    target_outlet_count: int | None = None
+    outlets: list[OnboardingOutletResponse] = Field(default_factory=list)
+    activation_milestones: ActivationMilestonesResponse = Field(
+        default_factory=ActivationMilestonesResponse
+    )
+    activation_checklist: list[ActivationChecklistStep] = Field(default_factory=list)
+    dashboard_unlocked: bool = False
     property_type: str | None = None
     address: str | None = None
     onboarding_status: OnboardingStatus
@@ -209,9 +264,14 @@ class OnboardingStateUpdate(BaseModel):
     onboarding_status: OnboardingStatus | None = None
     onboarding_source: str | None = Field(default=None, max_length=128)
     org_type: str | None = Field(default=None, max_length=64)
+    business_type: BusinessType | str | None = Field(default=None, max_length=64)
     org_name: str | None = Field(default=None, min_length=2, max_length=255)
     country: str | None = Field(default=None, max_length=64)
     currency: str | None = Field(default=None, max_length=16)
+    outlet_count: int | None = Field(default=None, ge=1, le=500)
+    data_start_choice: str | None = Field(default=None, max_length=64)
+    idempotency_key: str | None = Field(default=None, max_length=128)
+    outlets: list[OnboardingOutletInput] = Field(default_factory=list)
     property_name: str | None = Field(default=None, min_length=2, max_length=255)
     property_type: str | None = Field(default=None, max_length=64)
     address: str | None = Field(default=None, max_length=500)

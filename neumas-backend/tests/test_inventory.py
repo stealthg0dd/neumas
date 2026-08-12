@@ -2,16 +2,16 @@
 Tests for inventory endpoints.
 """
 
-from uuid import uuid4
 from decimal import Decimal
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
 from app.api.deps import TenantContext
+from app.main import app
 from app.schemas.auth import UserInfo
 from app.schemas.inventory import InventoryUpdateRequest
 from app.services.inventory_service import InventoryService

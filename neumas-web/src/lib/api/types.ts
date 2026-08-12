@@ -29,6 +29,52 @@ export type WorkspaceExperience =
   | "NEEDS_PERSONA"
   | "INVITED";
 
+export type BusinessType =
+  | "Restaurant"
+  | "Cafe / Bakery"
+  | "Cloud Kitchen"
+  | "Catering"
+  | "Hotel / Hospitality"
+  | "Food Manufacture"
+  | "Bar / Pub"
+  | "Other";
+
+export interface OnboardingOutletInput {
+  onboarding_key?: string | null;
+  name: string;
+  property_type: string;
+  address?: string | null;
+  is_primary?: boolean;
+}
+
+export interface OnboardingOutletResponse {
+  property_id: string;
+  onboarding_key?: string | null;
+  name: string;
+  property_type?: string | null;
+  address?: string | null;
+  is_primary: boolean;
+  onboarding_order?: number | null;
+}
+
+export interface ActivationMilestonesResponse {
+  business_setup_completed: boolean;
+  first_property_created: boolean;
+  first_document_uploaded: boolean;
+  first_document_approved: boolean;
+  first_ledger_post: boolean;
+  first_forecast_generated: boolean;
+  first_reorder_reviewed: boolean;
+}
+
+export interface ActivationChecklistStep {
+  id: string;
+  label: string;
+  description?: string;
+  href?: string;
+  completed: boolean;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -82,9 +128,15 @@ export interface OnboardingStateResponse {
   organization_id: string;
   property_id?: string | null;
   org_type?: string | null;
+  business_type?: BusinessType | string | null;
   workspace_experience?: WorkspaceExperience;
   is_invited_user?: boolean;
   has_properties?: boolean;
+  target_outlet_count?: number | null;
+  outlets?: OnboardingOutletResponse[];
+  activation_milestones?: ActivationMilestonesResponse;
+  activation_checklist?: ActivationChecklistStep[];
+  dashboard_unlocked?: boolean;
   property_type?: string | null;
   address?: string | null;
   onboarding_status: OnboardingStatus;
@@ -104,9 +156,14 @@ export interface OnboardingStateUpdateRequest {
   onboarding_status?: OnboardingStatus;
   onboarding_source?: string;
   org_type?: string | null;
+  business_type?: BusinessType | string | null;
   org_name?: string | null;
   country?: string | null;
   currency?: string | null;
+  outlet_count?: number | null;
+  data_start_choice?: string | null;
+  idempotency_key?: string | null;
+  outlets?: OnboardingOutletInput[];
   property_name?: string | null;
   property_type?: string | null;
   address?: string | null;

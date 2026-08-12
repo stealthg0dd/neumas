@@ -142,7 +142,8 @@ def mock_shopping_repo():
 def reset_settings():
     """Reset settings and shared in-memory state between tests."""
     from app.core.config import get_settings
-    from app.core.security import rate_limiter, settings as security_settings
+    from app.core.security import rate_limiter
+    from app.core.security import settings as security_settings
 
     original_security_redis_url = security_settings.REDIS_URL
     original_security_private_url = security_settings.REDIS_PRIVATE_URL

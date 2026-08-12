@@ -126,7 +126,7 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    const config = error.config as InternalAxiosRequestConfig & {
+    const config = ((error.config ?? {}) as InternalAxiosRequestConfig) as InternalAxiosRequestConfig & {
       _retryCount?: number;
       _authRetry?: boolean;
     };
