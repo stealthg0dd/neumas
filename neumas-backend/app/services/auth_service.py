@@ -198,6 +198,29 @@ def _property_type_slug(value: str | None) -> str:
     return mapping.get(raw, re.sub(r"[^a-z0-9]+", "_", raw).strip("_") or "other")
 
 
+_PROPERTY_SCHEMA_COMPAT_FIELDS = {
+    "property_type",
+    "onboarding_order",
+    "is_primary",
+    "onboarding_key",
+}
+
+
+def _is_property_schema_compat_error(err: Exception) -> bool:
+    message = str(err).lower()
+    if "properties" not in message:
+        return False
+    return any(field in message for field in _PROPERTY_SCHEMA_COMPAT_FIELDS)
+
+
+def _legacy_property_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in payload.items()
+        if key not in _PROPERTY_SCHEMA_COMPAT_FIELDS
+    }
+
+
 def _resolve_workspace_experience(
     *,
     org_type: str | None,
@@ -266,6 +289,98 @@ class AuthService:
             .execute()
         )
         return next_settings
+
+    async def _list_properties_for_org(self, organization_id: UUID) -> list[dict[str, Any]]:
+        admin_client = await get_async_supabase_admin()
+        try:
+            response = await (
+                admin_client.table("properties")
+                .select("*")
+                .eq("organization_id", str(organization_id))
+                .eq("is_active", True)
+                .order("onboarding_order", desc=False)
+                .order("created_at", desc=False)
+                .execute()
+            )
+        except Exception as exc:
+            if not _is_property_schema_compat_error(exc):
+                raise
+            logger.warning(
+                "Falling back to legacy property listing for onboarding compatibility",
+                organization_id=str(organization_id),
+                error=str(exc),
+            )
+            response = await (
+                admin_client.table("properties")
+                .select("*")
+                .eq("organization_id", str(organization_id))
+                .eq("is_active", True)
+                .order("created_at", desc=False)
+                .execute()
+            )
+        return response.data or []
+
+    async def _update_property_row(
+        self,
+        organization_id: UUID,
+        property_id: str,
+        payload: dict[str, Any],
+    ) -> None:
+        admin_client = await get_async_supabase_admin()
+        try:
+            await (
+                admin_client.table("properties")
+                .update(payload)
+                .eq("id", property_id)
+                .eq("organization_id", str(organization_id))
+                .execute()
+            )
+        except Exception as exc:
+            if not _is_property_schema_compat_error(exc):
+                raise
+            logger.warning(
+                "Retrying property update without onboarding compatibility fields",
+                organization_id=str(organization_id),
+                property_id=property_id,
+                error=str(exc),
+            )
+            await (
+                admin_client.table("properties")
+                .update(_legacy_property_payload(payload))
+                .eq("id", property_id)
+                .eq("organization_id", str(organization_id))
+                .execute()
+            )
+
+    async def _insert_property_row(
+        self,
+        organization_id: UUID,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        admin_client = await get_async_supabase_admin()
+        insert_payload = {
+            "organization_id": str(organization_id),
+            **payload,
+        }
+        try:
+            response = await admin_client.table("properties").insert(insert_payload).execute()
+        except Exception as exc:
+            if not _is_property_schema_compat_error(exc):
+                raise
+            logger.warning(
+                "Retrying property insert without onboarding compatibility fields",
+                organization_id=str(organization_id),
+                error=str(exc),
+            )
+            response = await (
+                admin_client.table("properties")
+                .insert({
+                    "organization_id": str(organization_id),
+                    **_legacy_property_payload(payload),
+                })
+                .execute()
+            )
+        return response.data[0] if response.data else None
 
     async def _get_org_activity_counts(self, organization_id: UUID) -> dict[str, int]:
         admin_client = await get_async_supabase_admin()
@@ -1185,17 +1300,18 @@ class AuthService:
                     org_id=str(org_id),
                     property_name=property_name,
                 )
-                prop_resp = await admin_client.table("properties").insert({
-                    "organization_id": str(org_id),
-                    "name": property_name,
-                    "type": "hotel",
-                    "property_type": normalized_property_type,
-                    "onboarding_order": 1,
-                    "is_primary": True,
-                }).execute()
-                if not prop_resp.data:
+                prop = await self._insert_property_row(
+                    org_id,
+                    {
+                        "name": property_name,
+                        "type": "hotel",
+                        "property_type": normalized_property_type,
+                        "onboarding_order": 1,
+                        "is_primary": True,
+                    },
+                )
+                if not prop:
                     raise ValueError("Failed to create property for existing Google user")
-                prop = prop_resp.data[0]
                 # Back-fill default_property_id so /me stops returning 403
                 await admin_client.table("users").update({
                     "default_property_id": str(prop["id"]),
@@ -1242,17 +1358,19 @@ class AuthService:
             created_org_id = org_id
             logger.info("Google signup: org created", org_id=str(org_id))
 
-            prop_resp = await admin_client.table("properties").insert({
-                "organization_id": str(org_id),
-                "name": property_name,
-                "type": "hotel",
-                "property_type": normalized_property_type,
-                "onboarding_order": 1,
-                "is_primary": True,
-            }).execute()
-            if not prop_resp.data:
+            prop = await self._insert_property_row(
+                org_id,
+                {
+                    "name": property_name,
+                    "type": "hotel",
+                    "property_type": normalized_property_type,
+                    "onboarding_order": 1,
+                    "is_primary": True,
+                },
+            )
+            if not prop:
                 raise ValueError("Failed to create property")
-            property_id = UUID(prop_resp.data[0]["id"])
+            property_id = UUID(prop["id"])
             created_property_id = property_id
             logger.info("Google signup: property created", property_id=str(property_id))
 
@@ -1359,16 +1477,7 @@ class AuthService:
             if prop_response.data:
                 prop = prop_response.data[0]
                 has_properties = True
-        properties_response = await (
-            admin_client.table("properties")
-            .select("*")
-            .eq("organization_id", str(user.organization_id))
-            .eq("is_active", True)
-            .order("onboarding_order", desc=False)
-            .order("created_at", desc=False)
-            .execute()
-        )
-        properties = properties_response.data or []
+        properties = await self._list_properties_for_org(user.organization_id)
         if not has_properties:
             has_properties = bool(properties)
 
@@ -1825,14 +1934,24 @@ class AuthService:
             return
 
         admin_client = await get_async_supabase_admin()
-        existing_response = await (
-            admin_client.table("properties")
-            .select("*")
-            .eq("organization_id", str(user.organization_id))
-            .order("created_at", desc=False)
-            .execute()
-        )
-        existing_rows = existing_response.data or []
+        try:
+            existing_response = await (
+                admin_client.table("properties")
+                .select("*")
+                .eq("organization_id", str(user.organization_id))
+                .order("created_at", desc=False)
+                .execute()
+            )
+            existing_rows = existing_response.data or []
+        except Exception as exc:
+            if not _is_property_schema_compat_error(exc):
+                raise
+            logger.warning(
+                "Falling back to legacy outlet sync read for onboarding compatibility",
+                organization_id=str(user.organization_id),
+                error=str(exc),
+            )
+            existing_rows = []
         existing_by_key = {
             str(row.get("onboarding_key")): row
             for row in existing_rows
@@ -1860,36 +1979,25 @@ class AuthService:
 
             existing = existing_by_key.get(outlet_key)
             if existing:
-                await (
-                    admin_client.table("properties")
-                    .update(payload)
-                    .eq("id", str(existing["id"]))
-                    .eq("organization_id", str(user.organization_id))
-                    .execute()
+                await self._update_property_row(
+                    user.organization_id,
+                    str(existing["id"]),
+                    payload,
                 )
                 continue
 
             if index == 0 and fallback_primary and not fallback_primary.get("onboarding_key"):
-                await (
-                    admin_client.table("properties")
-                    .update(payload)
-                    .eq("id", str(fallback_primary["id"]))
-                    .eq("organization_id", str(user.organization_id))
-                    .execute()
+                await self._update_property_row(
+                    user.organization_id,
+                    str(fallback_primary["id"]),
+                    payload,
                 )
                 existing_by_key[outlet_key] = {**fallback_primary, **payload}
                 continue
 
-            insert_response = await (
-                admin_client.table("properties")
-                .insert({
-                    "organization_id": str(user.organization_id),
-                    **payload,
-                })
-                .execute()
-            )
-            if insert_response.data:
-                existing_by_key[outlet_key] = insert_response.data[0]
+            inserted = await self._insert_property_row(user.organization_id, payload)
+            if inserted:
+                existing_by_key[outlet_key] = inserted
 
     async def _update_primary_property_metadata(
         self,
