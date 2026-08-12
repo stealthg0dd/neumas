@@ -50,6 +50,11 @@ _PLAN_MATRIX: dict[str, EntitlementResponse] = {
 class EntitlementService:
     async def get_for_tenant(self, tenant: TenantContext) -> EntitlementResponse:
         client = await get_async_supabase_admin()
+        if client is None:
+            plan_code = self._resolve_plan_code(None, None, tenant)
+            base = _PLAN_MATRIX[plan_code].model_copy(deep=True)
+            base.billing_state = "unavailable"
+            return base
         org = await (
             client.table("organizations")
             .select("id, plan, org_type, subscription_status")
@@ -94,6 +99,8 @@ class EntitlementService:
         if limit is None:
             return entitlements
         client = await get_async_supabase_admin()
+        if client is None:
+            return entitlements
         since = (datetime.now(UTC) - timedelta(days=30)).isoformat()
         response = await (
             client.table("scans")
@@ -112,6 +119,8 @@ class EntitlementService:
         if hours is None:
             return entitlements
         client = await get_async_supabase_admin()
+        if client is None:
+            return entitlements
         cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
         response = await (
             client.table("predictions")
