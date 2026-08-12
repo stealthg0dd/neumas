@@ -183,7 +183,7 @@ export default function DashboardPage() {
       ? "Review restock recommendations"
       : reviewQueue.length > 0
         ? "Review scanned documents"
-        : "Run a fresh forecast";
+        : "Upload your next purchase document";
   const recommendation = topOperationalRecommendation(predictions, alerts);
   const lowPantryItems = useMemo(
     () => inventoryItems.filter((item) => item.stock_status === "low_stock" || item.stock_status === "out_of_stock"),
@@ -563,7 +563,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-gray-500">Run a fresh forecast to populate operational recommendations.</p>
+              <p className="mt-4 text-sm text-gray-500">Upload your next purchase document so Neumas can keep learning and refresh recommendations automatically.</p>
             )}
           </div>
         </div>

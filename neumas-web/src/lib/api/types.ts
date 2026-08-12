@@ -404,6 +404,25 @@ export interface ExecutiveBriefingResponse {
   log_count: number;
 }
 
+export interface ForecastEligibilityResponse {
+  status: string;
+  reason_code:
+    | "ELIGIBLE"
+    | "INSUFFICIENT_DOCUMENTS"
+    | "INSUFFICIENT_TIME_SERIES"
+    | "NO_LEDGER_MOVEMENTS"
+    | "MISSING_CANONICAL_ITEMS"
+    | "ALREADY_FRESH"
+    | "FORECAST_RUNNING";
+  evidence_cycles_available: number;
+  evidence_cycles_required: number;
+  last_forecast_at?: string | null;
+  next_eligible_at?: string | null;
+  detail?: string;
+  forecast_running?: boolean;
+  cadence_hours?: number | null;
+}
+
 export interface ScanRerunResponse {
   scan_id: string;
   status: string;

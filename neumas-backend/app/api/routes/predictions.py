@@ -15,12 +15,14 @@ from app.core.constants import ACTIVE_OPERATIONAL_FORECAST_TYPE
 from app.core.logging import get_logger
 from app.db.repositories.predictions import get_predictions_repository
 from app.services.entitlement_service import EntitlementService
+from app.services.forecast_eligibility_service import ForecastEligibilityService
 from app.services.prediction_outcome_service import PredictionOutcomeService
 
 logger = get_logger(__name__)
 router = APIRouter()
 prediction_outcome_service = PredictionOutcomeService()
 entitlement_service = EntitlementService()
+forecast_eligibility_service = ForecastEligibilityService()
 
 # Urgency ordering for sorting (lower = more urgent)
 _URGENCY_ORDER = {"critical": 0, "urgent": 1, "soon": 2, "later": 3}
@@ -35,6 +37,18 @@ class ForecastQueuedResponse(BaseModel):
     job_id: str
     status: str = "queued"
     message: str = "Forecast job queued"
+
+
+class ForecastEligibilityResponse(BaseModel):
+    status: str
+    reason_code: str
+    evidence_cycles_available: int
+    evidence_cycles_required: int
+    last_forecast_at: str | None = None
+    next_eligible_at: str | None = None
+    detail: str = ""
+    forecast_running: bool = False
+    cadence_hours: int | None = None
 
 
 @router.post(
@@ -55,6 +69,13 @@ async def forecast(
     Returns the task ID of the prediction task.
     """
     property_id = str(body.property_id or tenant.property_id)
+    eligibility = await forecast_eligibility_service.evaluate_forecast_eligibility(
+        tenant.org_id,
+        UUID(property_id),
+        role=tenant.role,
+        user_id=tenant.user_id,
+        ignore_freshness=True,
+    )
     await entitlement_service.enforce_forecast_frequency(tenant, UUID(property_id))
 
     try:
@@ -85,8 +106,27 @@ async def forecast(
         property_id=property_id,
         task_id=pred_task.id,
         user_id=str(tenant.user_id),
+        trigger_reason=eligibility.reason_code,
     )
     return ForecastQueuedResponse(job_id=pred_task.id)
+
+
+@router.get(
+    "/eligibility",
+    response_model=ForecastEligibilityResponse,
+    summary="Get forecast eligibility",
+    description="Return the canonical automatic-forecast readiness state for the current property.",
+)
+async def get_forecast_eligibility(
+    tenant: TenantContext = require_property(),
+) -> ForecastEligibilityResponse:
+    result = await forecast_eligibility_service.evaluate_forecast_eligibility(
+        tenant.org_id,
+        tenant.property_id,
+        role=tenant.role,
+        user_id=tenant.user_id,
+    )
+    return ForecastEligibilityResponse(**result.to_dict())
 
 
 @router.get(

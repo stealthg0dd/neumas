@@ -17,6 +17,7 @@ from app.core.logging import get_logger
 from app.db.supabase_client import get_async_supabase_admin
 from app.services.alert_service import AlertService
 from app.services.executive_briefing_service import ExecutiveBriefingService
+from app.services.forecast_eligibility_service import ForecastEligibilityService
 from app.services.reorder_service import ReorderService
 
 logger = get_logger(__name__)
@@ -28,6 +29,7 @@ class OperationalWorkflowService:
     def __init__(self) -> None:
         self._alerts = AlertService()
         self._briefing = ExecutiveBriefingService()
+        self._forecast_eligibility = ForecastEligibilityService()
         self._reorder = ReorderService()
 
     async def run_post_scan_workflow(
@@ -128,10 +130,34 @@ class OperationalWorkflowService:
             "baseline",
             recompute_patterns_for_property(tenant.property_id, org_id=str(tenant.org_id)),
         )
-        prediction_result = await _run_stage(
-            "predictions",
-            recompute_predictions_for_property(tenant.property_id),
+        forecast_eligibility = await self._forecast_eligibility.evaluate_forecast_eligibility(
+            tenant.org_id,
+            tenant.property_id,
+            role=tenant.role,
+            user_id=tenant.user_id,
         )
+        stage_details["forecast_eligibility"] = forecast_eligibility.to_dict()
+
+        prediction_result = None
+        if forecast_eligibility.reason_code == "ELIGIBLE":
+            prediction_result = await _run_stage(
+                "predictions",
+                recompute_predictions_for_property(tenant.property_id),
+            )
+        else:
+            stage_details["predictions"] = {
+                "status": "skipped",
+                "reason_code": forecast_eligibility.reason_code,
+                "detail": forecast_eligibility.detail,
+            }
+            await self._persist_stage_state(
+                client,
+                scan_id,
+                processed,
+                stage_details=stage_details,
+                stage_errors=stage_errors,
+                current_stage="predictions",
+            )
         reorder_result = await _run_stage(
             "reorder",
             self._reorder.create_or_update_reorder_plan(
@@ -171,6 +197,7 @@ class OperationalWorkflowService:
             "scan_id": str(scan_id),
             "baseline": baseline_result,
             "predictions": prediction_result,
+            "forecast_eligibility": forecast_eligibility.to_dict(),
             "reorder": reorder_result,
             "alerts_created": len(alerts_result or []),
             "briefing_log_count": int((briefing_result or {}).get("log_count") or 0),

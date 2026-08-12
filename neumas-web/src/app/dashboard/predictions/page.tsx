@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
-import { getEntitlements, getPredictionSummary, listPredictions, triggerForecast } from "@/lib/api/endpoints";
-import type { Prediction, PredictionOutcomeSummary, UrgencyLevel } from "@/lib/api/types";
+import { getEntitlements, getForecastEligibility, getPredictionSummary, listPredictions, triggerForecast } from "@/lib/api/endpoints";
+import type { ForecastEligibilityResponse, Prediction, PredictionOutcomeSummary, UrgencyLevel } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
 import { confidenceToPercent, daysUntilStockout, getFeatures, sortPredictionsByUrgencyThenDays } from "@/lib/prediction-display";
 import { Button } from "@/components/ui/button";
@@ -79,6 +79,7 @@ export default function PredictionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<PredictionOutcomeSummary | null>(null);
   const [forecastGuardrail, setForecastGuardrail] = useState<string | null>(null);
+  const [eligibility, setEligibility] = useState<ForecastEligibilityResponse | null>(null);
   const workspace = useAuthStore((s) => s.profile?.org_type);
 
   const fetchPredictions = useCallback(async () => {
@@ -89,6 +90,8 @@ export default function PredictionsPage() {
       setPredictions(data);
       const nextSummary = await getPredictionSummary().catch(() => null);
       setSummary(nextSummary);
+      const nextEligibility = await getForecastEligibility().catch(() => null);
+      setEligibility(nextEligibility);
       const entitlements = await getEntitlements().catch(() => null);
       if (entitlements?.limits.forecast_frequency_hours) {
         setForecastGuardrail(`Plan cadence: one forecast every ${entitlements.limits.forecast_frequency_hours}h`);
@@ -138,7 +141,7 @@ export default function PredictionsPage() {
           disabled={triggering}
           onClick={handleRunForecast}
         >
-          {triggering ? "Running…" : "Run new forecast"}
+          {triggering ? "Running…" : "Refresh forecast"}
         </Button>
       </div>
 
@@ -221,17 +224,21 @@ export default function PredictionsPage() {
           </div>
           <p className="text-[17px] font-bold text-gray-900">No forecasts yet</p>
           <p className="mt-2 max-w-sm mx-auto text-[14px] text-gray-500">
-            Upload 3+ invoices or receipts so the AI can learn your consumption patterns, then run your first forecast.
+            {eligibility?.reason_code === "FORECAST_RUNNING"
+              ? "Forecast is updating automatically."
+              : eligibility?.reason_code === "ALREADY_FRESH"
+                ? "Neumas is keeping this forecast fresh automatically."
+                : `Neumas is building your consumption baseline. ${eligibility?.evidence_cycles_available ?? 0} of ${eligibility?.evidence_cycles_required ?? 3} evidence cycles available. Next forecast will run automatically when sufficient history exists.`}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
               href="/dashboard/scans/new"
               className="inline-flex items-center gap-2 rounded-xl bg-[#0071a3] px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-[#005f8a] transition-colors"
             >
-              Upload an invoice
+              Upload your next purchase document
             </Link>
             <Button type="button" variant="outline" disabled={triggering} onClick={handleRunForecast}>
-              Run new forecast
+              Manual refresh
             </Button>
           </div>
         </div>

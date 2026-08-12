@@ -103,6 +103,7 @@ import type {
   ScanStatusResponse,
   Prediction,
   PredictionOutcomeSummary,
+  ForecastEligibilityResponse,
   ForecastQueuedResponse,
   ShoppingList,
   ShoppingListDetail,
@@ -417,6 +418,11 @@ export async function getPredictionSummary(params?: {
   property_id?: string;
 }): Promise<PredictionOutcomeSummary> {
   return get<PredictionOutcomeSummary>("/api/predictions/summary", params);
+}
+
+/** GET /api/predictions/eligibility */
+export async function getForecastEligibility(): Promise<ForecastEligibilityResponse> {
+  return get<ForecastEligibilityResponse>("/api/predictions/eligibility");
 }
 
 /** POST /api/predictions/forecast */
