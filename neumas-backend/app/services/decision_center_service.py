@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 from app.api.deps import TenantContext
 from app.core.logging import get_logger
@@ -15,6 +16,7 @@ from app.schemas.decision_center import (
     DecisionNextBestAction,
 )
 from app.services.impact_service import ImpactService
+from app.services.purchase_summary_service import PurchaseSummaryService
 
 logger = get_logger(__name__)
 
@@ -24,6 +26,7 @@ class DecisionCenterService:
 
     def __init__(self) -> None:
         self._impact = ImpactService()
+        self._purchase_summary = PurchaseSummaryService()
 
     async def build(self, tenant: TenantContext, *, workspace_experience: str = "FNB") -> DecisionCenterResponse:
         client = await get_async_supabase_admin()
@@ -97,7 +100,7 @@ class DecisionCenterService:
             organization=organization or {},
         )
         next_best_action = self._pick_next_best_action(action_queue, workspace_experience)
-        latest_activity = self._build_latest_activity(scans)
+        latest_activity = await self._build_latest_activity(tenant, scans)
         ahead = self._build_ahead_state(
             workspace_experience=workspace_experience,
             alerts=alerts,
@@ -300,7 +303,7 @@ class DecisionCenterService:
             cta_href="/dashboard/scans/new",
         )
 
-    def _build_latest_activity(self, scans: list[dict[str, Any]]) -> DecisionLatestActivity | None:
+    async def _build_latest_activity(self, tenant: TenantContext, scans: list[dict[str, Any]]) -> DecisionLatestActivity | None:
         latest = scans[0] if scans else None
         if not latest:
             return None
@@ -324,15 +327,27 @@ class DecisionCenterService:
         )
         if latest.get("status") == "inventory_posted" and not downstream:
             detail = "Inventory updated. Downstream analysis is still catching up."
+        purchase_summary = None
+        if latest.get("id"):
+            purchase_summary = await self._purchase_summary.get_latest_summary(
+                tenant,
+                scan_id=UUID(str(latest["id"])),
+            )
         return DecisionLatestActivity(
             title="Latest workflow",
             detail=detail,
             status=str(latest.get("status") or "unknown"),
             scan_id=str(latest.get("id") or ""),
             document_count=int(document_stage.get("document_count") or 0) or None,
-            items_updated=items_updated,
-            supplier_name=receipt_meta.get("vendor_name"),
+            items_updated=(purchase_summary or {}).get("products_added") or items_updated,
+            supplier_name=(purchase_summary or {}).get("supplier_name") or receipt_meta.get("vendor_name"),
+            purchase_date=(purchase_summary or {}).get("purchase_date"),
             invoice_total=float(receipt_total) if receipt_total not in {None, ""} else None,
+            categories_identified=(purchase_summary or {}).get("categories_identified") or [],
+            canonicalized_count=(purchase_summary or {}).get("canonicalized_count"),
+            unresolved_count=(purchase_summary or {}).get("unresolved_count"),
+            price_observations_created=(purchase_summary or {}).get("price_observations_created"),
+            average_extraction_confidence=(purchase_summary or {}).get("average_extraction_confidence"),
             canonicalization_status=str(canonical_stage.get("status") or "unknown"),
             downstream_status=str(downstream.get("status") or ("pending" if latest.get("status") == "inventory_posted" else "unknown")),
         )

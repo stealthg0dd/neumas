@@ -163,6 +163,7 @@ const EMPTY_SUMMARY: AnalyticsSummary = {
   confidence_history: [],
   category_breakdown: [],
   urgency_breakdown:  { critical: 0, urgent: 0, soon: 0, later: 0 },
+  latest_purchase_summary: null,
 };
 
 export default function AnalyticsPage() {
@@ -269,6 +270,45 @@ export default function AnalyticsPage() {
             index={3}
           />
         </div>
+
+      {summary.latest_purchase_summary && (
+        <ChartCard
+          title="Latest purchase intelligence"
+          subtitle="What the most recent receipt already taught Neumas"
+          index={0}
+          className="lg:col-span-2"
+        >
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-border/50 bg-white/5 p-4 text-sm">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Supplier</p>
+              <p className="mt-2 font-semibold text-foreground">{summary.latest_purchase_summary.supplier_name ?? "Unresolved"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {summary.latest_purchase_summary.purchase_date ?? "Purchase date unavailable"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-white/5 p-4 text-sm">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Receipt value</p>
+              <p className="mt-2 font-semibold text-foreground">
+                {summary.latest_purchase_summary.total_purchase_value != null
+                  ? `$${summary.latest_purchase_summary.total_purchase_value.toFixed(2)}`
+                  : "Not extracted"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {summary.latest_purchase_summary.products_added} product line(s) added
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/50 bg-white/5 p-4 text-sm">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Normalization</p>
+              <p className="mt-2 font-semibold text-foreground">
+                {summary.latest_purchase_summary.canonicalized_count} canonicalized · {summary.latest_purchase_summary.unresolved_count} unresolved
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {summary.latest_purchase_summary.price_observations_created} price observation(s) recorded
+              </p>
+            </div>
+          </div>
+        </ChartCard>
+      )}
 
       {/* Charts grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

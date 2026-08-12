@@ -641,6 +641,16 @@ export default function DashboardPage() {
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
                     Downstream analysis: {decisionCenter.latest_activity.downstream_status ?? "pending"}
                   </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
+                    {decisionCenter.latest_activity.categories_identified?.length
+                      ? `Categories: ${decisionCenter.latest_activity.categories_identified.slice(0, 3).join(", ")}`
+                      : "Categories appear once line items are classified."}
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
+                    {decisionCenter.latest_activity.price_observations_created
+                      ? `${decisionCenter.latest_activity.price_observations_created} price observation(s) recorded`
+                      : "Price observations appear when supplier-linked pricing is available."}
+                  </div>
                 </div>
               </div>
             ) : (

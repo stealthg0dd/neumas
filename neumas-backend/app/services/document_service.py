@@ -16,6 +16,22 @@ from app.db.repositories.documents import DocumentsRepository
 logger = get_logger(__name__)
 
 
+def _to_float(value: Any) -> float | None:
+    try:
+        if value in {None, ""}:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 class DocumentService:
     """Service for document management."""
 
@@ -51,7 +67,41 @@ class DocumentService:
             for item in extracted_items
         ) or (overall_confidence is not None and overall_confidence < CONFIDENCE_REVIEW_THRESHOLD)
 
-        raw_vendor = raw_extraction.get("vendor_name") or raw_extraction.get("vendor")
+        receipt_metadata = raw_extraction.get("receipt_metadata") if isinstance(raw_extraction.get("receipt_metadata"), dict) else {}
+        raw_vendor = (
+            raw_extraction.get("vendor_name")
+            or raw_extraction.get("vendor")
+            or receipt_metadata.get("vendor_name")
+        )
+        document_date = (
+            raw_extraction.get("receipt_date")
+            or raw_extraction.get("document_date")
+            or receipt_metadata.get("receipt_date")
+        )
+        currency = (
+            raw_extraction.get("currency")
+            or receipt_metadata.get("currency")
+        )
+        total_amount = (
+            _to_float(raw_extraction.get("receipt_total"))
+            or _to_float(raw_extraction.get("total_amount"))
+            or _to_float(raw_extraction.get("total"))
+            or _to_float(receipt_metadata.get("receipt_total"))
+        )
+        subtotal_amount = (
+            _to_float(raw_extraction.get("subtotal"))
+            or _to_float(receipt_metadata.get("subtotal"))
+        )
+        tax_amount = (
+            _to_float(raw_extraction.get("tax"))
+            or _to_float(receipt_metadata.get("tax"))
+        )
+        document_number = (
+            _to_text(raw_extraction.get("invoice_number"))
+            or _to_text(raw_extraction.get("receipt_number"))
+            or _to_text(raw_extraction.get("document_number"))
+            or _to_text(receipt_metadata.get("invoice_number"))
+        )
 
         document = await self._docs_repo.create(
             tenant=tenant,
@@ -59,6 +109,12 @@ class DocumentService:
             document_type=document_type,
             raw_extraction=raw_extraction,
             raw_vendor_name=raw_vendor,
+            total_amount=total_amount,
+            currency=_to_text(currency),
+            document_date=_to_text(document_date),
+            subtotal_amount=subtotal_amount,
+            tax_amount=tax_amount,
+            document_number=document_number,
             overall_confidence=overall_confidence,
             review_needed=review_needed,
             review_reason="Low extraction confidence" if review_needed else None,
@@ -80,6 +136,10 @@ class DocumentService:
                 "raw_unit": item.get("unit"),
                 "raw_price": item.get("unit_price") or item.get("price"),
                 "raw_total": item.get("total_price") or item.get("total"),
+                "category_name": item.get("category"),
+                "brand_name": item.get("brand"),
+                "pack_size": item.get("pack_size"),
+                "supplier_sku": item.get("supplier_sku") or item.get("sku"),
                 "confidence": confidence,
                 "review_needed": item_review,
                 "review_reason": "Low confidence" if item_review else None,

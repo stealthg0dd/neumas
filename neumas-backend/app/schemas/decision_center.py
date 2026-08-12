@@ -25,7 +25,13 @@ class DecisionLatestActivity(BaseModel):
     document_count: int | None = None
     items_updated: int | None = None
     supplier_name: str | None = None
+    purchase_date: str | None = None
     invoice_total: float | None = None
+    categories_identified: list[str] = []
+    canonicalized_count: int | None = None
+    unresolved_count: int | None = None
+    price_observations_created: int | None = None
+    average_extraction_confidence: float | None = None
     canonicalization_status: str | None = None
     downstream_status: str | None = None
 

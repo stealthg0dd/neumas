@@ -183,6 +183,7 @@ async def test_records_price_observation_once_and_links_vendor_context():
 
     assert first["price_observations_recorded"] == 1
     assert second["price_observations_recorded"] == 0
+    assert first["vendor_name"] == "Fresh Foods"
     assert client.rows["inventory_items"][0]["vendor_id"] == vendor_id
     assert client.rows["inventory_items"][0]["supplier_info"]["name"] == "Fresh Foods"
     assert len(client.rows["item_price_history"]) == 1

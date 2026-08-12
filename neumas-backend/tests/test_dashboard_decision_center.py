@@ -178,6 +178,16 @@ async def test_decision_center_latest_activity_falls_back_to_receipt_total_and_i
         patch("app.services.decision_center_service.get_async_supabase_admin", new=AsyncMock(return_value=object())),
         patch.object(service, "_fetch_rows", side_effect=fake_fetch_rows),
         patch.object(service, "_fetch_single", new=AsyncMock(return_value={"activation_milestones": {"first_document_uploaded": True}})),
+        patch.object(service._purchase_summary, "get_latest_summary", new=AsyncMock(return_value={
+            "products_added": 19,
+            "supplier_name": "Acme Foods",
+            "categories_identified": ["Dairy", "Dry Goods"],
+            "price_observations_created": 3,
+            "canonicalized_count": 17,
+            "unresolved_count": 2,
+            "average_extraction_confidence": 0.91,
+            "purchase_date": "2026-08-12",
+        })),
     ):
         payload = await service.build(tenant)
 
@@ -186,3 +196,5 @@ async def test_decision_center_latest_activity_falls_back_to_receipt_total_and_i
     assert payload.latest_activity.supplier_name == "Acme Foods"
     assert float(payload.latest_activity.invoice_total or 0) == 184.50
     assert payload.latest_activity.downstream_status == "pending"
+    assert payload.latest_activity.categories_identified == ["Dairy", "Dry Goods"]
+    assert payload.latest_activity.price_observations_created == 3

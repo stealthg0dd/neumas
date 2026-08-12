@@ -15,6 +15,10 @@ class DocumentLineItemBase(BaseModel):
     raw_unit: str | None = None
     raw_price: float | None = None
     raw_total: float | None = None
+    category_name: str | None = None
+    brand_name: str | None = None
+    pack_size: str | None = None
+    supplier_sku: str | None = None
 
 
 class DocumentLineItemResponse(DocumentLineItemBase):
@@ -53,6 +57,12 @@ class DocumentResponse(BaseModel):
     status: str
     raw_vendor_name: str | None = None
     vendor_id: UUID | None = None
+    total_amount: float | None = None
+    currency: str | None = None
+    document_date: datetime | None = None
+    subtotal_amount: float | None = None
+    tax_amount: float | None = None
+    document_number: str | None = None
     overall_confidence: float | None = None
     review_needed: bool
     review_reason: str | None = None

@@ -17,6 +17,7 @@ from app.db.repositories.predictions import get_predictions_repository
 from app.db.repositories.scans import get_scans_repository
 from app.db.repositories.shopping_lists import get_shopping_lists_repository
 from app.db.supabase_client import get_async_supabase_admin
+from app.services.purchase_summary_service import PurchaseSummaryService
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -34,6 +35,7 @@ def _empty_analytics_summary() -> dict[str, Any]:
         "confidence_history": [],
         "category_breakdown": [],
         "urgency_breakdown": {"critical": 0, "urgent": 0, "soon": 0, "later": 0},
+        "latest_purchase_summary": None,
     }
 
 
@@ -128,6 +130,7 @@ async def get_analytics_summary(
     except Exception as e:
         logger.exception("Failed to initialize analytics repositories", error=str(e))
         return _empty_analytics_summary()
+    purchase_summary = await PurchaseSummaryService().get_latest_summary(tenant)
 
     since_90 = datetime.now(UTC) - timedelta(days=90)
 
@@ -285,4 +288,5 @@ async def get_analytics_summary(
         "confidence_history":   confidence_history,
         "category_breakdown":   category_breakdown,
         "urgency_breakdown":    urgency_breakdown,
+        "latest_purchase_summary": purchase_summary,
     }

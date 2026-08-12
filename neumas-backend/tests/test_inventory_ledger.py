@@ -215,7 +215,7 @@ class TestDocumentService:
         doc_id = uuid4()
         with (
             patch.object(svc._docs_repo, "create", new_callable=AsyncMock, return_value={"id": str(doc_id), "status": "pending"}) as mock_create,
-            patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]),
+            patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]) as mock_create_many,
         ):
             await svc.create_from_scan(
                 tenant=tenant,
@@ -227,3 +227,87 @@ class TestDocumentService:
 
         create_call = mock_create.call_args
         assert create_call.kwargs["review_needed"] is False
+
+    @pytest.mark.asyncio
+    async def test_create_from_scan_persists_receipt_intelligence_fields(self, tenant: TenantContext):
+        from app.services.document_service import DocumentService
+
+        svc = DocumentService()
+        scan_id = uuid4()
+        doc_id = uuid4()
+
+        with (
+            patch.object(svc._docs_repo, "create", new_callable=AsyncMock, return_value={"id": str(doc_id), "status": "pending"}) as mock_create,
+            patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]) as mock_create_many,
+        ):
+            await svc.create_from_scan(
+                tenant=tenant,
+                scan_id=scan_id,
+                document_type="receipt",
+                raw_extraction={
+                    "vendor_name": "Fresh Foods",
+                    "receipt_date": "2026-08-12",
+                    "receipt_total": 19.75,
+                    "subtotal": 18.10,
+                    "tax": 1.65,
+                    "currency": "SGD",
+                    "invoice_number": "INV-1001",
+                },
+                extracted_items=[{
+                    "name": "Milk",
+                    "quantity": 2.0,
+                    "unit": "1L",
+                    "unit_price": 3.25,
+                    "total_price": 6.50,
+                    "category": "Dairy",
+                    "brand": "Farm Fresh",
+                    "pack_size": "2x1L",
+                    "supplier_sku": "MILK-001",
+                    "confidence": 0.93,
+                }],
+            )
+
+        create_kwargs = mock_create.call_args.kwargs
+        assert create_kwargs["raw_vendor_name"] == "Fresh Foods"
+        assert create_kwargs["total_amount"] == 19.75
+        assert create_kwargs["subtotal_amount"] == 18.10
+        assert create_kwargs["tax_amount"] == 1.65
+        assert create_kwargs["currency"] == "SGD"
+        assert create_kwargs["document_date"] == "2026-08-12"
+        assert create_kwargs["document_number"] == "INV-1001"
+
+        line_item = mock_create_many.call_args.args[2][0]
+        assert line_item["raw_price"] == 3.25
+        assert line_item["raw_total"] == 6.50
+        assert line_item["category_name"] == "Dairy"
+        assert line_item["brand_name"] == "Farm Fresh"
+        assert line_item["pack_size"] == "2x1L"
+        assert line_item["supplier_sku"] == "MILK-001"
+
+    @pytest.mark.asyncio
+    async def test_create_from_scan_keeps_missing_receipt_fields_null_safe(self, tenant: TenantContext):
+        from app.services.document_service import DocumentService
+
+        svc = DocumentService()
+        scan_id = uuid4()
+        doc_id = uuid4()
+
+        with (
+            patch.object(svc._docs_repo, "create", new_callable=AsyncMock, return_value={"id": str(doc_id), "status": "pending"}) as mock_create,
+            patch.object(svc._line_items_repo, "create_many", new_callable=AsyncMock, return_value=[]),
+        ):
+            await svc.create_from_scan(
+                tenant=tenant,
+                scan_id=scan_id,
+                document_type="receipt",
+                raw_extraction={},
+                extracted_items=[{"name": "Butter", "quantity": 1.0, "unit": "pack", "confidence": 0.9}],
+            )
+
+        create_kwargs = mock_create.call_args.kwargs
+        assert create_kwargs["total_amount"] is None
+        assert create_kwargs["subtotal_amount"] is None
+        assert create_kwargs["tax_amount"] is None
+        assert create_kwargs["currency"] is None
+        assert create_kwargs["document_date"] is None
+        assert create_kwargs["document_number"] is None

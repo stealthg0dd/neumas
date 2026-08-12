@@ -12,6 +12,7 @@ from starlette.datastructures import UploadFile
 from app.api.deps import TenantContext
 from app.api.routes.scans import upload_scan as upload_scan_route
 from app.services.scan_service import ScanService
+from app.tasks.scan_tasks import _check_receipt_duplicate
 
 
 class _Resp:
@@ -358,6 +359,33 @@ async def test_process_scan_ocr_failure_records_stage_error(monkeypatch):
     assert any(e.get("stage") == "ocr" for e in stage_errors)
     stage_details = (fake.scans[scan_id].get("processed_results") or {}).get("stage_details") or {}
     assert stage_details.get("request_id") == "req-ocr-failure"
+
+
+@pytest.mark.anyio
+async def test_duplicate_receipt_check_matches_invoice_number_and_vendor():
+    org_id = str(uuid4())
+    fake = _FakeSupabase(org_id)
+    existing_scan_id = str(uuid4())
+    fake.scans[existing_scan_id] = {
+        "id": existing_scan_id,
+        "status": "completed",
+        "property_id": fake.property_id,
+        "processed_results": {
+            "receipt_metadata": {
+                "invoice_number": "INV-1001",
+                "vendor_name": "Fresh Foods",
+            }
+        },
+    }
+
+    duplicate_of = await _check_receipt_duplicate(
+        fake,
+        fake.property_id,
+        {"invoice_number": "INV-1001", "vendor_name": "Fresh Foods"},
+        fake.scan_id,
+    )
+
+    assert duplicate_of == existing_scan_id
 
 
 @pytest.mark.anyio

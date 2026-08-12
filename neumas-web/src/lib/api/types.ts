@@ -448,7 +448,13 @@ export interface DecisionLatestActivity {
   document_count?: number | null;
   items_updated?: number | null;
   supplier_name?: string | null;
+  purchase_date?: string | null;
   invoice_total?: number | null;
+  categories_identified?: string[];
+  canonicalized_count?: number | null;
+  unresolved_count?: number | null;
+  price_observations_created?: number | null;
+  average_extraction_confidence?: number | null;
   canonicalization_status?: string | null;
   downstream_status?: string | null;
 }
@@ -823,4 +829,18 @@ export interface AnalyticsSummary {
   confidence_history: ConfidenceHistoryPoint[];
   category_breakdown: CategoryBreakdownPoint[];
   urgency_breakdown:  UrgencyBreakdown;
+  latest_purchase_summary?: {
+    document_id: string;
+    scan_id?: string | null;
+    supplier_name?: string | null;
+    purchase_date?: string | null;
+    total_purchase_value?: number | null;
+    currency?: string | null;
+    products_added: number;
+    categories_identified: string[];
+    canonicalized_count: number;
+    unresolved_count: number;
+    price_observations_created: number;
+    average_extraction_confidence?: number | null;
+  } | null;
 }
