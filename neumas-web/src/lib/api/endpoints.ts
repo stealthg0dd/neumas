@@ -771,6 +771,47 @@ export interface AuditEntry {
   created_at: string;
 }
 
+export type IntegrationAdapterType =
+  | "pos"
+  | "supplier"
+  | "accounting"
+  | "commerce"
+  | "receipt_source";
+
+export type IntegrationConnectionStatus =
+  | "connected"
+  | "needs_attention"
+  | "not_connected";
+
+export type IntegrationHealthStatus =
+  | "healthy"
+  | "degraded"
+  | "offline"
+  | "unknown";
+
+export interface IntegrationConnection {
+  id?: string | null;
+  organization_id?: string | null;
+  property_id?: string | null;
+  adapter_type: IntegrationAdapterType;
+  provider_slug: string;
+  display_name: string;
+  status: IntegrationConnectionStatus;
+  health_status: IntegrationHealthStatus;
+  enabled: boolean;
+  implemented: boolean;
+  coming_soon: boolean;
+  config: Record<string, unknown>;
+  connection_metadata: Record<string, unknown>;
+  sync_cursor: Record<string, unknown>;
+  error_state: Record<string, unknown>;
+  retry_state: Record<string, unknown>;
+  last_synced_at?: string | null;
+  last_checked_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
 /** GET /api/admin/org */
 export async function getAdminOrg(): Promise<AdminOrg> {
   return get<AdminOrg>("/api/admin/org");
@@ -810,6 +851,11 @@ export async function listAuditLog(params?: {
 /** GET /api/admin/feature-flags */
 export async function listFeatureFlags(): Promise<Record<string, boolean>> {
   return get<Record<string, boolean>>("/api/admin/feature-flags");
+}
+
+/** GET /api/admin/integrations */
+export async function listAdminIntegrations(): Promise<IntegrationConnection[]> {
+  return get<IntegrationConnection[]>("/api/admin/integrations");
 }
 
 /** PATCH /api/admin/feature-flags/{flagName} */

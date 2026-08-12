@@ -3,13 +3,19 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  User, Building2, Shield, Copy, Check, LogOut, KeyRound, Mail,
+  User, Building2, Shield, Copy, Check, LogOut, KeyRound, Mail, PlugZap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 import { useAuthStore } from "@/lib/store/auth";
-import { getDigestPreferences, logout, updateDigestPreferences } from "@/lib/api/endpoints";
+import {
+  getDigestPreferences,
+  listAdminIntegrations,
+  logout,
+  type IntegrationConnection,
+  updateDigestPreferences,
+} from "@/lib/api/endpoints";
 import { Input } from "@/components/ui/input";
 import { track, resetAnalytics } from "@/lib/analytics";
 
@@ -111,6 +117,8 @@ export default function SettingsPage() {
   const [preferredCurrency, setPreferredCurrency] = useState("USD");
   const [loadingDigestPrefs, setLoadingDigestPrefs] = useState(true);
   const [savingDigestPrefs, setSavingDigestPrefs] = useState(false);
+  const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
+  const [loadingIntegrations, setLoadingIntegrations] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,6 +149,28 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!profile || !["admin", "super_admin"].includes(profile.role)) return;
+    let cancelled = false;
+
+    async function loadIntegrations() {
+      setLoadingIntegrations(true);
+      try {
+        const rows = await listAdminIntegrations();
+        if (!cancelled) setIntegrations(rows);
+      } catch {
+        if (!cancelled) toast.error("Failed to load integration availability.");
+      } finally {
+        if (!cancelled) setLoadingIntegrations(false);
+      }
+    }
+
+    void loadIntegrations();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile]);
 
   async function handleSave() {
     setSaving(true);
@@ -343,6 +373,56 @@ export default function SettingsPage() {
             </div>
           </div>
         </Section>
+
+        {profile && ["admin", "super_admin"].includes(profile.role) && (
+          <Section icon={PlugZap} title="Integrations" accentClass="bg-sky-500/20 text-sky-400">
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Integration adapters normalize external evidence into the existing Neumas pipeline. Nothing here can bypass ledger, canonicalization, or audit.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {integrations.map((integration) => {
+                  const statusTone =
+                    integration.status === "connected"
+                      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      : integration.status === "needs_attention"
+                        ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                        : "bg-slate-500/10 text-slate-300 border-slate-500/20";
+                  return (
+                    <div
+                      key={`${integration.adapter_type}:${integration.provider_slug}`}
+                      className="rounded-xl border border-border/40 bg-surface-1/60 p-4 space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{integration.display_name}</p>
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                            {integration.adapter_type.replace("_", " ")}
+                          </p>
+                        </div>
+                        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusTone}`}>
+                          {integration.status === "not_connected"
+                            ? "Not connected"
+                            : integration.status === "needs_attention"
+                              ? "Needs attention"
+                              : "Connected"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {integration.coming_soon || !integration.implemented
+                          ? "Coming soon. This adapter is intentionally disabled until the real provider implementation is shipped."
+                          : "Available to configure."}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              {loadingIntegrations && (
+                <p className="text-xs text-muted-foreground">Loading integration availability…</p>
+              )}
+            </div>
+          </Section>
+        )}
 
         {/* ── Developer / IDs ──────────────────────────────────────────────── */}
         <Section icon={Shield} title="Developer details" accentClass="bg-cyan-500/20 text-cyan-400">

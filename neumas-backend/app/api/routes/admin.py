@@ -19,12 +19,15 @@ from app.core.logging import get_logger
 from app.db.repositories.audit_logs import AuditLogsRepository
 from app.db.repositories.email_logs import EmailLogsRepository
 from app.db.supabase_client import get_async_supabase_admin
+from app.schemas.integrations import IntegrationConnectionResponse
+from app.services.integrations.integration_service import IntegrationService
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 _audit_repo = AuditLogsRepository()
 _email_logs_repo = EmailLogsRepository()
+_integration_service = IntegrationService()
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
@@ -147,6 +150,16 @@ async def list_feature_flags(tenant: AdminTenant) -> dict:
         .execute()
     )
     return {"flags": resp.data or []}
+
+
+@router.get(
+    "/integrations",
+    response_model=list[IntegrationConnectionResponse],
+    summary="List integration connections and availability",
+)
+async def list_integrations(tenant: AdminTenant) -> list[IntegrationConnectionResponse]:
+    require_admin_role(tenant)
+    return await _integration_service.list_connections(tenant)
 
 
 @router.patch("/feature-flags/{flag_name}", summary="Update feature flag")

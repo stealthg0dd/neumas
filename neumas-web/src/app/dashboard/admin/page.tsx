@@ -28,6 +28,7 @@ import {
   listAdminProperties,
   getAdminUsage,
   getSystemHealth,
+  listAdminIntegrations,
   listAuditLog,
   listFeatureFlags,
   updateFeatureFlag,
@@ -37,6 +38,7 @@ import {
   type AdminUsage,
   type SystemHealth,
   type AuditEntry,
+  type IntegrationConnection,
 } from "@/lib/api/endpoints";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -291,20 +293,22 @@ function OverviewTab() {
   const [usage, setUsage] = useState<AdminUsage | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [props, setProps] = useState<AdminProperty[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, h, u, us, ps] = await Promise.all([
+      const [o, h, u, us, ps, ints] = await Promise.all([
         getAdminOrg().catch(() => null),
         getSystemHealth().catch(() => null),
         getAdminUsage({ days: 30 }).catch(() => null),
         listAdminUsers().catch(() => []),
         listAdminProperties().catch(() => []),
+        listAdminIntegrations().catch(() => []),
       ]);
-      setOrg(o); setHealth(h); setUsage(u); setUsers(us); setProps(ps);
+      setOrg(o); setHealth(h); setUsage(u); setUsers(us); setProps(ps); setIntegrations(ints);
       setLastRefresh(new Date());
     } finally {
       setLoading(false);
@@ -420,6 +424,43 @@ function OverviewTab() {
                 <span className="font-mono text-[13px] font-semibold text-gray-800">{m.value}</span>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {!!integrations.length && (
+        <section className="space-y-3">
+          <p className="text-[13px] font-semibold text-gray-700">Integration foundation</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {integrations.map((integration) => {
+              const tone =
+                integration.status === "connected"
+                  ? "border-emerald-100 bg-emerald-50"
+                  : integration.status === "needs_attention"
+                    ? "border-amber-100 bg-amber-50"
+                    : "border-gray-200 bg-gray-50";
+              const textTone =
+                integration.status === "connected"
+                  ? "text-emerald-700"
+                  : integration.status === "needs_attention"
+                    ? "text-amber-700"
+                    : "text-gray-600";
+              return (
+                <div key={`${integration.adapter_type}:${integration.provider_slug}`} className={`rounded-xl border p-4 ${tone}`}>
+                  <p className="text-[12px] font-semibold text-gray-900">{integration.display_name}</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">
+                    {integration.adapter_type.replace("_", " ")}
+                  </p>
+                  <p className={`mt-3 text-[12px] font-medium ${textTone}`}>
+                    {integration.status === "not_connected"
+                      ? "Not connected"
+                      : integration.status === "needs_attention"
+                        ? "Needs attention"
+                        : "Connected"}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
