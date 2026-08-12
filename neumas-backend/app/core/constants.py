@@ -136,6 +136,7 @@ SCAN_UPLOAD_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
 SCAN_TERMINAL_STATUSES = frozenset({
     "needs_review",
+    "inventory_posted",
     "completed",
     "partial_failed",
     "completed_with_partial_analysis",
@@ -145,6 +146,7 @@ SCAN_TERMINAL_STATUSES = frozenset({
 })
 
 SCAN_SUCCESS_STATUSES = frozenset({
+    "inventory_posted",
     "completed",
     "partial_failed",
     "completed_with_partial_analysis",

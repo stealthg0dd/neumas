@@ -3,6 +3,7 @@ import type { ScanStatus, ScanStatusResponse } from "@/lib/api/types";
 // Statuses that mean the scan pipeline finished successfully (possibly with
 // warnings) and polling should stop with the extracted results shown.
 const SUCCESS_TERMINAL_STATUSES: readonly ScanStatus[] = [
+  "inventory_posted",
   "completed",
   "partial_failed",
   "completed_with_partial_analysis",
@@ -80,6 +81,10 @@ export function getScanPipelineProgress(
 
   if (scan.status === "completed") {
     return { value: 100, label: "AI analysis complete" };
+  }
+
+  if (scan.status === "inventory_posted") {
+    return { value: 88, label: "Inventory updated, refreshing operational insights" };
   }
 
   if (scan.status === "partial_failed") {

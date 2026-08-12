@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -163,12 +163,10 @@ async def test_process_scan_passes_org_id_to_pattern_recompute(monkeypatch):
                 "usage": {"input_tokens": 10, "output_tokens": 20},
             }
 
-    recompute_patterns = AsyncMock(return_value={"items_analyzed": 1, "patterns_found": 1})
-
     monkeypatch.setattr("app.db.supabase_client.get_async_supabase_admin", AsyncMock(return_value=fake))
     monkeypatch.setattr("app.services.vision_agent.get_vision_agent", AsyncMock(return_value=_Vision()))
-    monkeypatch.setattr("app.services.pattern_agent.recompute_patterns_for_property", recompute_patterns)
-    monkeypatch.setattr("app.services.predict_agent.recompute_predictions_for_property", AsyncMock(return_value={}))
+    send_task = MagicMock()
+    monkeypatch.setattr("app.tasks.scan_tasks.celery_app.send_task", send_task)
 
     result = await _process_scan_async(
         task=None,
@@ -180,7 +178,15 @@ async def test_process_scan_passes_org_id_to_pattern_recompute(monkeypatch):
         request_id="req-org-id",
     )
 
-    assert result["status"] == "completed"
-    recompute_patterns.assert_awaited_once()
-    _, kwargs = recompute_patterns.call_args
-    assert kwargs.get("org_id") == fake.org_id
+    assert result["status"] == "inventory_posted"
+    send_task.assert_any_call(
+        "operations.run_post_scan_workflow",
+        kwargs={
+            "scan_id": scan_id,
+            "org_id": fake.org_id,
+            "property_id": fake.property_id,
+            "user_id": ANY,
+            "request_id": "req-org-id",
+        },
+        queue="scans",
+    )

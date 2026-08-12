@@ -49,6 +49,8 @@ function stageStatusLabel(status: string | undefined): string {
 
 function stageBadgeClass(status: string | undefined): string {
   switch (status) {
+    case "inventory_posted":
+      return "border-sky-200 bg-sky-50 text-sky-700";
     case "completed":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "running":
@@ -89,6 +91,8 @@ function scanStatusBadge(status: string): string {
 
 function scanStatusIcon(status: string) {
   switch (status) {
+    case "inventory_posted":
+      return Sparkles;
     case "completed":
       return CheckCircle2;
     case "completed_with_partial_analysis":
@@ -135,6 +139,7 @@ function nextActionLabel(scan: Scan | null, alerts: Alert[], predictions: Predic
   if (scan.status === "partial_failed" || scan.status === "completed_with_partial_analysis") {
     return "AI provider temporarily unavailable; showing extracted basics";
   }
+  if (scan.status === "inventory_posted") return "Inventory updated; intelligence refresh is still running";
   if (scan.status === "uploaded" || scan.status === "queued" || scan.status === "processing") return "Watch the scan pipeline";
   if (alerts.some((alert) => alert.alert_type === "predicted_stockout")) return "Resolve stockout alerts";
   if (predictions.length > 0) return "Review the latest forecast";
@@ -176,7 +181,7 @@ export default function ScansPage() {
   }, [load]);
 
   useEffect(() => {
-    const hasInFlight = scans.some((scan) => scan.status === "queued" || scan.status === "uploaded" || scan.status === "processing");
+    const hasInFlight = scans.some((scan) => scan.status === "queued" || scan.status === "uploaded" || scan.status === "processing" || scan.status === "inventory_posted");
     if (hasInFlight && !pollRef.current) {
       pollRef.current = setInterval(() => void load(), POLL_INTERVAL_MS);
     }
@@ -194,7 +199,7 @@ export default function ScansPage() {
 
   const latestScan = scans[0] ?? null;
   const inFlightCount = useMemo(
-    () => scans.filter((scan) => scan.status === "queued" || scan.status === "uploaded" || scan.status === "processing").length,
+    () => scans.filter((scan) => scan.status === "queued" || scan.status === "uploaded" || scan.status === "processing" || scan.status === "inventory_posted").length,
     [scans]
   );
 

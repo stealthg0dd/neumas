@@ -169,8 +169,6 @@ async def _process_scan_async(
     """
     # Lazy imports to prevent circular imports at module load
     from app.db.supabase_client import get_async_supabase_admin
-    from app.services.pattern_agent import recompute_patterns_for_property
-    from app.services.predict_agent import recompute_predictions_for_property
     from app.services.vision_agent import get_vision_agent
 
     wall_start = time.perf_counter()
@@ -236,6 +234,10 @@ async def _process_scan_async(
         "inventory": {"status": "pending"},
         "baseline": {"status": "pending"},
         "predictions": {"status": "pending"},
+        "reorder": {"status": "pending"},
+        "alerts": {"status": "pending"},
+        "executive_insights": {"status": "pending"},
+        "downstream": {"status": "pending"},
     }
 
     try:
@@ -524,85 +526,23 @@ async def _process_scan_async(
                 )
 
         # =================================================================
-        # Step 5 -- Recompute consumption patterns
-        # =================================================================
-        try:
-            stage_started = time.perf_counter()
-            stage_details["baseline"] = {"status": "running"}
-            # org_id was resolved above (from the scan's property record if not
-            # passed in) and is required by consumption_patterns.org_id (NOT
-            # NULL). Pass it through so pattern_agent doesn't have to re-derive
-            # it per item.
-            pattern_result = await recompute_patterns_for_property(
-                UUID(property_id), org_id=org_id
-            )
-            stage_details["baseline_recompute_ms"] = int((time.perf_counter() - stage_started) * 1000)
-            stage_details["baseline"] = {
-                "status": "completed",
-                "elapsed_ms": stage_details["baseline_recompute_ms"],
-                "items_analyzed": pattern_result.get("items_analyzed", 0),
-                "patterns_found": pattern_result.get("patterns_found", 0),
-            }
-            logger.info(
-                "Pattern recomputation complete",
-                scan_id=scan_id,
-                property_id=property_id,
-                items_analyzed=pattern_result.get("items_analyzed", 0),
-                patterns_upserted=pattern_result.get("patterns_found", 0),
-            )
-        except Exception as exc:
-            stage_details["baseline"] = {"status": "failed", "error": str(exc)}
-            logger.warning(
-                "Pattern recomputation failed (non-fatal)",
-                scan_id=scan_id,
-                error=str(exc),
-            )
-            result["errors"].append({"stage": "patterns", "error": str(exc)})
-
-        # =================================================================
-        # Step 6 -- Recompute stockout predictions
-        # =================================================================
-        try:
-            stage_started = time.perf_counter()
-            stage_details["predictions"] = {"status": "running"}
-            pred_result = await recompute_predictions_for_property(
-                UUID(property_id)
-            )
-            stage_details["predictions_recompute_ms"] = int((time.perf_counter() - stage_started) * 1000)
-            stage_details["predictions"] = {
-                "status": "completed",
-                "elapsed_ms": stage_details["predictions_recompute_ms"],
-                "predictions_upserted": pred_result.get("predictions_upserted", 0),
-                "critical_count": pred_result.get("critical_count", 0),
-            }
-            logger.info(
-                "Prediction recomputation complete",
-                scan_id=scan_id,
-                property_id=property_id,
-                predictions_upserted=pred_result.get("predictions_upserted", 0),
-                critical_count=pred_result.get("critical_count", 0),
-            )
-        except Exception as exc:
-            stage_details["predictions"] = {"status": "failed", "error": str(exc)}
-            logger.warning(
-                "Prediction recomputation failed (non-fatal)",
-                scan_id=scan_id,
-                error=str(exc),
-            )
-            result["errors"].append({"stage": "predictions", "error": str(exc)})
-
-        # =================================================================
-        # Step 7 -- Mark scan as completed
+        # Step 5 -- Hand off to downstream operational workflow
         # =================================================================
         total_ms = int((time.perf_counter() - wall_start) * 1000)
-        logger.info(f"DEBUG: Attempting final inventory commit for Scan ID: {scan_id}")
-
-        final_status = "completed_with_partial_analysis" if result["errors"] else "completed"
         stage_details["total_pipeline_ms"] = total_ms
+        stage_details["current_stage"] = "downstream"
+        stage_details["downstream"] = {
+            "status": "running",
+            "started_at": datetime.now(UTC).isoformat(),
+        }
+        stage_details["supplier_context"] = {
+            "status": "completed",
+            "vendor_name": receipt_meta.get("vendor_name"),
+            "receipt_total": receipt_meta.get("receipt_total"),
+        }
         await supabase.table("scans").update({
-            "status":             final_status,
+            "status": "inventory_posted",
             "processing_time_ms": total_ms,
-            "completed_at":       datetime.now(UTC).isoformat(),
             "processed_results": {
                 **processed_results,
                 "stage_details": stage_details,
@@ -610,12 +550,12 @@ async def _process_scan_async(
             },
         }).eq("id", scan_id).execute()
 
-        result["status"] = final_status
+        result["status"] = "inventory_posted"
         result["processing_time_ms"] = total_ms
         result["receipt_metadata"] = receipt_meta
 
         log_business_event(
-            "scan.completed",
+            "scan.inventory_posted",
             property_id=property_id,
             user_id=user_id,
             scan_id=scan_id,
@@ -624,7 +564,7 @@ async def _process_scan_async(
             errors=len(result["errors"]),
         )
         logger.info(
-            "Scan processing complete",
+            "Scan inventory posting complete; handing off downstream workflow",
             event_name="scan_worker_succeeded",
             scan_id=scan_id,
             property_id=property_id,
@@ -632,6 +572,41 @@ async def _process_scan_async(
             total_ms=total_ms,
             errors=len(result["errors"]),
         )
+
+        try:
+            celery_app.send_task(
+                "operations.run_post_scan_workflow",
+                kwargs={
+                    "scan_id": scan_id,
+                    "org_id": org_id,
+                    "property_id": property_id,
+                    "user_id": user_id,
+                    "request_id": request_id,
+                },
+                queue="scans",
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to enqueue downstream operational workflow",
+                scan_id=scan_id,
+                error=str(exc),
+            )
+            stage_details["downstream"] = {
+                "status": "failed",
+                "error": str(exc),
+                "retryable": True,
+            }
+            result["errors"].append({"stage": "downstream", "error": str(exc)})
+            await supabase.table("scans").update({
+                "status": "completed_with_partial_analysis",
+                "completed_at": datetime.now(UTC).isoformat(),
+                "processed_results": {
+                    **processed_results,
+                    "stage_details": stage_details,
+                    "stage_errors": result["errors"],
+                },
+            }).eq("id", scan_id).execute()
+            result["status"] = "completed_with_partial_analysis"
 
         try:
             celery_app.send_task(

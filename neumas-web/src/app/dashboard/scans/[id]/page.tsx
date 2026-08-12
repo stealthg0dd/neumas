@@ -62,6 +62,8 @@ function stageStatusClass(status: string | undefined): string {
 
 function scanStatusIcon(status: string) {
   switch (status) {
+    case "inventory_posted":
+      return Clock3;
     case "completed":
       return CheckCircle2;
     case "completed_with_partial_analysis":
@@ -81,6 +83,9 @@ function scanStatusIcon(status: string) {
 function scanStatusSummary(status: string): string {
   if (status === "completed_with_partial_analysis" || status === "partial_failed") {
     return "AI provider temporarily unavailable; showing extracted basics";
+  }
+  if (status === "inventory_posted") {
+    return "Inventory updated; downstream intelligence is still refreshing";
   }
   if (status === "failed_provider_unavailable" || status === "failed_invalid_file") {
     return "Analysis failed; retry";

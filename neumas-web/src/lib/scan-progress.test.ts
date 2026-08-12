@@ -26,6 +26,15 @@ describe("getScanPipelineProgress status contract", () => {
     expect(result.label).toBe("AI provider temporarily unavailable; showing extracted basics");
   });
 
+  it("maps inventory-posted state to the downstream refresh message", () => {
+    const result = getScanPipelineProgress({
+      status: "inventory_posted",
+      stage_details: null,
+    });
+
+    expect(result.label).toBe("Inventory updated, refreshing operational insights");
+  });
+
   it("maps provider/file failures to the required retry message", () => {
     const providerFailure = getScanPipelineProgress({
       status: "failed_provider_unavailable",
@@ -43,6 +52,7 @@ describe("getScanPipelineProgress status contract", () => {
 
 describe("scan poll terminal status detection", () => {
   it("treats completed, partial and needs_review as success-terminal", () => {
+    expect(isSuccessTerminalScanStatus("inventory_posted")).toBe(true);
     expect(isSuccessTerminalScanStatus("completed")).toBe(true);
     expect(isSuccessTerminalScanStatus("partial_failed")).toBe(true);
     expect(isSuccessTerminalScanStatus("completed_with_partial_analysis")).toBe(true);

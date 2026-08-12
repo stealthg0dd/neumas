@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -340,8 +340,7 @@ async def test_process_scan_ocr_failure_records_stage_error(monkeypatch):
 
     monkeypatch.setattr("app.db.supabase_client.get_async_supabase_admin", AsyncMock(return_value=fake))
     monkeypatch.setattr("app.services.vision_agent.get_vision_agent", AsyncMock(return_value=_Vision()))
-    monkeypatch.setattr("app.services.pattern_agent.recompute_patterns_for_property", AsyncMock(return_value={}))
-    monkeypatch.setattr("app.services.predict_agent.recompute_predictions_for_property", AsyncMock(return_value={}))
+    monkeypatch.setattr("app.tasks.scan_tasks.celery_app.send_task", MagicMock())
 
     result = await _process_scan_async(
         task=None,
@@ -378,8 +377,7 @@ async def test_process_scan_malformed_ocr_payload_fails_invalid_file(monkeypatch
 
     monkeypatch.setattr("app.db.supabase_client.get_async_supabase_admin", AsyncMock(return_value=fake))
     monkeypatch.setattr("app.services.vision_agent.get_vision_agent", AsyncMock(return_value=_Vision()))
-    monkeypatch.setattr("app.services.pattern_agent.recompute_patterns_for_property", AsyncMock(return_value={}))
-    monkeypatch.setattr("app.services.predict_agent.recompute_predictions_for_property", AsyncMock(return_value={}))
+    monkeypatch.setattr("app.tasks.scan_tasks.celery_app.send_task", MagicMock())
 
     result = await _process_scan_async(
         task=None,
@@ -396,7 +394,7 @@ async def test_process_scan_malformed_ocr_payload_fails_invalid_file(monkeypatch
 
 
 @pytest.mark.anyio
-async def test_process_scan_success_recomputes_baseline_and_predictions(monkeypatch):
+async def test_process_scan_success_hands_off_downstream_workflow(monkeypatch):
     from app.tasks.scan_tasks import _process_scan_async
 
     fake = _FakeSupabase(org_id=str(uuid4()))
@@ -413,13 +411,11 @@ async def test_process_scan_success_recomputes_baseline_and_predictions(monkeypa
                 "usage": {"input_tokens": 10, "output_tokens": 20},
             }
 
-    recompute_patterns = AsyncMock(return_value={"items_analyzed": 1, "patterns_found": 1})
-    recompute_predictions = AsyncMock(return_value={"predictions_upserted": 1, "critical_count": 0})
+    send_task = MagicMock()
 
     monkeypatch.setattr("app.db.supabase_client.get_async_supabase_admin", AsyncMock(return_value=fake))
     monkeypatch.setattr("app.services.vision_agent.get_vision_agent", AsyncMock(return_value=_Vision()))
-    monkeypatch.setattr("app.services.pattern_agent.recompute_patterns_for_property", recompute_patterns)
-    monkeypatch.setattr("app.services.predict_agent.recompute_predictions_for_property", recompute_predictions)
+    monkeypatch.setattr("app.tasks.scan_tasks.celery_app.send_task", send_task)
 
     result = await _process_scan_async(
         task=None,
@@ -431,14 +427,22 @@ async def test_process_scan_success_recomputes_baseline_and_predictions(monkeypa
         request_id="req-success",
     )
 
-    assert result["status"] == "completed"
-    assert fake.scans[scan_id]["status"] == "completed"
-    recompute_patterns.assert_awaited_once()
-    recompute_predictions.assert_awaited_once()
+    assert result["status"] == "inventory_posted"
+    assert fake.scans[scan_id]["status"] == "inventory_posted"
     stage_details = (fake.scans[scan_id].get("processed_results") or {}).get("stage_details") or {}
     assert stage_details.get("request_id") == "req-success"
-    assert stage_details.get("baseline", {}).get("status") == "completed"
-    assert stage_details.get("predictions", {}).get("status") == "completed"
+    assert stage_details.get("downstream", {}).get("status") == "running"
+    send_task.assert_any_call(
+        "operations.run_post_scan_workflow",
+        kwargs={
+            "scan_id": scan_id,
+            "org_id": fake.org_id,
+            "property_id": fake.property_id,
+            "user_id": ANY,
+            "request_id": "req-success",
+        },
+        queue="scans",
+    )
 
 
 @pytest.mark.anyio
@@ -464,8 +468,7 @@ async def test_process_scan_retry_skips_inventory_when_already_applied(monkeypat
 
     monkeypatch.setattr("app.db.supabase_client.get_async_supabase_admin", AsyncMock(return_value=fake))
     monkeypatch.setattr("app.services.vision_agent.get_vision_agent", AsyncMock(return_value=_Vision()))
-    monkeypatch.setattr("app.services.pattern_agent.recompute_patterns_for_property", AsyncMock(return_value={}))
-    monkeypatch.setattr("app.services.predict_agent.recompute_predictions_for_property", AsyncMock(return_value={}))
+    monkeypatch.setattr("app.tasks.scan_tasks.celery_app.send_task", MagicMock())
 
     result = await _process_scan_async(
         task=None,
@@ -477,7 +480,7 @@ async def test_process_scan_retry_skips_inventory_when_already_applied(monkeypat
         request_id="req-retry-skip",
     )
 
-    assert result["status"] in {"completed", "completed_with_partial_analysis"}
+    assert result["status"] in {"inventory_posted", "completed_with_partial_analysis"}
     assert result["items_upserted"] == 0
     assert fake.inventory == {}
     stage_details = (fake.scans[scan_id].get("processed_results") or {}).get("stage_details") or {}
@@ -535,6 +538,7 @@ async def test_scan_status_endpoint_schema_stable(monkeypatch):
         "stage_details",
         "stage_errors",
         "extracted_items",
+        "receipt_metadata",
         "stalled",
         "worker_seen",
     }

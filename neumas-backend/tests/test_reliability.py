@@ -141,8 +141,6 @@ class TestScanTaskIdempotency:
 
         with (
             patch("app.db.supabase_client.get_async_supabase_admin", AsyncMock(return_value=supabase)) as _,
-            patch("app.services.pattern_agent.recompute_patterns_for_property") as patterns_mock,
-            patch("app.services.predict_agent.recompute_predictions_for_property") as preds_mock,
             patch("app.services.vision_agent.get_vision_agent") as vision_mock,
         ):
             result = await _process_scan_async(
@@ -158,8 +156,6 @@ class TestScanTaskIdempotency:
         assert result.get("skipped") is True
         # Pipeline should NOT be re-executed
         vision_mock.assert_not_called()
-        patterns_mock.assert_not_called()
-        preds_mock.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

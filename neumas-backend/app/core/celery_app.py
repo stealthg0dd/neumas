@@ -99,6 +99,8 @@ celery_app.conf.update(
         "app.tasks.agent_tasks.*": {"queue": "neumas.predictions"},
         "app.tasks.alert_tasks.*": {"queue": "alerts"},
         "alerts.*": {"queue": "alerts", "routing_key": "alerts"},
+        "operations.*": {"queue": "scans", "routing_key": "scans"},
+        "app.tasks.operational_tasks.*": {"queue": "scans"},
         "app.tasks.report_tasks.*": {"queue": "reports"},
         "reports.*": {"queue": "reports", "routing_key": "reports"},
         "app.tasks.evaluation_tasks.*": {"queue": "evaluation"},

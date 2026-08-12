@@ -20,6 +20,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { itemToCube, type PantryItemCube } from "@/components/three/PantryScene";
 import { batchInventoryUpdate, getScanStatus, retryScan, uploadScan } from "@/lib/api/endpoints";
+import type { ScanStatusResponse } from "@/lib/api/types";
 import { useAuthStore } from "@/lib/store/auth";
 import { captureUIError } from "@/lib/analytics";
 import {
@@ -140,6 +141,7 @@ export default function NewScanPage() {
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [scanId, setScanId] = useState<string | null>(null);
+  const [scanStatus, setScanStatus] = useState<ScanStatusResponse | null>(null);
   const [extracted, setExtracted] = useState<ExtractedRow[]>([]);
   const [cubes, setCubes] = useState<PantryItemCube[]>([]);
   const [rotation, setRotation] = useState(0);
@@ -157,6 +159,7 @@ export default function NewScanPage() {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     setScanId(null);
+    setScanStatus(null);
     setExtracted([]);
     setCubes([]);
     setBusy(false);
@@ -241,6 +244,7 @@ export default function NewScanPage() {
     const poll = async () => {
       try {
         const s = await getScanStatus(scanId);
+        setScanStatus(s);
         errorCount = 0;
         if (s.stalled) {
           setStalled(true);
@@ -261,6 +265,8 @@ export default function NewScanPage() {
           setUploadProgress(100);
           if (s.status === "needs_review") {
             toast.warning("Scan completed but requires manual review.");
+          } else if (s.status === "inventory_posted") {
+            toast.success("Inventory updated. Neumas is refreshing risk and shopping insights.");
           } else if (s.status === "partial_failed" || s.status === "completed_with_partial_analysis") {
             toast.warning("AI provider temporarily unavailable; showing extracted basics");
           } else {
@@ -336,6 +342,40 @@ export default function NewScanPage() {
     }
   }
 
+  const workflowStageDetails = (scanStatus?.stage_details as Record<string, unknown> | null | undefined) ?? null;
+  const receiptMetadata = (scanStatus?.receipt_metadata as Record<string, unknown> | null | undefined) ?? null;
+  const receiptVendorName =
+    typeof receiptMetadata?.vendor_name === "string" ? receiptMetadata.vendor_name : null;
+  const receiptTotalValue =
+    typeof receiptMetadata?.receipt_total === "string" || typeof receiptMetadata?.receipt_total === "number"
+      ? String(receiptMetadata.receipt_total)
+      : null;
+  const reviewRequiredCount = extracted.filter((row) => row.confidence < 0.75).length;
+  const reviewReadyCount = Math.max(0, extracted.length - reviewRequiredCount);
+  const nextAction = workflowStageDetails?.next_best_action as Record<string, unknown> | undefined;
+  const downstreamStatus = ((workflowStageDetails?.downstream as Record<string, unknown> | undefined)?.status ?? null) as string | null;
+  const workflowSteps = [
+    { id: "upload", label: "Uploaded", active: uploadProgress >= 35 },
+    { id: "ocr", label: "Extracted", active: uploadProgress >= 55 || extracted.length > 0 },
+    {
+      id: "inventory",
+      label: "Inventory posted",
+      active:
+        scanStatus?.status === "inventory_posted" ||
+        scanStatus?.status === "completed" ||
+        scanStatus?.status === "partial_failed" ||
+        scanStatus?.status === "completed_with_partial_analysis",
+    },
+    {
+      id: "intelligence",
+      label: "Intelligence updated",
+      active:
+        scanStatus?.status === "completed" ||
+        scanStatus?.status === "partial_failed" ||
+        scanStatus?.status === "completed_with_partial_analysis",
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-12">
       <div>
@@ -346,6 +386,28 @@ export default function NewScanPage() {
           Capture a receipt on shift, optimize it on-device, and sync inventory in seconds.
         </p>
       </div>
+
+      {(busy || scanStatus || extracted.length > 0) && (
+        <GlassCard className="p-4 sm:p-5">
+          <div className="flex flex-wrap gap-3">
+            {workflowSteps.map((step, index) => (
+              <div key={step.id} className="flex items-center gap-3">
+                <div
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-semibold",
+                    step.active
+                      ? "border-[#0071a3] bg-[rgba(0,113,163,0.08)] text-[#0071a3]"
+                      : "border-[var(--border)] bg-white text-[var(--text-muted)]"
+                  )}
+                >
+                  {step.label}
+                </div>
+                {index < workflowSteps.length - 1 && <span className="text-xs text-[var(--text-muted)]">→</span>}
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <GlassCard className="p-4 sm:p-6">
@@ -535,12 +597,86 @@ export default function NewScanPage() {
       </div>
 
       <AnimatePresence>
-        {extracted.length > 0 && (
+        {(scanStatus || extracted.length > 0) && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4"
           >
+            {scanStatus?.status === "needs_review" && (
+              <GlassCard hover={false} className="space-y-3 p-4">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Receipt processed</p>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {extracted.length} items detected. {reviewReadyCount} ready, {reviewRequiredCount} need review.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/dashboard/documents" className="inline-flex min-h-[44px] items-center rounded-xl bg-[#0071a3] px-4 py-2 text-sm font-semibold text-white hover:bg-[#005a82]">
+                    Review {reviewRequiredCount} items
+                  </Link>
+                  <Link href="/dashboard/scans" className="inline-flex min-h-[44px] items-center rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-primary)]">
+                    Open scan history
+                  </Link>
+                </div>
+              </GlassCard>
+            )}
+
+            {scanStatus?.status === "inventory_posted" && (
+              <GlassCard hover={false} className="space-y-3 p-4">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Inventory updated</p>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {scanStatus.items_detected ?? extracted.length} items posted. Neumas is now checking stock risk, purchasing need, and anomalies.
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
+                  {receiptVendorName && <span>Supplier: {receiptVendorName}</span>}
+                  {receiptTotalValue && <span>Total: {receiptTotalValue}</span>}
+                  <span>Canonicalization status: inventory posted</span>
+                  <span>Downstream analysis: {downstreamStatus === "running" ? "running" : "queued"}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link href={typeof nextAction?.href === "string" ? nextAction.href : "/dashboard"} className="inline-flex min-h-[44px] items-center rounded-xl bg-[#0071a3] px-4 py-2 text-sm font-semibold text-white hover:bg-[#005a82]">
+                    See what Neumas found
+                  </Link>
+                  <Link href="/dashboard/scans" className="inline-flex min-h-[44px] items-center rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-primary)]">
+                    Open scans
+                  </Link>
+                </div>
+              </GlassCard>
+            )}
+
+            {scanStatus?.status === "completed" && (
+              <GlassCard hover={false} className="space-y-3 p-4">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Inventory updated</p>
+                <p className="text-sm text-[var(--text-secondary)]">{scanStatus.items_detected ?? extracted.length} items posted.</p>
+                <div className="flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
+                  <span>Inventory items affected: {scanStatus.items_detected ?? extracted.length}</span>
+                  {receiptVendorName && <span>Supplier detected: {receiptVendorName}</span>}
+                  {receiptTotalValue && <span>Total invoice value: {receiptTotalValue}</span>}
+                  <span>Canonicalization status: complete</span>
+                  <span>Downstream analysis: complete</span>
+                </div>
+                <Link href={typeof nextAction?.href === "string" ? nextAction.href : "/dashboard"} className="inline-flex min-h-[44px] items-center rounded-xl bg-[#0071a3] px-4 py-2 text-sm font-semibold text-white hover:bg-[#005a82]">
+                  See what Neumas found
+                </Link>
+              </GlassCard>
+            )}
+
+            {(scanStatus?.status === "partial_failed" || scanStatus?.status === "completed_with_partial_analysis") && (
+              <GlassCard hover={false} className="space-y-3 p-4">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">Inventory updated successfully</p>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Forecast refresh could not complete fully and will retry automatically. Your posted inventory remains available.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/dashboard/scans" className="inline-flex min-h-[44px] items-center rounded-xl bg-[#0071a3] px-4 py-2 text-sm font-semibold text-white hover:bg-[#005a82]">
+                    Open scan details
+                  </Link>
+                  <Link href="/dashboard" className="inline-flex min-h-[44px] items-center rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-primary)]">
+                    Back to dashboard
+                  </Link>
+                </div>
+              </GlassCard>
+            )}
+
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">Detected items</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {extracted.map((row, i) => (

@@ -367,6 +367,7 @@ class ScanService:
         processed_results = scan.get("processed_results") or {}
         stage_details: dict[str, Any] | None = processed_results.get("stage_details")
         stage_errors: list[dict[str, Any]] | None = processed_results.get("stage_errors")
+        receipt_metadata: dict[str, Any] | None = processed_results.get("receipt_metadata")
 
         # Extract items from processed_results when scan is complete.
         # VisionAgent stores items with key "item_name" — normalise to "name"
@@ -411,6 +412,7 @@ class ScanService:
             stage_details=stage_details,
             stage_errors=stage_errors,
             extracted_items=extracted_items,
+            receipt_metadata=receipt_metadata,
             stalled=stalled,
             worker_seen=worker_seen,
         )
