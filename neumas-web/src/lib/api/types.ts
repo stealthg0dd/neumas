@@ -606,6 +606,15 @@ export interface GenerateListResponse {
   job_id: string;
   message: string;
   property_id: string;
+  result_code:
+    | "CREATED"
+    | "UPDATED"
+    | "NO_ELIGIBLE_ITEMS"
+    | "INSUFFICIENT_DATA"
+    | "PREDICTION_PENDING";
+  shopping_list_id?: string | null;
+  item_count: number;
+  detail: string;
 }
 
 export interface ApproveListResponse {

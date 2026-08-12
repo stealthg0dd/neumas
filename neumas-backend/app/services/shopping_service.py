@@ -7,7 +7,6 @@ from urllib.parse import quote
 from uuid import UUID
 
 from app.api.deps import TenantContext
-from app.core.celery_app import celery_app
 from app.core.logging import get_logger
 from app.db.repositories.shopping_lists import get_shopping_lists_repository
 from app.schemas.shopping import (
@@ -18,6 +17,7 @@ from app.schemas.shopping import (
     OrderDeepLinkResponse,
     ShoppingListItem,
 )
+from app.services.reorder_service import ReorderService
 
 logger = get_logger(__name__)
 
@@ -33,20 +33,23 @@ DEEP_LINK_TEMPLATES = {
 class ShoppingService:
     """Service for shopping list management and order deep links."""
 
+    def __init__(self) -> None:
+        self._reorder_service = ReorderService()
+
     async def generate_list(
         self,
         request: GenerateListRequest,
         tenant: TenantContext,
     ) -> GenerateListResponse:
         """
-        Initiate shopping list generation (async via Celery).
+        Generate or refresh the canonical durable shopping plan.
 
         Args:
             request: Generation request with property_id and preferred_store
             tenant: Current tenant context
 
         Returns:
-            GenerateListResponse with job_id
+            GenerateListResponse with explicit result state
         """
         logger.info(
             "Starting shopping list generation",
@@ -54,31 +57,31 @@ class ShoppingService:
             user_id=str(tenant.user_id),
             preferred_store=request.preferred_store,
         )
-
-        # Enqueue the generation task
-        task = celery_app.send_task(
-            "app.tasks.shopping_tasks.generate_shopping_list",
-            args=[
-                str(request.property_id),
-                str(tenant.user_id),
-                request.preferred_store,
-                request.include_critical_only,
-                request.min_days_threshold,
-                str(request.budget_limit) if request.budget_limit is not None else None,
-            ],
-            queue="neumas.shopping",
-        )
-
-        logger.info(
-            "Enqueued shopping list generation",
-            property_id=str(request.property_id),
-            job_id=task.id,
+        result = await self._reorder_service.create_or_update_reorder_plan(
+            tenant,
+            trigger_context={
+                "source": "manual_generate",
+                "preferred_store": request.preferred_store,
+                "include_critical_only": request.include_critical_only,
+                "min_days_threshold": request.min_days_threshold,
+                "budget_limit": (
+                    str(request.budget_limit)
+                    if request.budget_limit is not None
+                    else None
+                ),
+            },
+            horizon_days=request.min_days_threshold or 7,
+            min_urgency="urgent" if request.include_critical_only else "soon",
         )
 
         return GenerateListResponse(
-            job_id=task.id,
-            message="generation_started",
+            job_id=str(result["job_id"]),
+            message=str(result["message"]),
             property_id=request.property_id,
+            result_code=str(result["result_code"]),
+            shopping_list_id=UUID(str(result["shopping_list_id"])) if result.get("shopping_list_id") else None,
+            item_count=int(result.get("item_count") or 0),
+            detail=str(result.get("detail") or ""),
         )
 
     async def get_active_list(

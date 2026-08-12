@@ -293,6 +293,16 @@ class GenerateListResponse(BaseModel):
     job_id: str
     message: str = "generation_started"
     property_id: UUID
+    result_code: Literal[
+        "CREATED",
+        "UPDATED",
+        "NO_ELIGIBLE_ITEMS",
+        "INSUFFICIENT_DATA",
+        "PREDICTION_PENDING",
+    ] = "PREDICTION_PENDING"
+    shopping_list_id: UUID | None = None
+    item_count: int = 0
+    detail: str = ""
 
 
 class MarkItemPurchasedRequest(BaseModel):

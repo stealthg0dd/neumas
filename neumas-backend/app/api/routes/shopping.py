@@ -130,19 +130,16 @@ async def list_shopping_lists(
 @router.post(
     "/generate",
     response_model=GenerateListResponse,
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=status.HTTP_200_OK,
     summary="Generate shopping list",
-    description="Enqueue async generation of a shopping list from inventory and predictions.",
+    description="Create or refresh a durable shopping plan from current forecast risk.",
 )
 async def generate_shopping_list(
     request: GenerateListRequest,
     tenant: TenantContext = require_property(),
 ) -> GenerateListResponse:
     """
-    Kick off shopping list generation.
-
-    Returns a job_id that can be used to track progress.
-    The list will appear under GET / once complete.
+    Create or refresh the current durable shopping plan.
     """
     try:
         # Resolve property_id from tenant context when not supplied in body

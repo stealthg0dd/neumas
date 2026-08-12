@@ -350,6 +350,23 @@ class ShoppingListsRepository:
         response = await self.client.table(self.items_table).insert(items).execute()
         return response.data
 
+    async def delete_items(
+        self,
+        tenant: "TenantContext",
+        list_id: UUID,
+    ) -> None:
+        """Delete all items from a shopping list after verifying tenant access."""
+        shopping_list = await self.get_by_id(tenant, list_id)
+        if not shopping_list:
+            raise ValueError("Shopping list not found or access denied")
+
+        await (
+            self.client.table(self.items_table)
+            .delete()
+            .eq("shopping_list_id", str(list_id))
+            .execute()
+        )
+
     async def update_item(
         self,
         tenant: "TenantContext",

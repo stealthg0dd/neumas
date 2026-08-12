@@ -6,6 +6,8 @@ from decimal import Decimal
 from uuid import UUID
 
 from app.api.deps import TenantContext
+from app.core.celery_app import celery_app
+from app.core.constants import PredictionType
 from app.core.logging import get_logger
 from app.db.repositories.shopping_lists import get_shopping_lists_repository
 from app.services.audit_service import AuditService
@@ -196,6 +198,32 @@ class ReorderLifecycleService:
             )
 
         await repo.update_totals(tenant, list_id)
+        linked_prediction_ids = []
+        if item.get("prediction_id"):
+            linked_prediction_ids.append(str(item["prediction_id"]))
+        source_prediction_ids = shopping_list.get("source_prediction_ids")
+        if isinstance(source_prediction_ids, list):
+            linked_prediction_ids.extend(str(prediction_id) for prediction_id in source_prediction_ids if prediction_id)
+
+        if linked_prediction_ids:
+            try:
+                celery_app.send_task(
+                    "evaluation.backfill_prediction_evaluations",
+                    args=[str(tenant.org_id), str(tenant.property_id)],
+                    kwargs={
+                        "prediction_type": str(PredictionType.STOCKOUT),
+                        "older_than_days": 0,
+                        "limit": max(25, len(set(linked_prediction_ids)) * 5),
+                    },
+                    queue="evaluation",
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to enqueue prediction evaluation after receipt",
+                    list_id=str(list_id),
+                    item_id=str(item_id),
+                    error=str(exc),
+                )
         return updated_item
 
 

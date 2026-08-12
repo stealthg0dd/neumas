@@ -303,34 +303,30 @@ export default function ShoppingPage() {
     }
     setGenLoading(true);
     try {
-      await generateShoppingList({
+      const result = await generateShoppingList({
         include_critical_only: opts.criticalOnly,
         min_days_threshold:    opts.daysAhead,
       });
-      toast.success("Generating shopping list — this may take up to 30 seconds…");
+
+      if (result.result_code === "CREATED") {
+        toast.success(`Created reorder plan with ${result.item_count} actionable item${result.item_count === 1 ? "" : "s"}.`);
+      } else if (result.result_code === "UPDATED") {
+        toast.success(`Updated reorder plan with ${result.item_count} actionable item${result.item_count === 1 ? "" : "s"}.`);
+      } else if (result.result_code === "NO_ELIGIBLE_ITEMS") {
+        toast.message("No qualifying forecast risk needs a new shopping plan right now.");
+      } else if (result.result_code === "PREDICTION_PENDING") {
+        toast.message("Forecasts are still catching up. Run or wait for predictions, then try again.");
+      } else {
+        toast.message("Neumas needs more inventory evidence before it can build a durable reorder plan.");
+      }
+
       track("shopping_list_generated", {
         critical_only: opts.criticalOnly,
         days_ahead:    opts.daysAhead,
         min_qty_pct:   opts.minQtyPct,
       });
       setGenOpen(false);
-      // Poll every 3 s for up to 45 s, stop early when a new list appears
-      const before = lists.length;
-      let attempts = 0;
-      const poll = setInterval(async () => {
-        attempts++;
-        try {
-          const data = await listShoppingLists();
-          const fresh = Array.isArray(data) ? data : [];
-          if (fresh.length > before || attempts >= 15) {
-            clearInterval(poll);
-            setLists(fresh);
-            if (fresh.length > before) toast.success("Shopping list is ready!");
-          }
-        } catch {
-          if (attempts >= 15) clearInterval(poll);
-        }
-      }, 3000);
+      await fetchListsRef.current();
     } catch (err) {
       captureUIError("generate_shopping_list", err);
     } finally {

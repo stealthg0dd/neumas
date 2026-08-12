@@ -14,6 +14,7 @@ Tests for Prompts 5, 6, and 7:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -470,26 +471,112 @@ class TestReorderService:
         """Recommendations are sorted critical → urgent → soon → monitor."""
         from app.services.reorder_service import ReorderService
 
+        class _Resp:
+            def __init__(self, data):
+                self.data = data
+
+        class _Query:
+            def __init__(self, rows):
+                self._rows = rows
+                self._filters = []
+
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, key, value):
+                self._filters.append((key, value))
+                return self
+
+            def order(self, *_args, **_kwargs):
+                return self
+
+            async def execute(self):
+                rows = [
+                    row for row in self._rows
+                    if all(row.get(key) == value for key, value in self._filters)
+                ]
+                return _Resp(rows)
+
+        class _Client:
+            def __init__(self, items, predictions):
+                self._tables = {
+                    "inventory_items": items,
+                    "predictions": predictions,
+                    "vendors": [],
+                }
+
+            def table(self, name):
+                return _Query(self._tables[name])
+
         svc = ReorderService()
         items = [
-            {"id": str(uuid4()), "name": "Item A", "quantity": 5, "par_level": 10, "unit": "kg", "category_id": None},
-            {"id": str(uuid4()), "name": "Item B", "quantity": 0, "par_level": 10, "unit": "kg", "category_id": None},
+            {
+                "id": str(uuid4()),
+                "name": "Item A",
+                "quantity": 5,
+                "par_level": 10,
+                "unit": "kg",
+                "category_id": None,
+                "property_id": str(tenant.property_id),
+                "organization_id": str(tenant.org_id),
+                "reorder_point": 10,
+                "cost_per_unit": 1.0,
+                "currency": "USD",
+                "vendor_id": None,
+                "supplier_info": {},
+                "is_active": True,
+            },
+            {
+                "id": str(uuid4()),
+                "name": "Item B",
+                "quantity": 0,
+                "par_level": 10,
+                "unit": "kg",
+                "category_id": None,
+                "property_id": str(tenant.property_id),
+                "organization_id": str(tenant.org_id),
+                "reorder_point": 10,
+                "cost_per_unit": 1.0,
+                "currency": "USD",
+                "vendor_id": None,
+                "supplier_info": {},
+                "is_active": True,
+            },
+        ]
+        predictions = [
+            {
+                "id": str(uuid4()),
+                "property_id": str(tenant.property_id),
+                "item_id": items[0]["id"],
+                "inventory_item_id": items[0]["id"],
+                "prediction_type": "stockout",
+                "prediction_date": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
+                "predicted_depletion_date": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
+                "predicted_value": 7.0,
+                "predicted_quantity_needed": 7.0,
+                "confidence": 0.8,
+                "stockout_risk_level": "soon",
+                "source_data_window": {},
+                "features_used": {},
+            },
+            {
+                "id": str(uuid4()),
+                "property_id": str(tenant.property_id),
+                "item_id": items[1]["id"],
+                "inventory_item_id": items[1]["id"],
+                "prediction_type": "stockout",
+                "prediction_date": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+                "predicted_depletion_date": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+                "predicted_value": 10.0,
+                "predicted_quantity_needed": 10.0,
+                "confidence": 0.9,
+                "stockout_risk_level": "critical",
+                "source_data_window": {},
+                "features_used": {},
+            },
         ]
 
-        mock_client = MagicMock()
-        inv_resp = MagicMock(data=items)
-        pred_resp = MagicMock(data=[])
-
-        # Inventory: .table().select().eq("property_id").eq("org_id").execute()
-        mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.execute = AsyncMock(
-            return_value=inv_resp
-        )
-        # Predictions: .table().select().eq().eq().gte().lte().execute()
-        mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.gte.return_value.lte.return_value.execute = AsyncMock(
-            return_value=pred_resp
-        )
-
-        with patch("app.services.reorder_service.get_async_supabase_admin", new=AsyncMock(return_value=mock_client)):
+        with patch("app.services.reorder_service.get_async_supabase_admin", new=AsyncMock(return_value=_Client(items, predictions))):
             recs = await svc.get_recommendations(tenant, min_urgency="monitor")
             urgencies = [r["urgency"] for r in recs]
             # critical should come before soon
