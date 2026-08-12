@@ -113,6 +113,7 @@ import type {
   GenerateListResponse,
   AnalyticsSummary,
   OrgPropertyStockHealthResponse,
+  OperatorCopilotResponse,
   VendorOrderExportResponse,
   ExecutiveBriefingResponse,
   ScanRerunResponse,
@@ -502,6 +503,13 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
 /** GET /api/admin/properties/stock-health */
 export async function getOrgPropertyStockHealth(): Promise<OrgPropertyStockHealthResponse> {
   return get<OrgPropertyStockHealthResponse>("/api/admin/properties/stock-health");
+}
+
+export async function askOperatorCopilot(payload: {
+  question: string;
+  workspace_experience?: string;
+}): Promise<OperatorCopilotResponse> {
+  return post<OperatorCopilotResponse>("/api/insights/operator-copilot", payload);
 }
 
 // ============================================================================

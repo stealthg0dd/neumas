@@ -14,12 +14,16 @@ from app.schemas.decision_center import (
     DecisionLatestActivity,
     DecisionNextBestAction,
 )
+from app.services.impact_service import ImpactService
 
 logger = get_logger(__name__)
 
 
 class DecisionCenterService:
     """Assemble one canonical operator-facing decision payload."""
+
+    def __init__(self) -> None:
+        self._impact = ImpactService()
 
     async def build(self, tenant: TenantContext, *, workspace_experience: str = "FNB") -> DecisionCenterResponse:
         client = await get_async_supabase_admin()
@@ -78,17 +82,6 @@ class DecisionCenterService:
             desc=True,
             limit=15,
         )
-        inventory_items = await self._fetch_rows(
-            client,
-            "inventory_items",
-            "id,quantity,reorder_point,min_quantity,metadata,last_scanned_at",
-            organization_id=org_id,
-            property_id=property_id,
-            extra_eq={"is_active": True},
-            order_by="updated_at",
-            desc=True,
-            limit=250,
-        )
         organization = await self._fetch_single(
             client,
             "organizations",
@@ -111,11 +104,9 @@ class DecisionCenterService:
             predictions=predictions,
             shopping_lists=shopping_lists,
         )
-        impact = self._build_impact_state(
+        impact = await self._build_impact_state(
+            tenant=tenant,
             workspace_experience=workspace_experience,
-            scans=scans,
-            inventory_items=inventory_items,
-            organization=organization or {},
         )
 
         return DecisionCenterResponse(
@@ -369,30 +360,24 @@ class DecisionCenterService:
             learning_state=learning_state,
         )
 
-    def _build_impact_state(
+    async def _build_impact_state(
         self,
         *,
+        tenant: TenantContext,
         workspace_experience: str,
-        scans: list[dict[str, Any]],
-        inventory_items: list[dict[str, Any]],
-        organization: dict[str, Any],
     ) -> DecisionImpactState:
-        milestones = organization.get("activation_milestones") or {}
-        has_measurable_baseline = bool(scans) and bool(inventory_items) and bool(milestones.get("first_ledger_post"))
-        if not has_measurable_baseline:
-            return DecisionImpactState(
-                mode="baseline",
-                headline=(
-                    "Building your household baseline."
-                    if workspace_experience == "HOUSEHOLD"
-                    else "Building your operating baseline."
-                ),
-            )
+        summary = await self._impact.get_impact_summary(
+            tenant,
+            days=30,
+            workspace_experience=workspace_experience,
+        )
+        metrics = summary.get("metrics") or []
+        rollup = summary.get("summary") or {}
         return DecisionImpactState(
-            mode="measured",
-            headline="Measured operating impact is now available.",
-            stockouts_avoided=None,
-            waste_avoided=None,
-            purchasing_variance=None,
-            decisions_automated=None,
+            mode=str(summary.get("mode") or "baseline"),
+            headline=str(summary.get("headline") or "Building your operating baseline."),
+            metrics=metrics,
+            methodology_note="Modeled metrics are labeled explicitly and only appear when evidence exists.",
+            purchasing_variance=rollup.get("observed_price_variance"),
+            decisions_automated=rollup.get("automated_workflow_actions"),
         )

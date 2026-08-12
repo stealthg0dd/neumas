@@ -27,6 +27,7 @@ _VALID_REPORT_TYPES = frozenset({
     "waste_summary",
     "forecast_accuracy",
     "low_stock_summary",
+    "operator_impact",
 })
 _WEEKLY_DIGEST_REPORT_TYPE = "weekly_digest_email"
 _WEEKLY_DIGEST_CACHE_HOURS = 24

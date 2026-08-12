@@ -8,6 +8,7 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.api.deps import TenantContext, get_tenant_context
 from app.core.config import settings
@@ -16,12 +17,25 @@ from app.db.supabase_client import get_async_supabase_admin
 from app.schemas.decision_center import DecisionCenterResponse
 from app.services.decision_center_service import DecisionCenterService
 from app.services.executive_briefing_service import ExecutiveBriefingService
+from app.services.operator_copilot_service import OperatorCopilotService
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 briefing_service = ExecutiveBriefingService()
 decision_center_service = DecisionCenterService()
+operator_copilot_service = OperatorCopilotService()
+
+
+class OperatorCopilotRequest(BaseModel):
+    question: str = Field(..., min_length=3, max_length=500)
+    workspace_experience: str | None = None
+
+
+class OperatorCopilotResponse(BaseModel):
+    answer: str
+    citations: list[dict[str, str]]
+    mode: str
 
 
 @router.get("/executive-briefing")
@@ -38,6 +52,20 @@ async def decision_center(
 ) -> DecisionCenterResponse:
     resolved = workspace_experience or ("HOUSEHOLD" if str(tenant.role).lower() == "resident" else "FNB")
     return await decision_center_service.build(tenant, workspace_experience=resolved)
+
+
+@router.post("/operator-copilot", response_model=OperatorCopilotResponse)
+async def operator_copilot(
+    body: OperatorCopilotRequest,
+    tenant: TenantContext = Depends(get_tenant_context),
+) -> OperatorCopilotResponse:
+    resolved = body.workspace_experience or ("HOUSEHOLD" if str(tenant.role).lower() == "resident" else "FNB")
+    result = await operator_copilot_service.answer(
+        tenant,
+        question=body.question,
+        workspace_experience=resolved,
+    )
+    return OperatorCopilotResponse(**result)
 
 
 @router.get("/posts")

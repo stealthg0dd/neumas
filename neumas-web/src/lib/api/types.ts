@@ -464,10 +464,30 @@ export interface DecisionAheadState {
 export interface DecisionImpactState {
   mode: "baseline" | "measured";
   headline: string;
+  metrics?: Array<{
+    key: string;
+    label: string;
+    value: number | string | null;
+    kind: "actual" | "estimated";
+    format?: string | null;
+    methodology?: string | null;
+  }>;
+  methodology_note?: string | null;
   stockouts_avoided?: number | null;
   waste_avoided?: number | null;
   purchasing_variance?: number | null;
   decisions_automated?: number | null;
+}
+
+export interface OperatorCopilotResponse {
+  answer: string;
+  citations: Array<{
+    kind: string;
+    id: string;
+    label: string;
+    href: string;
+  }>;
+  mode: string;
 }
 
 export interface DecisionNextBestAction {

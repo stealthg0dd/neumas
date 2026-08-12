@@ -41,6 +41,8 @@ class DecisionAheadState(BaseModel):
 class DecisionImpactState(BaseModel):
     mode: Literal["baseline", "measured"]
     headline: str
+    metrics: list[dict] = []
+    methodology_note: str | None = None
     stockouts_avoided: int | None = None
     waste_avoided: float | None = None
     purchasing_variance: float | None = None
@@ -63,4 +65,3 @@ class DecisionCenterResponse(BaseModel):
     ahead: DecisionAheadState
     impact: DecisionImpactState
     next_best_action: DecisionNextBestAction
-

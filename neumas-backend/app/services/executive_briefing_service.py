@@ -8,6 +8,7 @@ from typing import Any
 from app.api.deps import TenantContext
 from app.core.logging import get_logger
 from app.db.supabase_client import get_async_supabase_admin
+from app.services.impact_service import ImpactService
 
 logger = get_logger(__name__)
 
@@ -16,6 +17,9 @@ class ExecutiveBriefingService:
     """Summarize recent audit activity into three executive bullets."""
 
     _SETTINGS_KEY = "executive_briefing_cache"
+
+    def __init__(self) -> None:
+        self._impact = ImpactService()
 
     async def get_briefing(
         self,
@@ -45,7 +49,8 @@ class ExecutiveBriefingService:
 
         response = await query.execute()
         logs = response.data or []
-        bullets = await self._llm_summary(logs, days)
+        impact = await self._impact.get_impact_summary(tenant, days=30)
+        bullets = await self._llm_summary(logs, days, impact=impact)
         payload = {
             "period_days": days,
             "generated_at": datetime.now(UTC).isoformat(),
@@ -112,7 +117,7 @@ class ExecutiveBriefingService:
         settings[self._SETTINGS_KEY] = cache
         await client.table("organizations").update({"settings": settings}).eq("id", str(tenant.org_id)).execute()
 
-    def _fallback_bullets(self, logs: list[dict[str, Any]], days: int) -> list[str]:
+    def _fallback_bullets(self, logs: list[dict[str, Any]], days: int, impact: dict[str, Any] | None = None) -> list[str]:
         if not logs:
             return [
                 f"No audited activity was recorded in the last {days} days.",
@@ -131,14 +136,22 @@ class ExecutiveBriefingService:
 
         top_actions = ", ".join(f"{name} ({count})" for name, count in actions.most_common(3))
         busiest_resource = resources.most_common(1)[0][0] if resources else "operations"
-        return [
+        bullets = [
             f"{len(logs)} audited actions landed in the last {days} days, led by {top_actions or 'normal operations'}.",
             f"The busiest workflow was {busiest_resource}, with {reorder_events} reorder and shopping actions recorded.",
             f"Operational friction stayed at {scan_failures} scan failures across the same window.",
         ]
+        impact_summary = (impact or {}).get("summary") or {}
+        documents_processed = int(impact_summary.get("documents_processed") or 0)
+        recommendations = int(impact_summary.get("reorder_recommendations_generated") or 0)
+        if documents_processed or recommendations:
+            bullets[1] = (
+                f"{documents_processed} purchase document(s) and {recommendations} reorder recommendation(s) were processed in the last 30 days."
+            )
+        return bullets
 
-    async def _llm_summary(self, logs: list[dict[str, Any]], days: int) -> list[str]:
-        fallback = self._fallback_bullets(logs, days)
+    async def _llm_summary(self, logs: list[dict[str, Any]], days: int, *, impact: dict[str, Any] | None = None) -> list[str]:
+        fallback = self._fallback_bullets(logs, days, impact=impact)
         if not logs:
             return fallback
 
@@ -159,6 +172,7 @@ class ExecutiveBriefingService:
                     "Return valid JSON: {\"bullets\": [\"...\", \"...\", \"...\"]}",
                 ],
                 "period_days": days,
+                "impact_summary": (impact or {}).get("summary") or {},
                 "logs": logs[:50],
             }
             message = await client.messages.create(

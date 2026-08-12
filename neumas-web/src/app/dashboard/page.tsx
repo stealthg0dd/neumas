@@ -24,6 +24,7 @@ import {
 } from "recharts";
 
 import {
+  askOperatorCopilot,
   getDecisionCenter,
   getOnboardingState,
   getAnalyticsSummary,
@@ -40,6 +41,7 @@ import type {
   DecisionCenterResponse,
   InventoryItem,
   OnboardingStateResponse,
+  OperatorCopilotResponse,
   OrgPropertyStockHealthResponse,
   Prediction,
   Scan,
@@ -81,6 +83,8 @@ const EMPTY_DECISION_CENTER: DecisionCenterResponse = {
   impact: {
     mode: "baseline",
     headline: "Building your operating baseline.",
+    metrics: [],
+    methodology_note: null,
     stockouts_avoided: null,
     waste_avoided: null,
     purchasing_variance: null,
@@ -124,6 +128,8 @@ export default function DashboardPage() {
   const [onboarding, setOnboarding] = useState<OnboardingStateResponse | null>(null);
   const [forecastSpend7d, setForecastSpend7d] = useState(0);
   const [decisionCenter, setDecisionCenter] = useState<DecisionCenterResponse>(EMPTY_DECISION_CENTER);
+  const [copilotAnswer, setCopilotAnswer] = useState<OperatorCopilotResponse | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -222,6 +228,40 @@ export default function DashboardPage() {
     if (previous <= 0 || latest >= previous) return null;
     return Number((previous - latest).toFixed(2));
   }, [summary.spend_history]);
+
+  const copilotPrompts = workspaceExperience === "HOUSEHOLD"
+    ? [
+        "What should I buy this weekend?",
+        "What is running low?",
+        "What should I use soon?",
+        "Why is this item on my smart list?",
+      ]
+    : [
+        "What needs my attention today?",
+        "What will run out this week?",
+        "Which supplier prices increased?",
+        "How accurate have forecasts been?",
+      ];
+
+  async function handleCopilotPrompt(question: string) {
+    setCopilotLoading(true);
+    try {
+      const result = await askOperatorCopilot({
+        question,
+        workspace_experience: workspaceExperience,
+      });
+      setCopilotAnswer(result);
+    } catch (err) {
+      captureUIError("dashboard_operator_copilot", err);
+      setCopilotAnswer({
+        answer: "Neumas could not complete that answer right now. Try again in a moment.",
+        citations: [],
+        mode: "fallback",
+      });
+    } finally {
+      setCopilotLoading(false);
+    }
+  }
 
   if (workspaceExperience === "HOUSEHOLD") {
     return (
@@ -353,6 +393,48 @@ export default function DashboardPage() {
                   <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Recent receipts</p>
                   <p className="mt-2 text-2xl font-bold text-gray-900">{scans.length}</p>
                 </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900">Operator Copilot</h2>
+                  <p className="mt-1 text-xs text-gray-500">Grounded answers from your receipts, pantry state, alerts, and smart-list workflow.</p>
+                </div>
+                <Sparkles className="h-4 w-4 text-sky-700" />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {copilotPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => void handleCopilotPrompt(prompt)}
+                    className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                {copilotLoading ? (
+                  <p className="text-sm text-gray-500">Checking your verified operating data…</p>
+                ) : copilotAnswer ? (
+                  <>
+                    <p className="text-sm text-gray-800">{copilotAnswer.answer}</p>
+                    {copilotAnswer.citations.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {copilotAnswer.citations.map((citation) => (
+                          <Link key={`${citation.kind}-${citation.id}`} href={citation.href} className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-sky-700 ring-1 ring-gray-200 hover:bg-sky-50">
+                            {citation.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Ask one of the guided questions to inspect grounded pantry and workflow signals.</p>
+                )}
               </div>
             </div>
           </div>
@@ -662,15 +744,86 @@ export default function DashboardPage() {
               </div>
               <Sparkles className="h-4 w-4 text-sky-700" />
             </div>
-            {decisionCenter.impact.mode === "measured" && recommendation ? (
-              <div className="mt-4 space-y-2">
+            {decisionCenter.impact.mode === "measured" ? (
+              <div className="mt-4 space-y-3">
                 <p className="text-lg font-semibold text-gray-900">{decisionCenter.impact.headline}</p>
-                <p className="text-sm text-gray-600">{recommendation.reason}</p>
-                <p className="text-sm font-medium text-gray-800">Action: {recommendation.action}</p>
+                {decisionCenter.impact.metrics?.length ? (
+                  <div className="space-y-2">
+                    {decisionCenter.impact.metrics.map((metric) => (
+                      <div key={metric.key} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                        <p className="text-sm font-semibold text-gray-900">{metric.label}</p>
+                        <p className="mt-1 text-xs text-gray-600">
+                          {metric.format === "percent" && typeof metric.value === "number"
+                            ? `${Math.round(metric.value * 100)}%`
+                            : metric.format === "currency" && typeof metric.value === "number"
+                            ? formatMoney(metric.value)
+                            : metric.format === "minutes" && typeof metric.value === "number"
+                            ? `${metric.value} min`
+                            : metric.value ?? "Still learning"}
+                          {metric.kind === "estimated" ? " · modeled" : ""}
+                        </p>
+                        {metric.methodology && <p className="mt-1 text-[11px] text-gray-500">{metric.methodology}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {recommendation ? (
+                      <>
+                        <p className="text-sm text-gray-600">{recommendation.reason}</p>
+                        <p className="text-sm font-medium text-gray-800">Action: {recommendation.action}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500">Measured outcomes will appear here as the workflow records more completed operating cycles.</p>
+                    )}
+                  </>
+                )}
               </div>
             ) : (
               <p className="mt-4 text-sm text-gray-500">{decisionCenter.impact.headline}</p>
             )}
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Operator Copilot</h3>
+                <p className="text-xs text-gray-500">Grounded answers from receipts, alerts, predictions, shopping, and supplier context.</p>
+              </div>
+              <Sparkles className="h-4 w-4 text-sky-700" />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {copilotPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => void handleCopilotPrompt(prompt)}
+                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+              {copilotLoading ? (
+                <p className="text-sm text-gray-500">Checking your verified operating data…</p>
+              ) : copilotAnswer ? (
+                <>
+                  <p className="text-sm text-gray-800">{copilotAnswer.answer}</p>
+                  {copilotAnswer.citations.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {copilotAnswer.citations.map((citation) => (
+                        <Link key={`${citation.kind}-${citation.id}`} href={citation.href} className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-sky-700 ring-1 ring-gray-200 hover:bg-sky-50">
+                          {citation.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">Ask one of the guided questions to inspect grounded operating signals.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -208,6 +208,7 @@ async def _generate(report: dict, client) -> dict:
         "waste_summary": _gen_waste_summary,
         "forecast_accuracy": _gen_forecast_accuracy,
         "low_stock_summary": _gen_low_stock_summary,
+        "operator_impact": _gen_operator_impact,
     }
 
     generator = generators.get(report_type)
@@ -274,3 +275,22 @@ async def _gen_low_stock_summary(client, org_id: str, property_id: str | None, p
         if item.get("par_level") and float(item.get("quantity") or 0) <= float(item.get("par_level") or 0)
     ]
     return {"data": low_stock, "url": None}
+
+
+async def _gen_operator_impact(client, org_id: str, property_id: str | None, params: dict) -> dict:
+    from app.api.deps import TenantContext
+    from app.services.impact_service import ImpactService
+
+    tenant = TenantContext(
+        user_id=UUID(params.get("user_id")) if params.get("user_id") else UUID("00000000-0000-0000-0000-000000000001"),
+        org_id=UUID(org_id),
+        property_id=UUID(property_id) if property_id else None,
+        role="service",
+        jwt="report-task",
+    )
+    summary = await ImpactService().get_impact_summary(
+        tenant,
+        days=int(params.get("days") or 30),
+        workspace_experience=str(params.get("workspace_experience") or "FNB"),
+    )
+    return {"data": summary, "url": None}
