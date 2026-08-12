@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 AgentName = Literal["VISION", "PATTERN", "PREDICT", "SHOPPING", "BUDGET"]
 
 MODEL_PRIORITY: dict[AgentName, list[str]] = {
-    "VISION": ["claude-3-5-sonnet", "gpt-4-vision", "gemini-1.5-vision"],
+    "VISION": ["claude-sonnet-5", "gpt-4-vision", "gemini-1.5-vision"],
     "PATTERN": ["gpt-4o-mini", "claude-haiku", "gemini-1.5-flash"],
     "PREDICT": ["gpt-4o", "claude-sonnet", "gemini-pro"],
     "SHOPPING": ["gpt-4o-mini", "claude-haiku", "gemini-1.5-flash"],
@@ -49,6 +49,7 @@ MODEL_PROVIDER: dict[str, str] = {
     "gpt-4o": "openai",
     "gpt-4o-mini": "openai",
     # Anthropic models
+    "claude-sonnet-5": "anthropic",
     "claude-3-5-sonnet": "anthropic",
     "claude-sonnet": "anthropic",
     "claude-haiku": "anthropic",
@@ -67,8 +68,9 @@ OPENAI_MODEL_NAMES: dict[str, str] = {
 
 # Anthropic model name mapping
 ANTHROPIC_MODEL_NAMES: dict[str, str] = {
-    "claude-3-5-sonnet": "claude-sonnet-4-6",
-    "claude-sonnet": "claude-sonnet-4-6",
+    "claude-sonnet-5": "claude-sonnet-5",
+    "claude-3-5-sonnet": "claude-sonnet-5",
+    "claude-sonnet": "claude-sonnet-5",
     "claude-haiku": "claude-haiku-4-5-20251001",
 }
 

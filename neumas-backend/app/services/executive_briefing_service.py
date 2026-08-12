@@ -95,7 +95,7 @@ class ExecutiveBriefingService:
                 "logs": logs[:50],
             }
             message = await client.messages.create(
-                model="claude-sonnet-4-6",
+                model="claude-sonnet-5",
                 max_tokens=400,
                 system="You are an operations intelligence analyst. Return only valid JSON.",
                 messages=[{"role": "user", "content": json.dumps(payload)}],

@@ -54,6 +54,7 @@ REORDER_SAFETY_BUFFER = 0.20     # 20% safety stock buffer
 # ---------------------------------------------------------------------------
 
 MODEL_COST_PER_1K_TOKENS: dict[str, dict[str, float]] = {
+    "claude-sonnet-5": {"input": 0.002, "output": 0.01},
     "claude-3-5-sonnet": {"input": 0.003, "output": 0.015},
     "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
     "gpt-4o": {"input": 0.005, "output": 0.015},
