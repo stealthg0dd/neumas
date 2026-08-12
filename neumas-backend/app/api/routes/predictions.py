@@ -13,9 +13,11 @@ from app.api.deps import TenantContext, get_tenant_context, require_property
 from app.core.celery_app import celery_app
 from app.core.logging import get_logger
 from app.db.repositories.predictions import get_predictions_repository
+from app.services.prediction_outcome_service import PredictionOutcomeService
 
 logger = get_logger(__name__)
 router = APIRouter()
+prediction_outcome_service = PredictionOutcomeService()
 
 # Urgency ordering for sorting (lower = more urgent)
 _URGENCY_ORDER = {"critical": 0, "urgent": 1, "soon": 2, "later": 3}
@@ -134,6 +136,12 @@ async def list_predictions(
                     if days_until_runout is not None and days_until_runout <= 14
                     else "Monitor"
                 ),
+                "prediction_version": row.get("prediction_version") or row.get("model_version"),
+                "generated_at": row.get("generated_at") or row.get("created_at"),
+                "algorithm_identifier": row.get("algorithm_identifier") or row.get("model_version"),
+                "predicted_depletion_date": row.get("predicted_depletion_date") or row.get("prediction_date"),
+                "predicted_quantity_needed": row.get("predicted_quantity_needed") or row.get("predicted_value"),
+                "evaluation_status": row.get("evaluation_status", "pending"),
             }
         )
     rows = normalized_rows
@@ -149,3 +157,22 @@ async def list_predictions(
     ))
 
     return rows
+
+
+@router.get(
+    "/summary",
+    summary="Prediction outcome summary",
+    description="Aggregate recent prediction outcomes and confidence calibration for the current tenant.",
+)
+async def get_prediction_summary(
+    tenant: TenantContext = require_property(),
+    property_id: Annotated[UUID | None, Query(description="Optional property override for org-wide admins")] = None,
+) -> dict:
+    try:
+        return await prediction_outcome_service.summarize(tenant, property_id=property_id)
+    except Exception as e:
+        logger.error("Failed to summarize prediction outcomes", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to summarize prediction outcomes",
+        )

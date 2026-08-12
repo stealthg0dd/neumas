@@ -249,11 +249,21 @@ async def _upsert_prediction(
         "item_id": str(item_id),
         "prediction_type": "stockout",
         "prediction_date": prediction_date.isoformat(),
+        "predicted_depletion_date": prediction_date.isoformat(),
         "predicted_value": str(round(predicted_value, 4)),
+        "predicted_quantity_needed": str(round(predicted_value, 4)),
         "confidence_interval_low": str(round(ci_low, 4)),
         "confidence_interval_high": str(round(ci_high, 4)),
         "confidence": str(confidence),
         "model_version": MODEL_VERSION,
+        "prediction_version": MODEL_VERSION,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "algorithm_identifier": "predict_agent_stockout",
+        "source_data_window": {
+            "lookback_days": 30,
+            "generated_by": "predict_agent",
+        },
+        "evaluation_status": "pending",
         "features_used": features,
     }
 

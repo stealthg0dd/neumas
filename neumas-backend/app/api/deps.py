@@ -50,7 +50,7 @@ class TenantContext(BaseModel):
         None,
         description="Current property context (if applicable)",
     )
-    role: Literal["resident", "admin", "staff"] = Field(
+    role: Literal["resident", "admin", "staff", "service"] = Field(
         ...,
         description="User's role within the organization",
     )
@@ -74,7 +74,7 @@ class TenantContext(BaseModel):
     @property
     def is_staff(self) -> bool:
         """Check if user has staff or admin role."""
-        return self.role in ("admin", "staff")
+        return self.role in ("admin", "staff", "service")
 
     async def get_supabase_client(self):
         """

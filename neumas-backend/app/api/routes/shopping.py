@@ -13,18 +13,21 @@ from app.db.repositories.shopping_lists import get_shopping_lists_repository
 from app.schemas.shopping import (
     GenerateListRequest,
     GenerateListResponse,
-    MarkItemPurchasedRequest,
+    ReceiveShoppingItemRequest,
     ShoppingListDetailResponse,
     ShoppingListItemResponse,
     ShoppingListResponse,
     ShoppingListTotals,
+    ShoppingListTransitionRequest,
 )
+from app.services.reorder_lifecycle_service import ReorderLifecycleService
 from app.services.shopping_service import ShoppingService
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 shopping_service = ShoppingService()
+reorder_lifecycle_service = ReorderLifecycleService()
 
 
 def _to_list_summary(row: dict) -> ShoppingListResponse:
@@ -49,6 +52,9 @@ def _to_list_summary(row: dict) -> ShoppingListResponse:
         budget_limit=row.get("budget_limit"),
         approved_at=row.get("approved_at"),
         approved_by_id=UUID(row["approved_by_id"]) if row.get("approved_by_id") else None,
+        status_reason=row.get("status_reason"),
+        last_transition_at=row.get("last_transition_at"),
+        last_transition_by_id=UUID(row["last_transition_by_id"]) if row.get("last_transition_by_id") else None,
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
         item_count=item_count,
@@ -69,6 +75,8 @@ def _to_item_response(item: dict) -> ShoppingListItemResponse:
         actual_price=item.get("actual_price"),
         is_purchased=bool(item.get("is_purchased", item.get("checked", False))),
         purchased_at=item.get("purchased_at"),
+        received_quantity=item.get("received_quantity"),
+        received_at=item.get("received_at"),
         created_at=item.get("created_at"),
     )
 
@@ -196,22 +204,57 @@ async def approve_shopping_list(
 ) -> ShoppingListResponse:
     """Approve a shopping list for ordering."""
     try:
-        repo = await get_shopping_lists_repository(tenant)
-        updated = await repo.update_status(tenant, list_id, "approved")
-        if not updated:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Shopping list not found",
-            )
-        return _to_list_summary(updated)
-    except HTTPException:
-        raise
+        result = await reorder_lifecycle_service.transition_list(
+            tenant,
+            list_id,
+            next_state="approved",
+            idempotency_key=f"approve:{list_id}:{tenant.user_id}",
+            reason="manager_approved",
+        )
+        return _to_list_summary(result.shopping_list)
+    except ValueError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND if "not found" in message.lower() else status.HTTP_409_CONFLICT,
+            detail=message,
+        ) from exc
     except Exception as e:
         logger.error("Failed to approve shopping list", list_id=str(list_id), error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to approve shopping list",
         )
+
+
+@router.post(
+    "/{list_id}/transition",
+    response_model=ShoppingListResponse,
+    summary="Transition shopping list state",
+    description="Move a shopping list through the durable reorder lifecycle.",
+)
+async def transition_shopping_list(
+    list_id: UUID,
+    request: ShoppingListTransitionRequest,
+    tenant: Annotated[TenantContext, Depends(get_tenant_context)],
+) -> ShoppingListResponse:
+    try:
+        result = await reorder_lifecycle_service.transition_list(
+            tenant,
+            list_id,
+            next_state=request.next_state,
+            idempotency_key=request.idempotency_key,
+            reason=request.reason,
+            note=request.note,
+            source_prediction_id=request.source_prediction_id,
+            source_recommendation=request.source_recommendation,
+        )
+        return _to_list_summary(result.shopping_list)
+    except ValueError as exc:
+        message = str(exc)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND if "not found" in message.lower() else status.HTTP_409_CONFLICT,
+            detail=message,
+        ) from exc
 
 
 @router.patch(
@@ -223,21 +266,23 @@ async def approve_shopping_list(
 async def mark_item_purchased(
     list_id: UUID,
     item_id: UUID,
-    request: MarkItemPurchasedRequest,
+    request: ReceiveShoppingItemRequest,
     tenant: Annotated[TenantContext, Depends(get_tenant_context)],
 ) -> None:
     """Mark a shopping list item as purchased."""
     try:
-        repo = await get_shopping_lists_repository(tenant)
-        await repo.mark_item_purchased(
+        await reorder_lifecycle_service.receive_item(
             tenant,
             list_id,
             item_id,
+            quantity_received=request.quantity_received,
             actual_price=request.actual_price,
+            idempotency_key=request.idempotency_key,
+            note=request.note,
         )
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_404_NOT_FOUND if "not found" in str(e).lower() else status.HTTP_409_CONFLICT,
             detail=str(e),
         )
     except Exception as e:

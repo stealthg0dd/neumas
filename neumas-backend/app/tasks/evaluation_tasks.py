@@ -83,6 +83,7 @@ async def _record_actual_value_async(
 ) -> dict[str, Any]:
     from app.api.deps import TenantContext
     from app.db.repositories.predictions import get_predictions_repository
+    from app.services.prediction_outcome_service import PredictionOutcomeService
 
     tenant = TenantContext(
         user_id=UUID(user_id),
@@ -128,6 +129,19 @@ async def _record_actual_value_async(
     prediction_id = UUID(prediction["id"])
 
     await repo.record_actual(tenant, prediction_id, actual_qty)
+    await PredictionOutcomeService().record_evaluation(
+        tenant,
+        prediction,
+        actual_quantity=actual_qty,
+        actual_depletion_date=observed_dt,
+        stockout_occurred=actual_qty > 0,
+        recommendation_accepted=None,
+        operator_overridden=None,
+        reorder_completed=None,
+        source_window_end=observed_dt,
+        idempotency_key=f"actual:{prediction_id}:{observed_dt.isoformat()}",
+        metadata={"trigger": "inventory_movement"},
+    )
     logger.info(
         "Recorded actual_value %.3f for prediction %s", actual_qty, prediction_id
     )
@@ -172,6 +186,7 @@ async def _backfill_async(org_id: str, property_id: str) -> dict[str, Any]:
     from app.api.deps import TenantContext
     from app.db.repositories.predictions import get_predictions_repository
     from app.db.supabase_client import get_async_supabase_admin
+    from app.services.prediction_outcome_service import PredictionOutcomeService
 
     tenant = TenantContext(
         user_id=UUID(org_id),  # service actor
@@ -233,6 +248,19 @@ async def _backfill_async(org_id: str, property_id: str) -> dict[str, Any]:
             continue
 
         await repo.record_actual(tenant, UUID(pred["id"]), actual)
+        await PredictionOutcomeService().record_evaluation(
+            tenant,
+            pred,
+            actual_quantity=actual,
+            actual_depletion_date=pred_dt,
+            stockout_occurred=actual > 0,
+            recommendation_accepted=None,
+            operator_overridden=None,
+            reorder_completed=None,
+            source_window_end=datetime.fromisoformat(window_end.replace("Z", "+00:00")),
+            idempotency_key=f"backfill:{pred['id']}:{pred_dt.date().isoformat()}",
+            metadata={"trigger": "daily_backfill"},
+        )
         filled += 1
 
     logger.info("Backfilled actual_value for %d predictions in %s", filled, property_id)

@@ -43,6 +43,7 @@ class ShoppingListsRepository:
         self.client = client
         self.table = "shopping_lists"
         self.items_table = "shopping_list_items"
+        self.transitions_table = "shopping_list_transitions"
 
     # =========================================================================
     # Shopping Lists
@@ -95,7 +96,7 @@ class ShoppingListsRepository:
                 self.client.table(self.table)
                 .select("*")
                 .eq("property_id", str(property_id))
-                .in_("status", ["draft", "approved", "ordered"])
+                .in_("status", ["draft", "recommended", "awaiting_approval", "approved", "modified", "order_sent", "partially_received"])
                 .order("created_at", desc=True)
                 .limit(1)
                 .execute()
@@ -223,6 +224,51 @@ class ShoppingListsRepository:
 
         return await self.update(tenant, list_id, data)
 
+    async def create_transition(
+        self,
+        tenant: "TenantContext",
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
+        response = await self.client.table(self.transitions_table).insert(data).execute()
+        return response.data[0]
+
+    async def get_transition_by_idempotency(
+        self,
+        tenant: "TenantContext",
+        list_id: UUID,
+        idempotency_key: str,
+    ) -> dict[str, Any] | None:
+        query = (
+            self.client.table(self.transitions_table)
+            .select("*")
+            .eq("shopping_list_id", str(list_id))
+            .eq("idempotency_key", idempotency_key)
+            .limit(1)
+        )
+        if tenant.property_id:
+            query = query.eq("property_id", str(tenant.property_id))
+        response = await query.execute()
+        rows = response.data or []
+        return rows[0] if rows else None
+
+    async def list_transitions(
+        self,
+        tenant: "TenantContext",
+        list_id: UUID,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        query = (
+            self.client.table(self.transitions_table)
+            .select("*")
+            .eq("shopping_list_id", str(list_id))
+            .order("created_at", desc=True)
+            .limit(limit)
+        )
+        if tenant.property_id:
+            query = query.eq("property_id", str(tenant.property_id))
+        response = await query.execute()
+        return response.data or []
+
     async def delete(
         self,
         tenant: "TenantContext",
@@ -329,6 +375,26 @@ class ShoppingListsRepository:
             .execute()
         )
         return response.data[0]
+
+    async def get_item(
+        self,
+        tenant: "TenantContext",
+        list_id: UUID,
+        item_id: UUID,
+    ) -> dict[str, Any] | None:
+        shopping_list = await self.get_by_id(tenant, list_id)
+        if not shopping_list:
+            return None
+        response = await (
+            self.client.table(self.items_table)
+            .select("*")
+            .eq("id", str(item_id))
+            .eq("shopping_list_id", str(list_id))
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        return rows[0] if rows else None
 
     async def mark_item_purchased(
         self,

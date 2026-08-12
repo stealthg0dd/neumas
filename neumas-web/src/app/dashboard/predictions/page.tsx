@@ -5,12 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
-import { listPredictions, triggerForecast } from "@/lib/api/endpoints";
-import type { Prediction, UrgencyLevel } from "@/lib/api/types";
+import { getPredictionSummary, listPredictions, triggerForecast } from "@/lib/api/endpoints";
+import type { Prediction, PredictionOutcomeSummary, UrgencyLevel } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
 import { confidenceToPercent, daysUntilStockout, getFeatures, sortPredictionsByUrgencyThenDays } from "@/lib/prediction-display";
 import { Button } from "@/components/ui/button";
 import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
+import { useAuthStore } from "@/lib/store/auth";
 
 const LEGEND: { level: UrgencyLevel; label: string; className: string }[] = [
   { level: "critical", label: "Critical", className: "bg-red-100 text-red-800 border border-red-200" },
@@ -76,6 +77,8 @@ export default function PredictionsPage() {
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<PredictionOutcomeSummary | null>(null);
+  const workspace = useAuthStore((s) => s.profile?.org_type);
 
   const fetchPredictions = useCallback(async () => {
     setLoading(true);
@@ -83,6 +86,8 @@ export default function PredictionsPage() {
     try {
       const data = await listPredictions({ limit: 200 });
       setPredictions(data);
+      const nextSummary = await getPredictionSummary().catch(() => null);
+      setSummary(nextSummary);
     } catch (err) {
       setError("We couldn't load stockout predictions.");
       captureUIError("load_predictions", err);
@@ -127,6 +132,57 @@ export default function PredictionsPage() {
           {triggering ? "Running…" : "Run new forecast"}
         </Button>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-xs text-gray-500">{workspace === "HOUSEHOLD" ? "Household learning" : "Forecast accuracy"}</p>
+          <p className="mt-1 text-xl font-semibold text-gray-900">
+            {summary?.insufficient_history
+              ? `Insufficient history - ${summary?.sample_size ?? 0} evaluated`
+              : `${Math.round((summary?.forecast_accuracy ?? 0) * 100)}%`}
+          </p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-xs text-gray-500">{workspace === "HOUSEHOLD" ? "Confidence" : "Confidence calibration"}</p>
+          <p className="mt-1 text-xl font-semibold text-gray-900">
+            {summary?.insufficient_history || summary?.confidence_calibration == null
+              ? "Needs more data"
+              : `${Math.round(summary.confidence_calibration * 100)}%`}
+          </p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-xs text-gray-500">Evaluated predictions</p>
+          <p className="mt-1 text-xl font-semibold text-gray-900">{summary?.sample_size ?? 0}</p>
+        </div>
+      </div>
+
+      {summary?.recent_outcomes?.length ? (
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Recent prediction outcomes</h2>
+              <p className="text-sm text-gray-500">
+                {workspace === "HOUSEHOLD" ? "Neumas is learning your household rhythm." : "Forecast confidence / evaluated predictions."}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-3">
+            {summary.recent_outcomes.map((outcome) => (
+              <div key={`${outcome.prediction_id}-${outcome.evaluated_at}`} className="rounded-lg border border-gray-100 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium text-gray-900">{outcome.item_name || "Inventory item"}</p>
+                  <p className="text-xs text-gray-500">{new Date(outcome.evaluated_at).toLocaleDateString("en-US")}</p>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-4 text-sm text-gray-600">
+                  <span>Qty error: {outcome.quantity_error == null ? "—" : outcome.quantity_error.toFixed(1)}</span>
+                  <span>Date error: {outcome.depletion_date_error_days == null ? "—" : `${outcome.depletion_date_error_days}d`}</span>
+                  <span>{outcome.operator_overridden ? "Operator override" : "No override"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-6 flex flex-wrap gap-3">
         {LEGEND.map(({ level, label, className }) => (

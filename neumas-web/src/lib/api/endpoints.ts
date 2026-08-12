@@ -102,6 +102,7 @@ import type {
   ScanQueuedResponse,
   ScanStatusResponse,
   Prediction,
+  PredictionOutcomeSummary,
   ForecastQueuedResponse,
   ShoppingList,
   ShoppingListDetail,
@@ -411,6 +412,13 @@ export async function listPredictions(params?: {
   return get<Prediction[]>("/api/predictions", params);
 }
 
+/** GET /api/predictions/summary */
+export async function getPredictionSummary(params?: {
+  property_id?: string;
+}): Promise<PredictionOutcomeSummary> {
+  return get<PredictionOutcomeSummary>("/api/predictions/summary", params);
+}
+
 /** POST /api/predictions/forecast */
 export async function triggerForecast(
   forecastDays = 7
@@ -470,6 +478,7 @@ export async function markItemPurchased(
 ): Promise<void> {
   return patch<void>(`/api/shopping-list/${listId}/items/${itemId}/purchase`, {
     actual_price: actualPrice,
+    idempotency_key: `purchase:${listId}:${itemId}`,
   });
 }
 

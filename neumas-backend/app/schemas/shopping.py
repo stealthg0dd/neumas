@@ -4,10 +4,23 @@ Shopping list schemas.
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+ShoppingListStatus = Literal[
+    "draft",
+    "recommended",
+    "awaiting_approval",
+    "approved",
+    "modified",
+    "rejected",
+    "order_sent",
+    "partially_received",
+    "received",
+    "cancelled",
+]
 
 
 class ShoppingListBase(BaseModel):
@@ -31,7 +44,7 @@ class ShoppingListUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255)
     notes: str | None = None
     budget_limit: Decimal | None = None
-    status: Literal["draft", "approved", "ordered", "received"] | None = None
+    status: ShoppingListStatus | None = None
 
 
 class ShoppingListResponse(ShoppingListBase):
@@ -45,6 +58,9 @@ class ShoppingListResponse(ShoppingListBase):
     total_actual_cost: Decimal | None
     approved_at: datetime | None
     approved_by_id: UUID | None
+    status_reason: str | None = None
+    last_transition_at: datetime | None = None
+    last_transition_by_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
     item_count: int | None = None
@@ -114,6 +130,8 @@ class ShoppingListItemResponse(ShoppingListItemBase):
     actual_price: Decimal | None
     is_purchased: bool
     purchased_at: datetime | None
+    received_quantity: Decimal | None = None
+    received_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -127,6 +145,45 @@ class MarkPurchasedRequest(BaseModel):
         None,
         description="Map of item_id -> actual_price",
     )
+
+
+class ShoppingListTransitionRequest(BaseModel):
+    """Transition a shopping list through its durable lifecycle."""
+
+    next_state: ShoppingListStatus
+    reason: str | None = Field(default=None, max_length=500)
+    note: str | None = Field(default=None, max_length=2000)
+    idempotency_key: str = Field(..., min_length=8, max_length=255)
+    source_prediction_id: UUID | None = None
+    source_recommendation: dict[str, Any] | None = None
+
+
+class ShoppingListTransitionResponse(BaseModel):
+    """Shopping list state transition journal row."""
+
+    id: UUID
+    shopping_list_id: UUID
+    organization_id: UUID
+    property_id: UUID
+    actor_id: UUID | None
+    previous_state: str
+    next_state: str
+    reason: str | None = None
+    note: str | None = None
+    source_prediction_id: UUID | None = None
+    source_recommendation: dict[str, Any] = Field(default_factory=dict)
+    idempotency_key: str
+    created_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ReceiveShoppingItemRequest(BaseModel):
+    """Mark part or all of a shopping list item as received/purchased."""
+
+    quantity_received: Decimal | None = Field(default=None, gt=0)
+    actual_price: Decimal | None = Field(default=None, ge=0)
+    idempotency_key: str = Field(..., min_length=8, max_length=255)
+    note: str | None = Field(default=None, max_length=500)
 
 
 # ============================================================================

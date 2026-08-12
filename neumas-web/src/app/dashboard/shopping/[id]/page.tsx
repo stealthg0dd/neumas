@@ -17,6 +17,7 @@ import { getShoppingList, approveShoppingList, markItemPurchased } from "@/lib/a
 import type { ShoppingListDetail, ShoppingListItem, ItemPriority } from "@/lib/api/types";
 import { track, captureUIError } from "@/lib/analytics";
 import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
+import { useAuthStore } from "@/lib/store/auth";
 
 // ── Priority config ────────────────────────────────────────────────────────────
 
@@ -120,6 +121,7 @@ export default function ShoppingDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const profile = useAuthStore((s) => s.profile);
 
   const [list,      setList]      = useState<ShoppingListDetail | null>(null);
   const [items,     setItems]     = useState<ShoppingListItem[]>([]);
@@ -208,6 +210,7 @@ export default function ShoppingDetailPage({
   const totalItems     = items.length;
   const totalEst       = items.reduce((s, i) => s + (i.estimated_price ?? 0), 0);
   const pctDone        = totalItems > 0 ? Math.round((purchasedCount / totalItems) * 100) : 0;
+  const isHousehold = profile?.org_type === "HOUSEHOLD";
 
   if (loading) {
     return <PageLoadingState title="Loading shopping list" message="Fetching items, totals, and purchase state." />;
@@ -259,8 +262,16 @@ export default function ShoppingDetailPage({
               </p>
             </div>
           </div>
-          <span className={list.status === "draft" ? "badge-amber" : list.status === "approved" ? "badge-cyan" : "badge-mint"}>
-            {list.status}
+          <span className={
+            list.status === "received"
+              ? "badge-mint"
+              : list.status === "rejected" || list.status === "cancelled"
+                ? "badge-red"
+                : list.status === "approved" || list.status === "modified" || list.status === "partially_received"
+                  ? "badge-cyan"
+                  : "badge-amber"
+          }>
+            {list.status.replaceAll("_", " ")}
           </span>
         </div>
 
@@ -312,7 +323,7 @@ export default function ShoppingDetailPage({
             ) : (
               <ThumbsUp className="w-4 h-4" />
             )}
-            Approve list
+            {isHousehold ? "Approve smart list" : "Approve list"}
           </button>
         )}
         <button
@@ -320,7 +331,7 @@ export default function ShoppingDetailPage({
           className="flex items-center gap-2 px-4 h-10 rounded-xl border border-border/50 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-all"
         >
           <ExternalLink className="w-4 h-4" />
-          Order via Instacart
+          {isHousehold ? "Open shopping shortcut" : "Order via Instacart"}
         </button>
       </div>
 

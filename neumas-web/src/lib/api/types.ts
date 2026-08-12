@@ -453,6 +453,32 @@ export interface PredictionFeaturesUsed {
   reason?: string;
 }
 
+export interface PredictionOutcomeSummary {
+  sample_size: number;
+  insufficient_history: boolean;
+  forecast_accuracy: number | null;
+  mean_quantity_error?: number | null;
+  mean_depletion_date_error_days?: number | null;
+  stockout_precision?: number | null;
+  confidence_calibration: number | null;
+  acceptance_rate: number | null;
+  override_rate: number | null;
+  reorder_completion_rate: number | null;
+  drift_score: number | null;
+  recent_outcomes: Array<{
+    prediction_id: string;
+    item_id?: string | null;
+    item_name?: string | null;
+    evaluated_at: string;
+    quantity_error?: number | null;
+    depletion_date_error_days?: number | null;
+    recommendation_accepted?: boolean | null;
+    operator_overridden?: boolean | null;
+    stockout_occurred?: boolean | null;
+    confidence?: number | null;
+  }>;
+}
+
 export interface Prediction {
   id: string;
   property_id: string;
@@ -476,6 +502,12 @@ export interface Prediction {
   days_until_runout?: number | null;
   time_horizon_days?: number | null;
   recommended_action?: string | null;
+  prediction_version?: string | null;
+  generated_at?: string | null;
+  algorithm_identifier?: string | null;
+  predicted_depletion_date?: string | null;
+  predicted_quantity_needed?: number | null;
+  evaluation_status?: string | null;
 }
 
 export interface ForecastQueuedResponse {
@@ -488,7 +520,17 @@ export interface ForecastQueuedResponse {
 // Shopping Lists
 // ============================================================================
 
-export type ShoppingListStatus = "draft" | "approved" | "ordered" | "received";
+export type ShoppingListStatus =
+  | "draft"
+  | "recommended"
+  | "awaiting_approval"
+  | "approved"
+  | "modified"
+  | "rejected"
+  | "order_sent"
+  | "partially_received"
+  | "received"
+  | "cancelled";
 export type ItemPriority = "critical" | "high" | "normal" | "low";
 
 export interface ShoppingListItem {
@@ -508,6 +550,8 @@ export interface ShoppingListItem {
   /** Alias sent by ActiveShoppingListResponse (simplified schema) */
   checked?: boolean;
   purchased_at: string | null;
+  received_quantity?: number | null;
+  received_at?: string | null;
   created_at?: string;
 }
 
@@ -536,6 +580,9 @@ export interface ShoppingList {
   budget_limit: number | null;
   approved_at: string | null;
   approved_by_id: string | null;
+  status_reason?: string | null;
+  last_transition_at?: string | null;
+  last_transition_by_id?: string | null;
   created_at: string;
   updated_at: string;
   item_count?: number | null;

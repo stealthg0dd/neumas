@@ -25,10 +25,16 @@ import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
 // ── Status config ──────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<ShoppingListStatus, { label: string; badge: string }> = {
-  draft:    { label: "Draft",    badge: "badge-amber" },
-  approved: { label: "Approved", badge: "badge-cyan" },
-  ordered:  { label: "Ordered",  badge: "badge-purple" },
-  received: { label: "Received", badge: "badge-mint" },
+  draft:              { label: "Draft",              badge: "badge-amber" },
+  recommended:        { label: "Recommended",        badge: "badge-amber" },
+  awaiting_approval:  { label: "Awaiting approval",  badge: "badge-amber" },
+  approved:           { label: "Approved",           badge: "badge-cyan" },
+  modified:           { label: "Modified",           badge: "badge-cyan" },
+  rejected:           { label: "Rejected",           badge: "badge-red" },
+  order_sent:         { label: "Order prepared",     badge: "badge-purple" },
+  partially_received: { label: "Partially received", badge: "badge-cyan" },
+  received:           { label: "Received",           badge: "badge-mint" },
+  cancelled:          { label: "Cancelled",          badge: "badge-purple" },
 };
 
 // ── Relative date ──────────────────────────────────────────────────────────────
@@ -239,8 +245,9 @@ function GenerateModal({
 const FILTERS: Array<{ value: ShoppingListStatus | "all"; label: string }> = [
   { value: "all",      label: "All" },
   { value: "draft",    label: "Draft" },
+  { value: "awaiting_approval", label: "Approval" },
   { value: "approved", label: "Approved" },
-  { value: "ordered",  label: "Ordered" },
+  { value: "order_sent",  label: "Prepared" },
   { value: "received", label: "Received" },
 ];
 

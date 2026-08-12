@@ -3,12 +3,20 @@ import type { Alert } from "@/lib/api/endpoints";
 
 export function normalizeShoppingListStatus(status: string | null | undefined): ShoppingListStatus {
   switch (status) {
+    case "recommended":
+    case "awaiting_approval":
     case "approved":
-    case "ordered":
+    case "modified":
+    case "rejected":
+    case "order_sent":
+    case "partially_received":
     case "received":
+    case "cancelled":
       return status;
     case "active":
       return "approved";
+    case "ordered":
+      return "order_sent";
     default:
       return "draft";
   }
