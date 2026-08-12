@@ -23,8 +23,8 @@ from app.schemas.inventory import (
     RestockPreviewResponse,
     VendorOrderExportResponse,
 )
-from app.services.inventory_service import InventoryService
 from app.services.entitlement_service import EntitlementService
+from app.services.inventory_service import InventoryService
 from app.services.restock_service import RestockService
 
 logger = get_logger(__name__)

@@ -10,7 +10,11 @@ from httpx import ASGITransport, AsyncClient
 
 from app.api.deps import TenantContext, get_tenant_context
 from app.main import app
-from app.schemas.entitlements import EntitlementFlags, EntitlementLimits, EntitlementResponse
+from app.schemas.entitlements import (
+    EntitlementFlags,
+    EntitlementLimits,
+    EntitlementResponse,
+)
 from app.schemas.pilot_leads import PilotLeadCreateRequest
 from app.services.entitlement_service import EntitlementService
 from app.services.pilot_lead_service import PilotLeadService
