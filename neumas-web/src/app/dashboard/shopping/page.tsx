@@ -316,9 +316,15 @@ export default function ShoppingPage() {
       } else if (result.result_code === "UPDATED") {
         toast.success(`Updated reorder plan with ${result.item_count} actionable item${result.item_count === 1 ? "" : "s"}.`);
       } else if (result.result_code === "NO_ELIGIBLE_ITEMS") {
-        toast.message("No qualifying forecast risk needs a new shopping plan right now.");
+        toast.message("No reorder is currently required.");
       } else if (result.result_code === "PREDICTION_PENDING") {
-        toast.message("Forecasts are still catching up. Run or wait for predictions, then try again.");
+        toast.message("Forecasts are still catching up. Neumas will surface a draft list once enough prediction evidence exists.");
+      } else if (result.result_code === "INSUFFICIENT_DATA") {
+        toast.message("Neumas needs more inventory evidence before it can build a durable reorder plan.");
+      } else if (result.result_code === "CONFIGURATION_REQUIRED") {
+        toast.message("This workspace needs additional setup before list generation can run.");
+      } else if (result.result_code === "ERROR") {
+        toast.error(result.detail || "Shopping list generation could not complete right now.");
       } else {
         toast.message("Neumas needs more inventory evidence before it can build a durable reorder plan.");
       }
@@ -332,6 +338,14 @@ export default function ShoppingPage() {
       await fetchListsRef.current();
     } catch (err) {
       captureUIError("generate_shopping_list", err);
+      const message =
+        typeof err === "object" &&
+        err !== null &&
+        "message" in err &&
+        typeof (err as { message?: unknown }).message === "string"
+          ? (err as { message: string }).message
+          : "Shopping list generation could not complete right now.";
+      toast.error(message);
     } finally {
       setGenLoading(false);
     }
@@ -437,7 +451,7 @@ export default function ShoppingPage() {
           <div>
             <h3 className="text-base font-semibold text-foreground">No shopping lists yet</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              Generate your first AI-powered shopping list based on current inventory levels.
+              Neumas will create a draft shopping plan automatically once stock risk or sufficient forecast evidence exists.
             </p>
           </div>
           <button

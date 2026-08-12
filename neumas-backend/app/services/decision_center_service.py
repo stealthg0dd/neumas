@@ -33,7 +33,7 @@ class DecisionCenterService:
         scans = await self._fetch_rows(
             client,
             "scans",
-            "id,status,processed_results,created_at",
+            "id,status,processed_results,items_detected,created_at",
             organization_id=org_id,
             property_id=property_id,
             order_by="created_at",
@@ -311,17 +311,30 @@ class DecisionCenterService:
         downstream = stage_details.get("downstream") or {}
         document_stage = stage_details.get("document_review") or {}
         canonical_stage = stage_details.get("canonicalization") or {}
+        receipt_total = (
+            receipt_meta.get("receipt_total")
+            if receipt_meta.get("receipt_total") not in {None, ""}
+            else receipt_meta.get("total")
+        )
+        items_updated = len(items) or int(latest.get("items_detected") or 0) or None
+        detail = (
+            "Inventory updated successfully."
+            if latest.get("status") in {"inventory_posted", "completed", "completed_with_partial_analysis", "partial_failed"}
+            else "Latest workflow is still processing."
+        )
+        if latest.get("status") == "inventory_posted" and not downstream:
+            detail = "Inventory updated. Downstream analysis is still catching up."
         return DecisionLatestActivity(
             title="Latest workflow",
-            detail="Inventory updated successfully." if latest.get("status") in {"inventory_posted", "completed", "completed_with_partial_analysis", "partial_failed"} else "Latest workflow is still processing.",
+            detail=detail,
             status=str(latest.get("status") or "unknown"),
             scan_id=str(latest.get("id") or ""),
             document_count=int(document_stage.get("document_count") or 0) or None,
-            items_updated=len(items) or None,
+            items_updated=items_updated,
             supplier_name=receipt_meta.get("vendor_name"),
-            invoice_total=float(receipt_meta["total"]) if receipt_meta.get("total") not in {None, ""} else None,
+            invoice_total=float(receipt_total) if receipt_total not in {None, ""} else None,
             canonicalization_status=str(canonical_stage.get("status") or "unknown"),
-            downstream_status=str(downstream.get("status") or "pending"),
+            downstream_status=str(downstream.get("status") or ("pending" if latest.get("status") == "inventory_posted" else "unknown")),
         )
 
     def _build_ahead_state(

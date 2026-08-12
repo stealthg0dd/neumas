@@ -150,9 +150,19 @@ async def generate_shopping_list(
         err_str = str(e).lower()
         is_redis_down = "redis" in err_str or "retry limit" in err_str or "connection" in err_str
         logger.error("Failed to enqueue shopping list generation", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE if is_redis_down else status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Background worker is temporarily unavailable. Please try again in a moment." if is_redis_down else "Failed to start shopping list generation",
+        if is_redis_down:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Background worker is temporarily unavailable. Please try again in a moment.",
+            )
+        return GenerateListResponse(
+            job_id=f"shopping-error:{tenant.property_id}",
+            message="generation_failed",
+            property_id=request.property_id or tenant.property_id,  # type: ignore[arg-type]
+            result_code="ERROR",
+            shopping_list_id=None,
+            item_count=0,
+            detail=str(e),
         )
 
 

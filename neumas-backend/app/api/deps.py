@@ -7,7 +7,7 @@ Multi-tenant access helpers compatible with Row Level Security (RLS):
 - get_tenant_context(): Returns TenantContext for use in repositories
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException, Query, status
@@ -104,6 +104,70 @@ class UserInfo(BaseModel):
     default_property_id: UUID | None = None
     permissions: dict[str, bool] = Field(default_factory=dict)
     is_active: bool = True
+
+
+async def resolve_active_property_id(
+    user: UserInfo,
+    admin_client: Any | None,
+) -> UUID | None:
+    """
+    Resolve one canonical active property for the authenticated user.
+
+    Preference order:
+    1. users.default_property_id if it is still active and belongs to the org
+    2. first primary property in the org
+    3. lowest onboarding_order active property
+    4. earliest created active property
+    """
+    candidate = user.default_property_id
+    if admin_client is None:
+        return candidate
+
+    if candidate:
+        try:
+            response = await (
+                admin_client.table("properties")
+                .select("id")
+                .eq("id", str(candidate))
+                .eq("organization_id", str(user.organization_id))
+                .eq("is_active", True)
+                .limit(1)
+                .execute()
+            )
+            if response.data:
+                return candidate
+        except Exception as e:
+            logger.warning(
+                "Active property validation failed",
+                user_id=str(user.id),
+                property_id=str(candidate),
+                error=str(e),
+            )
+            return candidate
+
+    try:
+        prop_response = await (
+            admin_client.table("properties")
+            .select("id, is_primary, onboarding_order, created_at")
+            .eq("organization_id", str(user.organization_id))
+            .eq("is_active", True)
+            .order("is_primary", desc=True)
+            .order("onboarding_order", desc=False)
+            .order("created_at", desc=False)
+            .limit(1)
+            .execute()
+        )
+        if prop_response.data:
+            return UUID(str(prop_response.data[0]["id"]))
+    except Exception as e:
+        logger.warning(
+            "Active property lookup failed",
+            user_id=str(user.id),
+            org_id=str(user.organization_id),
+            error=str(e),
+        )
+
+    return None
 
 
 # =============================================================================
@@ -319,37 +383,7 @@ async def get_tenant_context(
         logger.error("Failed to get admin Supabase client", error=str(e))
         admin_client = None
 
-    # Use property_id from user's database record (resolved in get_current_user)
-    effective_property_id = user.default_property_id
-
-    if effective_property_id and admin_client:
-        # Validate the stored property still belongs to the user's org and is
-        # active. Security is maintained by filtering on organization_id so a
-        # user can only reach their own org's properties regardless of RLS state.
-        try:
-            response = await (
-                admin_client.table("properties")
-                .select("id, organization_id")
-                .eq("id", str(effective_property_id))
-                .eq("organization_id", str(user.organization_id))
-                .eq("is_active", True)
-                .execute()
-            )
-
-            if not response.data:
-                logger.warning(
-                    "Stored property not found or inactive — attempting self-heal",
-                    user_id=str(user.id),
-                    property_id=str(effective_property_id),
-                )
-                effective_property_id = None  # fall through to self-heal below
-        except Exception as e:
-            logger.warning(
-                "Property validation query failed — proceeding without validation",
-                user_id=str(user.id),
-                error=str(e),
-            )
-            # Keep effective_property_id as-is; don't block login on DB error
+    effective_property_id = await resolve_active_property_id(user, admin_client)
 
     # Self-heal: user exists and has an org but no valid default_property_id.
     # Caused by: (a) email/password signup before the default_property_id fix,
@@ -357,18 +391,8 @@ async def get_tenant_context(
     # active property and backfill the users table so subsequent requests work.
     if not effective_property_id and admin_client:
         try:
-            prop_response = await (
-                admin_client.table("properties")
-                .select("id")
-                .eq("organization_id", str(user.organization_id))
-                .eq("is_active", True)
-                .order("created_at")
-                .limit(1)
-                .execute()
-            )
-            if prop_response.data:
-                healed_id = prop_response.data[0]["id"]
-                effective_property_id = UUID(healed_id)
+            if effective_property_id:
+                healed_id = str(effective_property_id)
                 # Persist so next request skips this lookup
                 try:
                     await (

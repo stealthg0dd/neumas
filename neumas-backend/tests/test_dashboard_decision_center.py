@@ -151,3 +151,38 @@ async def test_inventory_intelligence_includes_prediction_and_reorder_timeline(t
     assert payload.supplier_name == "Fresh Foods"
     assert payload.predicted_depletion_at is not None
     assert any(event.event_type == "purchase" for event in payload.timeline)
+
+
+@pytest.mark.asyncio
+async def test_decision_center_latest_activity_falls_back_to_receipt_total_and_items_detected(tenant: TenantContext):
+    service = DecisionCenterService()
+
+    async def fake_fetch_rows(_client, table: str, *_args, **_kwargs):
+        if table == "scans":
+            return [{
+                "id": str(uuid4()),
+                "status": "inventory_posted",
+                "items_detected": 19,
+                "processed_results": {
+                    "receipt_metadata": {
+                        "vendor_name": "Acme Foods",
+                        "receipt_total": "184.50",
+                    },
+                    "stage_details": {},
+                },
+                "created_at": datetime.now(UTC).isoformat(),
+            }]
+        return []
+
+    with (
+        patch("app.services.decision_center_service.get_async_supabase_admin", new=AsyncMock(return_value=object())),
+        patch.object(service, "_fetch_rows", side_effect=fake_fetch_rows),
+        patch.object(service, "_fetch_single", new=AsyncMock(return_value={"activation_milestones": {"first_document_uploaded": True}})),
+    ):
+        payload = await service.build(tenant)
+
+    assert payload.latest_activity is not None
+    assert payload.latest_activity.items_updated == 19
+    assert payload.latest_activity.supplier_name == "Acme Foods"
+    assert float(payload.latest_activity.invoice_total or 0) == 184.50
+    assert payload.latest_activity.downstream_status == "pending"

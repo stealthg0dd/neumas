@@ -738,7 +738,9 @@ export interface GenerateListResponse {
     | "UPDATED"
     | "NO_ELIGIBLE_ITEMS"
     | "INSUFFICIENT_DATA"
-    | "PREDICTION_PENDING";
+    | "PREDICTION_PENDING"
+    | "CONFIGURATION_REQUIRED"
+    | "ERROR";
   shopping_list_id?: string | null;
   item_count: number;
   detail: string;

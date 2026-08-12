@@ -165,12 +165,12 @@ export const useAuthStore = create<AuthStore>()(
       saveAuth({ access_token, refresh_token, expires_in, profile }) {
         const expiresAt = Math.floor(Date.now() / 1000) + expires_in;
 
-        // Decode JWT to get authoritative claims — the token is the source of
-        // truth for property_id / org_id. Profile fields are used as fallback
-        // in case the backend omits custom claims from the token.
+        // The backend /me/profile response is the canonical active workspace
+        // source. JWT claims are fallback-only because a token can lag behind a
+        // self-healed default_property_id or explicit property consolidation.
         const claims = decodeToken(access_token);
-        const propertyId = toNullableString(claims?.property_id ?? profile.property_id);
-        const orgId = toNullableString(claims?.org_id ?? profile.org_id);
+        const propertyId = toNullableString(profile.property_id ?? claims?.property_id);
+        const orgId = toNullableString(profile.org_id ?? claims?.org_id);
 
         // Keep localStorage in sync so the Axios interceptor can read it
         if (typeof window !== "undefined") {

@@ -399,6 +399,10 @@ class AuthService:
                 "documents",
                 eq={"organization_id": str(organization_id), "status": "approved"},
             ),
+            "documents_review_pending": await _count(
+                "documents",
+                eq={"organization_id": str(organization_id), "review_needed": True},
+            ),
             "ledger_posts": await _count(
                 "inventory_movements",
                 eq={"organization_id": str(organization_id)},
@@ -471,8 +475,12 @@ class AuthService:
         milestones: ActivationMilestonesResponse,
         *,
         vendor_count: int,
+        documents_review_pending: int = 0,
         org_type: str | None = None,
     ) -> list[ActivationChecklistStep]:
+        review_complete = milestones.first_document_approved or (
+            milestones.first_document_uploaded and milestones.first_ledger_post and documents_review_pending == 0
+        )
         if _normalize_org_type(org_type) == "HOUSEHOLD":
             return [
                 ActivationChecklistStep(
@@ -487,7 +495,7 @@ class AuthService:
                     label="Review detected items",
                     description="Approve the first receipt so pantry items post to the ledger.",
                     href="/dashboard/documents",
-                    completed=milestones.first_document_approved,
+                    completed=review_complete,
                 ),
                 ActivationChecklistStep(
                     id="check_running_low",
@@ -524,7 +532,7 @@ class AuthService:
                 label="Review extracted items",
                 description="Approve your first document so inventory posts to the ledger.",
                 href="/dashboard/documents",
-                completed=milestones.first_document_approved,
+                completed=review_complete,
             ),
             ActivationChecklistStep(
                 id="run_first_forecast",
@@ -1545,6 +1553,7 @@ class AuthService:
         checklist = self._build_activation_checklist(
             milestones,
             vendor_count=counts["vendors"],
+            documents_review_pending=counts["documents_review_pending"],
             org_type=normalized_org_type,
         )
 

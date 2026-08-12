@@ -6,7 +6,13 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 
-from app.api.deps import UserInfo, get_current_user, get_tenant_context, get_token
+from app.api.deps import (
+    UserInfo,
+    get_current_user,
+    get_tenant_context,
+    get_token,
+    resolve_active_property_id,
+)
 from app.core.logging import get_logger
 from app.core.security import (  # noqa: F401 - decode_jwt kept for test compatibility
     decode_jwt,
@@ -173,27 +179,22 @@ async def get_me(
     user: Annotated[UserInfo, Depends(get_current_user)],
 ) -> ProfileResponse:
     """Get current authenticated user's profile."""
-    default_property_id = getattr(user, "default_property_id", None) or getattr(
-        user,
-        "property_id",
-        None,
-    )
-
-    if not default_property_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No property configured for this account. Contact your administrator.",
-        )
-
     org_name = getattr(user, "organization_name", "") or ""
     property_name = ""
     org_type = None
     workspace_experience = "NEEDS_PERSONA"
     is_invited_user = user.role != "admin"
     has_properties = False
+    default_property_id = None
 
     try:
         client = await get_async_supabase_admin()
+        default_property_id = await resolve_active_property_id(user, client)
+        if not default_property_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No property configured for this account. Contact your administrator.",
+            )
         if client:
             if not org_name:
                 org_row = await (

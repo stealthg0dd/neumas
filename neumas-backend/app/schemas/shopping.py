@@ -301,6 +301,8 @@ class GenerateListResponse(BaseModel):
         "NO_ELIGIBLE_ITEMS",
         "INSUFFICIENT_DATA",
         "PREDICTION_PENDING",
+        "CONFIGURATION_REQUIRED",
+        "ERROR",
     ] = "PREDICTION_PENDING"
     shopping_list_id: UUID | None = None
     item_count: int = 0
