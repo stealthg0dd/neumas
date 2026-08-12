@@ -60,7 +60,7 @@ export function topOperationalRecommendation(
       title: "Most urgent operational move",
       itemName: topPrediction.item_name ?? topPrediction.inventory_item?.name ?? "Inventory item",
       reason: predictionReason(topPrediction),
-      action: topPrediction.recommended_action ?? "Add this item to the next shopping list.",
+      action: topPrediction.recommended_action ?? "Review the open reorder plan.",
       confidence: topPrediction.confidence ?? null,
       timeHorizonDays: topPrediction.time_horizon_days ?? topPrediction.days_until_runout ?? null,
     };

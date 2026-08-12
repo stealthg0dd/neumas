@@ -13,11 +13,12 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { use } from "react";
 
-import { getShoppingList, approveShoppingList, markItemPurchased } from "@/lib/api/endpoints";
+import { approveShoppingList, getDigestPreferences, getShoppingList, markItemPurchased } from "@/lib/api/endpoints";
 import type { ShoppingListDetail, ShoppingListItem, ItemPriority } from "@/lib/api/types";
 import { track, captureUIError } from "@/lib/analytics";
 import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
 import { useAuthStore } from "@/lib/store/auth";
+import { formatCurrency } from "@/lib/currency";
 
 // ── Priority config ────────────────────────────────────────────────────────────
 
@@ -34,10 +35,12 @@ function CheckItem({
   item,
   onToggle,
   toggling,
+  preferredCurrency,
 }: {
   item:     ShoppingListItem;
   onToggle: (id: string) => Promise<void>;
   toggling: string | null;
+  preferredCurrency: string;
 }) {
   const cfg     = PRIORITY_CFG[item.priority ?? "normal"];
   const loading = toggling === item.id;
@@ -98,7 +101,7 @@ function CheckItem({
       {/* Price */}
       {item.estimated_price != null && (
         <span className="text-xs font-medium text-muted-foreground shrink-0">
-          ${item.estimated_price.toFixed(2)}
+          {formatCurrency(item.estimated_price, preferredCurrency)}
         </span>
       )}
 
@@ -129,6 +132,7 @@ export default function ShoppingDetailPage({
   const [approving, setApproving] = useState(false);
   const [toggling,  setToggling]  = useState<string | null>(null);
   const [error,     setError]     = useState<string | null>(null);
+  const [preferredCurrency, setPreferredCurrency] = useState("USD");
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -153,6 +157,11 @@ export default function ShoppingDetailPage({
   }, [id]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
+  useEffect(() => {
+    void getDigestPreferences()
+      .then((prefs) => setPreferredCurrency((prefs.preferred_currency || "USD").toUpperCase()))
+      .catch(() => setPreferredCurrency("USD"));
+  }, []);
 
   // ── Toggle purchased ────────────────────────────────────────────────────────
 
@@ -300,9 +309,9 @@ export default function ShoppingDetailPage({
           <div className="text-center">
             <p className="text-xs text-muted-foreground">Est. total</p>
             <p className="text-base font-bold text-foreground">
-              {totalEst > 0 ? `$${totalEst.toFixed(2)}` : "—"}
-            </p>
-          </div>
+            {totalEst > 0 ? formatCurrency(totalEst, preferredCurrency) : "—"}
+          </p>
+        </div>
           <div className="text-center">
             <p className="text-xs text-muted-foreground">Remaining</p>
             <p className="text-base font-bold text-foreground">{totalItems - purchasedCount}</p>
@@ -354,6 +363,7 @@ export default function ShoppingDetailPage({
                 item={item}
                 onToggle={handleToggle}
                 toggling={toggling}
+                preferredCurrency={preferredCurrency}
               />
             ))}
           </AnimatePresence>

@@ -184,7 +184,7 @@ async def list_predictions(
                 "days_until_runout": days_until_runout,
                 "time_horizon_days": days_until_runout,
                 "recommended_action": (
-                    "Add to shopping list"
+                    "Review reorder plan"
                     if days_until_runout is not None and days_until_runout <= 14
                     else "Monitor"
                 ),

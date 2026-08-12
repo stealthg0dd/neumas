@@ -124,7 +124,7 @@ function nextActionHref(scan: Scan | null, alerts: Alert[], predictions: Predict
   }
   if (alerts.some((alert) => alert.alert_type === "predicted_stockout")) return "/dashboard/alerts";
   if (predictions.length > 0) return "/dashboard/predictions";
-  return "/dashboard/shopping";
+  return "/dashboard";
 }
 
 function nextActionLabel(scan: Scan | null, alerts: Alert[], predictions: Prediction[]): string {
@@ -143,7 +143,7 @@ function nextActionLabel(scan: Scan | null, alerts: Alert[], predictions: Predic
   if (scan.status === "uploaded" || scan.status === "queued" || scan.status === "processing") return "Watch the scan pipeline";
   if (alerts.some((alert) => alert.alert_type === "predicted_stockout")) return "Resolve stockout alerts";
   if (predictions.length > 0) return "Review the latest forecast";
-  return "Generate a shopping list";
+  return "Inventory updated; Neumas is still learning from this evidence cycle";
 }
 
 export default function ScansPage() {
@@ -229,7 +229,7 @@ export default function ScansPage() {
           icon={ScanLine}
           badge="First run"
           headline="Start with one receipt"
-          body="Upload a receipt and Neumas will queue the scan, extract line items, update inventory, recompute the baseline, and refresh predictions."
+          body="Upload evidence and Neumas will queue the scan, extract line items, update inventory, surface purchase intelligence, and then refresh forecast and reorder logic automatically when eligible."
           cta={{ label: "Upload receipt", href: "/dashboard/scans/new" }}
           secondaryCta={{ label: "Open dashboard", href: "/dashboard" }}
         />
@@ -237,8 +237,8 @@ export default function ScansPage() {
           {[
             "Receipt uploaded and queued",
             "OCR extracts normalized line items",
-            "Inventory, baseline, and predictions refresh",
-          ].map((step, index) => (
+              "Inventory, purchase intelligence, and forecast readiness refresh",
+            ].map((step, index) => (
             <div key={step} className="rounded-2xl border border-gray-200 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Step {index + 1}</p>
               <p className="mt-2 text-sm font-semibold text-gray-900">{step}</p>

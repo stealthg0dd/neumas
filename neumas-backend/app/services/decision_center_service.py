@@ -94,15 +94,16 @@ class DecisionCenterService:
             id=org_id,
         )
 
+        latest_activity = await self._build_latest_activity(tenant, scans)
         action_queue = self._build_action_queue(
             workspace_experience=workspace_experience,
             documents=documents,
             alerts=alerts,
             shopping_lists=shopping_lists,
             organization=organization or {},
+            latest_activity=latest_activity,
         )
         next_best_action = self._pick_next_best_action(action_queue, workspace_experience)
-        latest_activity = await self._build_latest_activity(tenant, scans)
         ahead = await self._build_ahead_state(
             tenant=tenant,
             workspace_experience=workspace_experience,
@@ -162,6 +163,7 @@ class DecisionCenterService:
         alerts: list[dict[str, Any]],
         shopping_lists: list[dict[str, Any]],
         organization: dict[str, Any],
+        latest_activity: DecisionLatestActivity | None,
     ) -> list[DecisionActionCard]:
         queue: list[DecisionActionCard] = []
         review_count = len(documents)
@@ -236,6 +238,29 @@ class DecisionCenterService:
                 )
             )
 
+        if latest_activity and (
+            (latest_activity.unresolved_count or 0) > 0
+            or not latest_activity.supplier_name
+        ):
+            unresolved = int(latest_activity.unresolved_count or 0)
+            detail = (
+                f"{unresolved} extracted line item(s) still need review before supplier and price intelligence is fully trusted."
+                if unresolved > 0
+                else "The latest purchase was posted, but supplier mapping still needs review before vendor intelligence can tighten."
+            )
+            queue.append(
+                DecisionActionCard(
+                    priority="P1",
+                    action_type="supplier_mapping",
+                    title="Review supplier mapping",
+                    detail=detail,
+                    value=None,
+                    confidence=None,
+                    cta_label="Open vendors",
+                    cta_href="/dashboard/vendors",
+                )
+            )
+
         low_signal = next((alert for alert in alerts if str(alert.get("alert_type")) == "no_recent_scan"), None)
         if low_signal:
             queue.append(
@@ -272,8 +297,9 @@ class DecisionCenterService:
             "critical_stockout": 1,
             "reorder_approval": 2,
             "delivery_confirmation": 3,
-            "next_evidence_cycle": 4,
-            "activation_task": 5,
+            "supplier_mapping": 4,
+            "next_evidence_cycle": 5,
+            "activation_task": 6,
         }
         return sorted(
             queue,

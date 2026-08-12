@@ -42,7 +42,7 @@ async def test_predictions_route_normalizes_recommendation_fields(tenant: Tenant
         rows = await list_predictions(tenant=tenant, urgency=None, limit=10)
 
     assert rows[0]["item_name"] == "Milk"
-    assert rows[0]["recommended_action"] == "Add to shopping list"
+    assert rows[0]["recommended_action"] == "Review reorder plan"
 
 
 async def test_predictions_route_accepts_inventory_page_limit(tenant: TenantContext):

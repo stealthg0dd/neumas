@@ -2,9 +2,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { getAnalyticsSummary } from "@/lib/api/endpoints";
+import { getAnalyticsSummary, getDigestPreferences } from "@/lib/api/endpoints";
 import type { AnalyticsSummary } from "@/lib/api/types";
 import {
   AreaChart, Area, BarChart, Bar,
@@ -18,6 +18,7 @@ import {
 import { animate } from "framer-motion";
 import { captureUIError, track } from "@/lib/analytics";
 import { PageErrorState, PageLoadingState } from "@/components/ui/PageState";
+import { formatCurrency } from "@/lib/currency";
 
 // ── Count-up ──────────────────────────────────────────────────────────────────
 
@@ -51,12 +52,13 @@ const CHART_DEFAULTS = {
   style: { fontFamily: "var(--font-geist-sans)", fontSize: 11 },
 };
 
-function CustomTooltip({ active, payload, label, prefix = "", suffix = "" }: {
+function CustomTooltip({ active, payload, label, prefix = "", suffix = "", formatValue }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; color: string }>;
   label?: string;
   prefix?: string;
   suffix?: string;
+  formatValue?: (value: number) => string;
 }) {
   if (!active || !payload?.length) return null;
   return (
@@ -65,7 +67,7 @@ function CustomTooltip({ active, payload, label, prefix = "", suffix = "" }: {
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }} className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
-          {p.name}: {prefix}{p.value.toLocaleString()}{suffix}
+          {p.name}: {formatValue ? formatValue(Number(p.value)) : `${prefix}${p.value.toLocaleString()}${suffix}`}
         </p>
       ))}
     </div>
@@ -80,6 +82,7 @@ function StatCard({
   value,
   prefix = "",
   suffix = "",
+  displayValue,
   sub,
   iconBg,
   iconColor,
@@ -90,6 +93,7 @@ function StatCard({
   value:      number;
   prefix?:    string;
   suffix?:    string;
+  displayValue?: string;
   sub?:       string;
   iconBg:     string;
   iconColor:  string;
@@ -112,7 +116,7 @@ function StatCard({
       </div>
       <div>
         <p className="text-3xl font-bold tabular-nums tracking-tight gradient-text">
-          {prefix}{count.toLocaleString()}{suffix}
+          {displayValue ?? `${prefix}${count.toLocaleString()}${suffix}`}
         </p>
         {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
       </div>
@@ -196,6 +200,7 @@ export default function AnalyticsPage() {
   const [summary, setSummary] = useState<AnalyticsSummary>(EMPTY_SUMMARY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [preferredCurrency, setPreferredCurrency] = useState("USD");
 
   async function loadSummary() {
     setLoading(true);
@@ -215,6 +220,20 @@ export default function AnalyticsPage() {
   useEffect(() => {
     void loadSummary();
   }, []);
+
+  useEffect(() => {
+    void getDigestPreferences()
+      .then((prefs) => setPreferredCurrency((prefs.preferred_currency || "USD").toUpperCase()))
+      .catch(() => setPreferredCurrency("USD"));
+  }, []);
+
+  const chartCurrency = useMemo(
+    () => (summary.latest_purchase_summary?.currency || preferredCurrency || "USD").toUpperCase(),
+    [preferredCurrency, summary.latest_purchase_summary?.currency],
+  );
+
+  const formatMoney = (value: number, currencyCode?: string | null) =>
+    formatCurrency(value, (currencyCode || chartCurrency || "USD").toUpperCase());
 
   const urgencyData = [
     { name: "Critical", value: summary.urgency_breakdown.critical, fill: C.red },
@@ -261,7 +280,7 @@ export default function AnalyticsPage() {
             icon={DollarSign}
             label="Planned spend"
             value={Math.round(summary.spend_total)}
-            prefix="$"
+            displayValue={formatMoney(summary.spend_total)}
             sub="Total across all shopping lists"
             iconBg="bg-cyan-500/15"
             iconColor="text-cyan-400"
@@ -316,7 +335,10 @@ export default function AnalyticsPage() {
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Receipt value</p>
               <p className="mt-2 font-semibold text-foreground">
                 {summary.latest_purchase_summary.total_purchase_value != null
-                  ? `$${summary.latest_purchase_summary.total_purchase_value.toFixed(2)}`
+                  ? formatMoney(
+                      summary.latest_purchase_summary.total_purchase_value,
+                      summary.latest_purchase_summary.currency,
+                    )
                   : "Not extracted"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -438,8 +460,14 @@ export default function AnalyticsPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
                 <XAxis dataKey="date" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} width={48} />
-                <Tooltip content={<CustomTooltip prefix="$" />} />
+                <YAxis
+                  tick={{ fill: C.muted, fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => formatMoney(Number(v))}
+                  width={72}
+                />
+                <Tooltip content={<CustomTooltip formatValue={(value) => formatMoney(value)} />} />
                 <Area type="monotone" dataKey="cumulative" name="Cumulative spend" stroke={C.cyan} strokeWidth={2.5} fill="url(#spendGrad)" dot={false} activeDot={{ r: 4, fill: C.cyan, strokeWidth: 0 }} />
               </AreaChart>
             </ResponsiveContainer>
@@ -456,7 +484,7 @@ export default function AnalyticsPage() {
             <div className="h-[200px] rounded-xl shimmer" />
           ) : urgencyData.length === 0 ? (
             <div className="h-[200px] flex items-center justify-center text-xs text-muted-foreground">
-              No predictions yet — run a forecast first
+              No forecast risk is currently available. Neumas will populate this automatically once enough evidence exists.
             </div>
           ) : (
             <div className="flex items-center gap-4">

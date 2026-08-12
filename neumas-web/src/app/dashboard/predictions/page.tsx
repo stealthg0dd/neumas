@@ -131,7 +131,7 @@ export default function PredictionsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Stockout Predictions</h1>
-          <p className="mt-1 text-sm text-gray-500">AI forecast from your consumption patterns</p>
+          <p className="mt-1 text-sm text-gray-500">Automatic forecast from receipt cycles, ledger evidence, and evolving consumption patterns</p>
           {forecastGuardrail ? <p className="mt-1 text-xs text-gray-400">{forecastGuardrail}</p> : null}
         </div>
         <Button
@@ -228,7 +228,7 @@ export default function PredictionsPage() {
               ? "Forecast is updating automatically."
               : eligibility?.reason_code === "ALREADY_FRESH"
                 ? "Neumas is keeping this forecast fresh automatically."
-                : `Neumas is building your consumption baseline. ${eligibility?.evidence_cycles_available ?? 0} of ${eligibility?.evidence_cycles_required ?? 3} evidence cycles available. Next forecast will run automatically when sufficient history exists.`}
+              : `Neumas is building your consumption baseline. Learning from ${eligibility?.purchase_cycles_observed ?? eligibility?.evidence_cycles_available ?? 0} purchase cycle(s), ${eligibility?.consumption_movements_observed ?? 0} consumption movement(s), and ${eligibility?.history_days_observed ?? 0} day(s) of history. The next forecast will run automatically when enough evidence is present.`}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
@@ -304,13 +304,13 @@ export default function PredictionsPage() {
                     href="/dashboard/shopping"
                     className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-blue-600 px-3 text-sm font-semibold text-white hover:bg-blue-700 sm:w-auto sm:min-h-0 sm:py-1.5 sm:text-xs"
                   >
-                    Add to shopping list
+                    Open reorder plan
                   </Link>
                   <Link
                     href="/dashboard/shopping"
                     className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:w-auto sm:min-h-0 sm:py-1.5 sm:text-xs"
                   >
-                    Mark as purchased
+                    Confirm through shopping
                   </Link>
                 </div>
               </div>

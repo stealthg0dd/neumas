@@ -23,9 +23,11 @@ function PriorityDot({ priority }: { priority: string }) {
 function ShoppingRow({
   item,
   index,
+  currencyCode,
 }: {
   item: ShoppingListItem;
   index: number;
+  currencyCode: string;
 }) {
   return (
     <motion.div
@@ -50,7 +52,7 @@ function ShoppingRow({
         </p>
         <p className="text-xs text-muted-foreground">
           {item.quantity} {item.unit}
-          {item.estimated_price ? ` · ~$${item.estimated_price.toFixed(2)}` : ""}
+          {item.estimated_price ? ` · ~${new Intl.NumberFormat("en-SG", { style: "currency", currency: currencyCode || "USD" }).format(item.estimated_price)}` : ""}
         </p>
         {item.reason && (
           <p className="text-xs text-muted-foreground/60 mt-0.5 truncate">{item.reason}</p>
@@ -71,9 +73,10 @@ function ShoppingRow({
 interface ShoppingPreviewProps {
   items:   ShoppingListItem[];
   loading: boolean;
+  currencyCode?: string;
 }
 
-export function ShoppingPreview({ items, loading }: ShoppingPreviewProps) {
+export function ShoppingPreview({ items, loading, currencyCode = "USD" }: ShoppingPreviewProps) {
   const safeItems = Array.isArray(items) ? items.map(normalizeShoppingItem) : [];
   const preview   = safeItems.slice(0, 6);
   const purchased = safeItems.filter((i) => i.is_purchased).length;
@@ -127,18 +130,18 @@ export function ShoppingPreview({ items, loading }: ShoppingPreviewProps) {
             <div className="w-10 h-10 rounded-full bg-amber-500/15 flex items-center justify-center mb-2">
               <Sparkles className="w-5 h-5 text-amber-400" />
             </div>
-            <p className="text-sm text-muted-foreground">No shopping list yet.</p>
+            <p className="text-sm text-muted-foreground">No reorder is currently required.</p>
             <Link
               href="/dashboard/shopping"
               className="mt-2 text-xs text-cyan-500 hover:text-cyan-400 transition-colors"
             >
-              Generate a list →
+              Open shopping →
             </Link>
           </div>
         ) : (
           <div>
             {preview.map((item, i) => (
-              <ShoppingRow key={item.id} item={item} index={i} />
+              <ShoppingRow key={item.id} item={item} index={i} currencyCode={currencyCode} />
             ))}
           </div>
         )}

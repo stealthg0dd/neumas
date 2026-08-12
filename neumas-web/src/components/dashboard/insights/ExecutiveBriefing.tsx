@@ -27,9 +27,9 @@ export function ExecutiveBriefing() {
 
       <div className="mt-4 space-y-3">
         {(briefing?.bullets ?? [
-          "Recent operating activity will appear here once audit logs accumulate.",
-          "New scans, reorders, and exports are summarized into a short operator brief.",
-          "Run a fresh workflow to seed the first executive view.",
+          "Recent operating activity will appear here once Neumas has at least one completed evidence cycle to summarize.",
+          "New scans, purchase intelligence, reorders, and receipts roll into a short operator brief automatically.",
+          "If processing is still underway, this briefing will refresh after downstream analysis completes.",
         ]).map((bullet) => (
           <div key={bullet} className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
             {bullet}

@@ -26,6 +26,7 @@ import {
 import {
   askOperatorCopilot,
   getDecisionCenter,
+  getDigestPreferences,
   getOnboardingState,
   getAnalyticsSummary,
   getOrgPropertyStockHealth,
@@ -107,10 +108,6 @@ const EMPTY_DECISION_CENTER: DecisionCenterResponse = {
 
 type TrendPoint = { date: string; value: number };
 
-function formatMoney(value: number): string {
-  return formatCurrency(value, "USD");
-}
-
 function newestScanLabel(scans: Scan[]): string {
   if (!scans.length) return "No scans yet";
   const s = scans[0];
@@ -133,6 +130,7 @@ export default function DashboardPage() {
   const [orgHealth, setOrgHealth] = useState<OrgPropertyStockHealthResponse | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingStateResponse | null>(null);
   const [forecastSpend7d, setForecastSpend7d] = useState(0);
+  const [preferredCurrency, setPreferredCurrency] = useState("USD");
   const [decisionCenter, setDecisionCenter] = useState<DecisionCenterResponse>(EMPTY_DECISION_CENTER);
   const [copilotAnswer, setCopilotAnswer] = useState<OperatorCopilotResponse | null>(null);
   const [copilotLoading, setCopilotLoading] = useState(false);
@@ -151,6 +149,7 @@ export default function DashboardPage() {
         orgHealthRes,
         onboardingRes,
         decisionCenterRes,
+        digestPreferences,
       ] = await Promise.all([
         getAnalyticsSummary().catch(() => EMPTY_SUMMARY),
         listAlerts({ state: "open", page_size: 20 }).catch(() => ({ alerts: [], open_count: 0, page: 1, page_size: 20 })),
@@ -161,6 +160,7 @@ export default function DashboardPage() {
         isAdmin ? getOrgPropertyStockHealth().catch(() => null) : Promise.resolve(null),
         getOnboardingState().catch(() => null),
         getDecisionCenter(workspaceExperience).catch(() => EMPTY_DECISION_CENTER),
+        getDigestPreferences().catch(() => null),
       ]);
 
       setSummary(analyticsRes);
@@ -171,6 +171,9 @@ export default function DashboardPage() {
       setOrgHealth(orgHealthRes);
       setOnboarding(onboardingRes);
       setDecisionCenter(decisionCenterRes);
+      if (digestPreferences?.preferred_currency) {
+        setPreferredCurrency(String(digestPreferences.preferred_currency).toUpperCase());
+      }
       setInventoryTrend((analyticsRes.inventory_value_history ?? []).map((point: { date: string; value: number | string | null }) => ({
         date: point.date,
         value: Number(point.value ?? 0),
@@ -188,6 +191,12 @@ export default function DashboardPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const formatMoneyForOrg = useCallback(
+    (value: number, currencyCode?: string | null) =>
+      formatCurrency(value, (currencyCode || preferredCurrency || "USD").toUpperCase()),
+    [preferredCurrency],
+  );
 
   const scanSuccessRate = useMemo(() => {
     if (!scans.length) return 0;
@@ -318,7 +327,7 @@ export default function DashboardPage() {
           <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Savings This Month</p>
             <p className="mt-3 text-2xl font-bold text-gray-900">
-              {savingsThisMonth !== null ? formatMoney(savingsThisMonth) : "Start scanning"}
+              {savingsThisMonth !== null ? formatMoneyForOrg(savingsThisMonth) : "Start scanning"}
             </p>
             <p className="mt-1 text-xs text-gray-500">
               {savingsThisMonth !== null ? "Estimated from recent spend trend." : "Start scanning receipts to establish your savings baseline."}
@@ -487,7 +496,7 @@ export default function DashboardPage() {
               <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                 <p className="text-xs uppercase tracking-[0.14em] text-gray-500">Tracked spend</p>
                 <p className="mt-2 text-2xl font-bold text-gray-900">
-                  {summary.spend_total > 0 ? formatMoney(summary.spend_total) : "Waiting for data"}
+                  {summary.spend_total > 0 ? formatMoneyForOrg(summary.spend_total) : "Waiting for data"}
                 </p>
               </div>
               <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
@@ -531,7 +540,7 @@ export default function DashboardPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Welcome</p>
           <h2 className="mt-1 text-xl font-bold text-slate-900">Start with one receipt. We handle the rest.</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Upload a receipt, let AI extract line items, generate your baseline, then get depletion risk and a ready-to-send shopping plan.
+            Upload evidence, let Neumas process it, update inventory, surface purchase intelligence, and then run forecast and reorder logic automatically when the evidence is ready.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link href="/dashboard/scans/new" className="inline-flex items-center gap-2 rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800">
@@ -562,7 +571,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-amber-500" />
           </div>
           <p className="mt-3 text-3xl font-bold text-gray-900">
-            {formatMoney(decisionCenter.ahead.next_7_day_purchase_need ?? forecastSpend7d)}
+            {formatMoneyForOrg(decisionCenter.ahead.next_7_day_purchase_need ?? forecastSpend7d)}
           </p>
           <p className="mt-1 text-xs text-gray-500">Estimated spend needed over the next 7 days.</p>
         </div>
@@ -641,7 +650,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
                     {decisionCenter.latest_activity.invoice_total != null
-                      ? `${formatMoney(decisionCenter.latest_activity.invoice_total)} purchase recorded`
+                      ? `${formatMoneyForOrg(decisionCenter.latest_activity.invoice_total, summary.latest_purchase_summary?.currency)} purchase recorded`
                       : "Invoice value is shown only when extraction is reliable."}
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
@@ -734,9 +743,9 @@ export default function DashboardPage() {
                     axisLine={false}
                     tickLine={false}
                     width={58}
-                    tickFormatter={(v) => `$${Math.round(Number(v))}`}
+                    tickFormatter={(v) => formatMoneyForOrg(Math.round(Number(v)))}
                   />
-                  <Tooltip formatter={(v) => formatMoney(Number(v))} />
+                  <Tooltip formatter={(v) => formatMoneyForOrg(Number(v))} />
                   <Line
                     type="monotone"
                     dataKey="value"
@@ -797,7 +806,7 @@ export default function DashboardPage() {
                           {metric.format === "percent" && typeof metric.value === "number"
                             ? `${Math.round(metric.value * 100)}%`
                             : metric.format === "currency" && typeof metric.value === "number"
-                            ? formatMoney(metric.value)
+                            ? formatMoneyForOrg(metric.value)
                             : metric.format === "minutes" && typeof metric.value === "number"
                             ? `${metric.value} min`
                             : metric.value ?? "Still learning"}
@@ -877,7 +886,7 @@ export default function DashboardPage() {
           </div>
           {!predictedStockoutAlerts.length ? (
             <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-              No prediction-based alerts right now. Keep scanning receipts to maintain baseline confidence.
+              No prediction-based alerts right now. Nothing requires attention here while Neumas continues learning from posted evidence.
             </div>
           ) : (
             <div className="mt-3 space-y-2">
@@ -912,7 +921,7 @@ export default function DashboardPage() {
               <p className="mt-1 text-xs text-gray-600">
                 {decisionCenter.ahead.forecast_confidence != null
                   ? `Current confidence at ${Math.round(decisionCenter.ahead.forecast_confidence * 100)}%.`
-                  : "Confidence will appear after enough evaluated evidence exists."}
+                  : (decisionCenter.ahead.learning_state ?? "Confidence will appear after enough evaluated evidence exists.")}
               </p>
             </div>
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">

@@ -11,7 +11,7 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 
-import { listPredictions, listShoppingLists, generateShoppingList } from "@/lib/api/endpoints";
+import { generateShoppingList, getDigestPreferences, listPredictions, listShoppingLists } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 import type { Prediction, ShoppingList, ShoppingListStatus } from "@/lib/api/types";
 import { track, captureUIError } from "@/lib/analytics";
@@ -52,7 +52,7 @@ function relDate(iso: string) {
 
 // ── List card ─────────────────────────────────────────────────────────────────
 
-function ListCard({ list, index }: { list: ShoppingList; index: number }) {
+function ListCard({ list, index, preferredCurrency }: { list: ShoppingList; index: number; preferredCurrency: string }) {
   const cfg = STATUS_CFG[list.status];
 
   return (
@@ -97,9 +97,9 @@ function ListCard({ list, index }: { list: ShoppingList; index: number }) {
           <div className="flex items-center gap-2">
             <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              <span className="text-foreground font-medium">
+                <span className="text-foreground font-medium">
                 {list.total_estimated_cost != null
-                  ? formatCurrency(list.total_estimated_cost, "USD")
+                  ? formatCurrency(list.total_estimated_cost, preferredCurrency)
                   : "—"}
               </span> est.
             </span>
@@ -266,6 +266,7 @@ export default function ShoppingPage() {
   const [filter,      setFilter]      = useState<ShoppingListStatus | "all">("all");
   const [error,       setError]       = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [preferredCurrency, setPreferredCurrency] = useState("USD");
 
   // Ref-stable fetch so we can call it from handleGenerate without adding it
   // to any effect dependency array (avoids indirect re-render loops).
@@ -297,6 +298,12 @@ export default function ShoppingPage() {
     if (!propertyId) return;
     fetchListsRef.current();
   }, [propertyId]);
+
+  useEffect(() => {
+    void getDigestPreferences()
+      .then((prefs) => setPreferredCurrency((prefs.preferred_currency || "USD").toUpperCase()))
+      .catch(() => setPreferredCurrency("USD"));
+  }, []);
 
   async function handleGenerate(opts: GenerateOptions): Promise<void> {
     const pid = propertyId ?? useAuthStore.getState().propertyId;
@@ -367,7 +374,7 @@ export default function ShoppingPage() {
           className="flex items-center gap-2 px-4 h-9 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          Generate list
+          Generate fallback list
         </button>
       </div>
 
@@ -449,9 +456,9 @@ export default function ShoppingPage() {
             <ShoppingCart className="w-7 h-7 text-amber-400" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-foreground">No shopping lists yet</h3>
+            <h3 className="text-base font-semibold text-foreground">No reorder currently required</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              Neumas will create a draft shopping plan automatically once stock risk or sufficient forecast evidence exists.
+              Neumas will create or refresh an operator review plan automatically once forecast risk or reorder evidence qualifies.
             </p>
           </div>
           <button
@@ -459,13 +466,13 @@ export default function ShoppingPage() {
             className="flex items-center gap-2 px-4 h-9 rounded-xl gradient-primary text-white text-sm font-semibold hover:opacity-90"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Generate first list
+            Run fallback generation
           </button>
         </motion.div>
       ) : (
         <div className="space-y-3">
           {displayed.map((list, i) => (
-            <ListCard key={list.id} list={list} index={i} />
+            <ListCard key={list.id} list={list} index={i} preferredCurrency={preferredCurrency} />
           ))}
         </div>
       )}
