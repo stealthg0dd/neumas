@@ -895,6 +895,7 @@ export default function ClientOnboardPage({
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasSession = useAuthStore(selectHasSession);
+  const profile = useAuthStore((state) => state.profile);
   const hasHydrated = useAuthStore((state) => state._hasHydrated);
 
   const supabaseJwt = searchParams?.get("supabase_jwt") ?? searchParams?.get("token");
@@ -982,8 +983,8 @@ export default function ClientOnboardPage({
   );
 
   const ensureProvisioned = useCallback(async () => {
-    if (hasSession) return true;
-    if (!isGoogleOnboarding || !supabaseJwt) return true;
+    if (profile?.property_id || provisionedSession?.profile?.property_id) return true;
+    if (!isGoogleOnboarding || !supabaseJwt) return hasSession;
     if (provisionedSession?.profile?.property_id) return true;
 
     setBusy(true);
@@ -1026,6 +1027,7 @@ export default function ClientOnboardPage({
     hasSession,
     isGoogleOnboarding,
     primaryOutlet,
+    profile?.property_id,
     provisionedSession?.profile?.property_id,
     selectedOrgType,
     supabaseJwt,
@@ -1035,25 +1037,39 @@ export default function ClientOnboardPage({
     const ok = await ensureProvisioned();
     if (!ok) return false;
 
+    const payload = {
+      onboarding_status: "IN_PROGRESS" as const,
+      onboarding_source: isGoogleOnboarding ? "google_oauth" : "self_serve",
+      org_type: selectedOrgType,
+      business_type: business.businessType,
+      org_name: business.orgName.trim(),
+      country: business.country.trim(),
+      currency: business.currency.trim().toUpperCase(),
+      outlet_count: business.outletCount,
+      idempotency_key: outletBatchKey,
+      outlets: outletInputs,
+      property_name: primaryOutlet?.name.trim() || "Main Outlet",
+      property_type: primaryOutlet?.property_type ?? business.businessType,
+      address: primaryOutlet?.address.trim() || null,
+    };
+
     try {
-      const nextState = await updateOnboardingState({
-        onboarding_status: "IN_PROGRESS",
-        onboarding_source: isGoogleOnboarding ? "google_oauth" : "self_serve",
-        org_type: selectedOrgType,
-        business_type: business.businessType,
-        org_name: business.orgName.trim(),
-        country: business.country.trim(),
-        currency: business.currency.trim().toUpperCase(),
-        outlet_count: business.outletCount,
-        idempotency_key: outletBatchKey,
-        outlets: outletInputs,
-        property_name: primaryOutlet?.name.trim() || "Main Outlet",
-        property_type: primaryOutlet?.property_type ?? business.businessType,
-        address: primaryOutlet?.address.trim() || null,
-      });
+      const nextState = await updateOnboardingState(payload);
       setOnboardingState(nextState);
       return true;
     } catch (err) {
+      if (isGoogleOnboarding) {
+        const reprovisioned = await ensureProvisioned();
+        if (reprovisioned) {
+          try {
+            const nextState = await updateOnboardingState(payload);
+            setOnboardingState(nextState);
+            return true;
+          } catch (retryErr) {
+            captureUIError("fnb_onboard_persist_retry", retryErr);
+          }
+        }
+      }
       captureUIError("fnb_onboard_persist", err);
       toast.error("We couldn't save your business and outlet setup. Please retry.");
       return false;
