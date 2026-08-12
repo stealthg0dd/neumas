@@ -101,6 +101,7 @@ from app.api.routes import (
     insights,
     inventory,
     predictions,
+    public,
     reports,
     scans,
     shopping,
@@ -499,6 +500,11 @@ app.include_router(
     auth.router,
     prefix="/api/auth",
     tags=["Authentication"],
+)
+app.include_router(
+    public.router,
+    prefix="/api/public",
+    tags=["Public"],
 )
 
 # Scan routes

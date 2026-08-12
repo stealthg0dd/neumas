@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { BarChart2 } from "lucide-react";
-import { listReports, requestReport, type Report } from "@/lib/api/endpoints";
+import { getEntitlements, listReports, requestReport, type EntitlementResponse, type Report } from "@/lib/api/endpoints";
 import { EmptyState } from "@/components/ui/EmptyState";
 import SpendSummary from "@/components/reports/SpendSummary";
 import { ExportButton } from "@/components/reports/ExportButton";
@@ -28,6 +28,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState<string | null>(null);
+  const [entitlements, setEntitlements] = useState<EntitlementResponse | null>(null);
 
   async function load() {
     setLoading(true);
@@ -35,6 +36,7 @@ export default function ReportsPage() {
     try {
       const resp = await listReports({ page_size: 20 });
       setReports(resp.reports);
+      setEntitlements(await getEntitlements().catch(() => null));
     } catch {
       setError("Failed to load reports");
     } finally {
@@ -73,13 +75,16 @@ export default function ReportsPage() {
             <button
               key={rt.value}
               onClick={() => handleRequest(rt.value)}
-              disabled={!!requesting}
+              disabled={!!requesting || !entitlements?.features.reports}
               className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               {requesting === rt.value ? "Requesting…" : rt.label}
             </button>
           ))}
         </div>
+        {entitlements && !entitlements.features.reports ? (
+          <p className="mt-3 text-xs text-amber-700">Your current plan does not include report generation.</p>
+        ) : null}
       </div>
 
       {/* Spend summary and recommendations */}

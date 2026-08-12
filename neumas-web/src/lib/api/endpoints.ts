@@ -771,6 +771,46 @@ export interface AuditEntry {
   created_at: string;
 }
 
+export interface PilotLead {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  phone?: string | null;
+  business_type: string;
+  outlet_count: string;
+  current_workflow: string;
+  preferred_start?: string | null;
+  source: string;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+  status: "NEW" | "CONTACTED" | "QUALIFIED" | "PILOT" | "CONVERTED" | "CLOSED";
+  provisioned_org_id?: string | null;
+  provisioned_property_id?: string | null;
+  provisioned_user_id?: string | null;
+  converted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PilotLeadConversionPayload {
+  property_name?: string;
+  org_type?: string;
+  role?: string;
+  plan?: string;
+}
+
+export interface PilotLeadConversionResponse {
+  lead_id: string;
+  status: "CONVERTED";
+  organization_id: string;
+  property_id: string;
+  user_id: string;
+}
+
 export type IntegrationAdapterType =
   | "pos"
   | "supplier"
@@ -810,6 +850,35 @@ export interface IntegrationConnection {
   last_checked_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+}
+
+export interface EntitlementResponse {
+  plan_code:
+    | "HOME_FREE"
+    | "HOME_PLUS"
+    | "FNB_STARTER"
+    | "FNB_GROWTH"
+    | "FNB_ENTERPRISE"
+    | "INTERNAL_ADMIN";
+  legacy_plan?: string | null;
+  org_type?: string | null;
+  grandfathered: boolean;
+  billing_state: string;
+  limits: {
+    monthly_scans?: number | null;
+    users?: number | null;
+    properties?: number | null;
+    history_days?: number | null;
+    forecast_frequency_hours?: number | null;
+  };
+  features: {
+    reports: boolean;
+    integrations: boolean;
+    copilot: boolean;
+    approval_workflows: boolean;
+    exports: boolean;
+    vendor_analytics: boolean;
+  };
 }
 
 /** GET /api/admin/org */
@@ -856,6 +925,21 @@ export async function listFeatureFlags(): Promise<Record<string, boolean>> {
 /** GET /api/admin/integrations */
 export async function listAdminIntegrations(): Promise<IntegrationConnection[]> {
   return get<IntegrationConnection[]>("/api/admin/integrations");
+}
+
+export async function listPilotLeads(): Promise<PilotLead[]> {
+  return get<PilotLead[]>("/api/admin/pilot-leads");
+}
+
+export async function convertPilotLead(
+  leadId: string,
+  payload: PilotLeadConversionPayload = {}
+): Promise<PilotLeadConversionResponse> {
+  return post<PilotLeadConversionResponse>(`/api/admin/pilot-leads/${leadId}/convert`, payload);
+}
+
+export async function getEntitlements(): Promise<EntitlementResponse> {
+  return get<EntitlementResponse>("/api/auth/entitlements");
 }
 
 /** PATCH /api/admin/feature-flags/{flagName} */

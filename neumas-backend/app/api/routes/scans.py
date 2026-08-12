@@ -32,6 +32,7 @@ from app.schemas.scans import (
     ScanResponse,
     ScanStatusResponse,
 )
+from app.services.entitlement_service import EntitlementService
 from app.services.scan_service import ScanQueueUnavailableError, ScanService
 
 logger = get_logger(__name__)
@@ -39,6 +40,7 @@ router = APIRouter()
 
 # Service instance
 scan_service = ScanService()
+entitlement_service = EntitlementService()
 
 
 class ScanRerunRequest(BaseModel):
@@ -91,6 +93,7 @@ async def upload_scan(
         property_id=str(tenant.property_id),
         org_id=str(tenant.org_id),
     )
+    await entitlement_service.enforce_monthly_scans(tenant)
     file_name = file.filename or ""
     file_ext = Path(file_name).suffix.lower()
 

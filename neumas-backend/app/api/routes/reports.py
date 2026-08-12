@@ -10,12 +10,14 @@ from pydantic import BaseModel
 
 from app.api.deps import TenantContext, get_tenant_context
 from app.core.logging import get_logger
+from app.services.entitlement_service import EntitlementService
 from app.services.report_service import ReportService
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 _report_service = ReportService()
+_entitlement_service = EntitlementService()
 
 
 class ReportRequest(BaseModel):
@@ -30,6 +32,11 @@ async def request_report(
 ) -> dict:
     """Enqueue a new report or return a pending/completed one."""
     try:
+        await _entitlement_service.require_feature(
+            tenant,
+            "reports",
+            "Your current plan does not include report generation.",
+        )
         report = await _report_service.request_report(tenant, body.report_type, body.params)
         return report
     except ValueError as e:

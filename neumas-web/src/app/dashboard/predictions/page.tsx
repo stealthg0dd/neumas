@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
-import { getPredictionSummary, listPredictions, triggerForecast } from "@/lib/api/endpoints";
+import { getEntitlements, getPredictionSummary, listPredictions, triggerForecast } from "@/lib/api/endpoints";
 import type { Prediction, PredictionOutcomeSummary, UrgencyLevel } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
 import { confidenceToPercent, daysUntilStockout, getFeatures, sortPredictionsByUrgencyThenDays } from "@/lib/prediction-display";
@@ -78,6 +78,7 @@ export default function PredictionsPage() {
   const [triggering, setTriggering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<PredictionOutcomeSummary | null>(null);
+  const [forecastGuardrail, setForecastGuardrail] = useState<string | null>(null);
   const workspace = useAuthStore((s) => s.profile?.org_type);
 
   const fetchPredictions = useCallback(async () => {
@@ -88,6 +89,12 @@ export default function PredictionsPage() {
       setPredictions(data);
       const nextSummary = await getPredictionSummary().catch(() => null);
       setSummary(nextSummary);
+      const entitlements = await getEntitlements().catch(() => null);
+      if (entitlements?.limits.forecast_frequency_hours) {
+        setForecastGuardrail(`Plan cadence: one forecast every ${entitlements.limits.forecast_frequency_hours}h`);
+      } else {
+        setForecastGuardrail(null);
+      }
     } catch (err) {
       setError("We couldn't load stockout predictions.");
       captureUIError("load_predictions", err);
@@ -110,6 +117,7 @@ export default function PredictionsPage() {
       setTimeout(() => void fetchPredictions(), 4000);
     } catch (err) {
       captureUIError("trigger_forecast", err);
+      toast.error(err instanceof Error ? err.message : "Forecast unavailable.");
     } finally {
       setTriggering(false);
     }
@@ -121,6 +129,7 @@ export default function PredictionsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Stockout Predictions</h1>
           <p className="mt-1 text-sm text-gray-500">AI forecast from your consumption patterns</p>
+          {forecastGuardrail ? <p className="mt-1 text-xs text-gray-400">{forecastGuardrail}</p> : null}
         </div>
         <Button
           type="button"

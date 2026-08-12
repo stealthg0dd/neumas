@@ -24,6 +24,7 @@ from app.schemas.inventory import (
     VendorOrderExportResponse,
 )
 from app.services.inventory_service import InventoryService
+from app.services.entitlement_service import EntitlementService
 from app.services.restock_service import RestockService
 
 logger = get_logger(__name__)
@@ -32,6 +33,7 @@ router = APIRouter()
 # Service instance
 inventory_service = InventoryService()
 restock_service = RestockService()
+entitlement_service = EntitlementService()
 
 
 @router.get(
@@ -356,6 +358,11 @@ async def export_vendor_order(
     runout_threshold_days: Annotated[int, Query(ge=1, le=30)] = 7,
 ) -> VendorOrderExportResponse:
     try:
+        await entitlement_service.require_feature(
+            tenant,
+            "exports",
+            "Your current plan does not include export generation.",
+        )
         payload = await restock_service.generate_vendor_order_export(
             tenant=tenant,
             vendor_id=str(vendor_id),

@@ -37,12 +37,21 @@ export default function PilotIntake() {
       setError("Please fill in all required fields.");
       return;
     }
-    // TODO: Replace with real API call
     try {
       await fetch("/api/pilot-intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          company_name: form.company,
+          contact_name: form.contact,
+          email: form.email,
+          phone: form.phone || null,
+          business_type: form.businessType || "Other",
+          outlet_count: form.sites || "1",
+          current_workflow: form.process || "Not specified",
+          preferred_start: form.startDate || null,
+          source: "legacy_pilot_component",
+        }),
       });
       setSubmitted(true);
     } catch {

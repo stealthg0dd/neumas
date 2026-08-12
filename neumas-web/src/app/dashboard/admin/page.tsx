@@ -29,6 +29,8 @@ import {
   getAdminUsage,
   getSystemHealth,
   listAdminIntegrations,
+  listPilotLeads,
+  convertPilotLead,
   listAuditLog,
   listFeatureFlags,
   updateFeatureFlag,
@@ -39,6 +41,7 @@ import {
   type SystemHealth,
   type AuditEntry,
   type IntegrationConnection,
+  type PilotLead,
 } from "@/lib/api/endpoints";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -294,21 +297,24 @@ function OverviewTab() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [props, setProps] = useState<AdminProperty[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
+  const [pilotLeads, setPilotLeads] = useState<PilotLead[]>([]);
+  const [convertingLeadId, setConvertingLeadId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, h, u, us, ps, ints] = await Promise.all([
+      const [o, h, u, us, ps, ints, leads] = await Promise.all([
         getAdminOrg().catch(() => null),
         getSystemHealth().catch(() => null),
         getAdminUsage({ days: 30 }).catch(() => null),
         listAdminUsers().catch(() => []),
         listAdminProperties().catch(() => []),
         listAdminIntegrations().catch(() => []),
+        listPilotLeads().catch(() => []),
       ]);
-      setOrg(o); setHealth(h); setUsage(u); setUsers(us); setProps(ps); setIntegrations(ints);
+      setOrg(o); setHealth(h); setUsage(u); setUsers(us); setProps(ps); setIntegrations(ints); setPilotLeads(leads);
       setLastRefresh(new Date());
     } finally {
       setLoading(false);
@@ -462,6 +468,61 @@ function OverviewTab() {
               );
             })}
           </div>
+        </section>
+      )}
+
+      {!!pilotLeads.length && (
+        <section className="space-y-3">
+          <p className="text-[13px] font-semibold text-gray-700">Pilot intake continuity</p>
+          <DataTable>
+            <thead>
+              <tr>
+                <TH>Company</TH>
+                <TH>Contact</TH>
+                <TH>Status</TH>
+                <TH>Source</TH>
+                <TH>Created</TH>
+                <TH>Action</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {pilotLeads.slice(0, 6).map((lead) => (
+                <tr key={lead.id} className="group hover:bg-gray-50/80 transition-colors">
+                  <TD><span className="font-medium text-gray-900">{lead.company_name}</span></TD>
+                  <TD>
+                    <div className="space-y-0.5">
+                      <p className="text-gray-900">{lead.contact_name}</p>
+                      <p className="text-[12px] text-gray-400">{lead.email}</p>
+                    </div>
+                  </TD>
+                  <TD muted>{lead.status}</TD>
+                  <TD muted>{lead.utm_campaign || lead.source}</TD>
+                  <TD muted>{fmt(lead.created_at)}</TD>
+                  <TD>
+                    {lead.status === "CONVERTED" ? (
+                      <span className="text-[12px] font-semibold text-emerald-700">Provisioned</span>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setConvertingLeadId(lead.id);
+                          try {
+                            await convertPilotLead(lead.id, {});
+                            setPilotLeads(await listPilotLeads().catch(() => []));
+                          } finally {
+                            setConvertingLeadId(null);
+                          }
+                        }}
+                        disabled={convertingLeadId === lead.id}
+                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {convertingLeadId === lead.id ? "Provisioning…" : "Convert"}
+                      </button>
+                    )}
+                  </TD>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
         </section>
       )}
     </div>

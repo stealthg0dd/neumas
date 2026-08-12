@@ -978,6 +978,73 @@ class AuthService:
             profile=profile,
         )
 
+    async def provision_pilot_lead_conversion(
+        self,
+        *,
+        email: str,
+        org_name: str,
+        property_name: str,
+        contact_name: str | None = None,
+        org_type: str | None = "FNB",
+        role: str = "admin",
+        plan: str = "FNB_GROWTH",
+    ) -> dict[str, UUID]:
+        admin_client = await get_async_supabase_admin()
+        existing = await (
+            admin_client.table("users")
+            .select("*")
+            .eq("email", email.lower())
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            user = existing.data[0]
+            org_id = _extract_org_id(user)
+            properties = await (
+                admin_client.table("properties")
+                .select("id")
+                .eq("organization_id", str(org_id))
+                .order("created_at")
+                .limit(1)
+                .execute()
+            )
+            if not properties.data:
+                raise ValueError("Existing converted user is missing property")
+            return {
+                "user_id": UUID(str(user["id"])),
+                "organization_id": org_id,
+                "property_id": UUID(str(properties.data[0]["id"])),
+            }
+
+        temp_password = secrets.token_urlsafe(18)
+        signup_response = await self.signup(
+            SignupRequest(
+                email=email.lower(),
+                password=temp_password,
+                org_name=org_name,
+                property_name=property_name,
+                org_type=org_type,
+                role=role,
+            )
+        )
+        await (
+            admin_client.table("users")
+            .update({"full_name": contact_name})
+            .eq("id", str(signup_response.profile.user_id))
+            .execute()
+        )
+        await (
+            admin_client.table("organizations")
+            .update({"plan": plan})
+            .eq("id", str(signup_response.profile.org_id))
+            .execute()
+        )
+        return {
+            "user_id": signup_response.profile.user_id,
+            "organization_id": signup_response.profile.org_id,
+            "property_id": signup_response.profile.property_id,
+        }
+
     async def get_google_user_profile(self, auth_id: str) -> "ProfileResponse | None":
         """Return the existing Neumas profile for a Google OAuth user, or None.
 

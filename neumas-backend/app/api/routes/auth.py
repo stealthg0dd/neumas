@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 
-from app.api.deps import UserInfo, get_current_user, get_token
+from app.api.deps import UserInfo, get_current_user, get_tenant_context, get_token
 from app.core.logging import get_logger
 from app.core.security import (  # noqa: F401 - decode_jwt kept for test compatibility
     decode_jwt,
@@ -26,13 +26,16 @@ from app.schemas.auth import (
     SignupResponse,
     TokenResponse,
 )
+from app.schemas.entitlements import EntitlementResponse
 from app.services.auth_service import AuthService
+from app.services.entitlement_service import EntitlementService
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 # Service instance
 auth_service = AuthService()
+entitlement_service = EntitlementService()
 
 
 @router.post(
@@ -341,6 +344,17 @@ async def update_digest_preferences(
         safety_buffer_days=int(updated_preferences.get("safety_buffer_days", 3) or 3),
         preferred_currency=str(updated_preferences.get("preferred_currency", "USD") or "USD").upper(),
     )
+
+
+@router.get(
+    "/entitlements",
+    response_model=EntitlementResponse,
+    summary="Get server-authoritative entitlements",
+)
+async def get_entitlements(
+    tenant=Depends(get_tenant_context),
+) -> EntitlementResponse:
+    return await entitlement_service.get_for_tenant(tenant)
 
 
 @router.post(

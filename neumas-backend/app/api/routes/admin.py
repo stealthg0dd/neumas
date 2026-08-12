@@ -20,7 +20,13 @@ from app.db.repositories.audit_logs import AuditLogsRepository
 from app.db.repositories.email_logs import EmailLogsRepository
 from app.db.supabase_client import get_async_supabase_admin
 from app.schemas.integrations import IntegrationConnectionResponse
+from app.schemas.pilot_leads import (
+    PilotLeadConversionRequest,
+    PilotLeadConversionResponse,
+    PilotLeadResponse,
+)
 from app.services.integrations.integration_service import IntegrationService
+from app.services.pilot_lead_service import PilotLeadService
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -28,6 +34,7 @@ router = APIRouter()
 _audit_repo = AuditLogsRepository()
 _email_logs_repo = EmailLogsRepository()
 _integration_service = IntegrationService()
+_pilot_lead_service = PilotLeadService()
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
@@ -160,6 +167,33 @@ async def list_feature_flags(tenant: AdminTenant) -> dict:
 async def list_integrations(tenant: AdminTenant) -> list[IntegrationConnectionResponse]:
     require_admin_role(tenant)
     return await _integration_service.list_connections(tenant)
+
+
+@router.get(
+    "/pilot-leads",
+    response_model=list[PilotLeadResponse],
+    summary="List persisted pilot leads",
+)
+async def list_pilot_leads(tenant: AdminTenant) -> list[PilotLeadResponse]:
+    require_admin_role(tenant)
+    return await _pilot_lead_service.list(tenant)
+
+
+@router.post(
+    "/pilot-leads/{lead_id}/convert",
+    response_model=PilotLeadConversionResponse,
+    summary="Convert pilot lead into provisioned workspace",
+)
+async def convert_pilot_lead(
+    lead_id: UUID,
+    body: PilotLeadConversionRequest,
+    tenant: AdminTenant,
+) -> PilotLeadConversionResponse:
+    require_admin_role(tenant)
+    try:
+        return await _pilot_lead_service.convert(tenant, lead_id, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.patch("/feature-flags/{flag_name}", summary="Update feature flag")

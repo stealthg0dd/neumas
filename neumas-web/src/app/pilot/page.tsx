@@ -10,6 +10,7 @@ interface PilotFormData {
   companyName: string;
   contactName: string;
   email: string;
+  phone: string;
   outlets: string;
   businessType: string;
   currentWorkflow: string;
@@ -42,6 +43,7 @@ export default function PilotPage() {
     companyName: "",
     contactName: "",
     email: "",
+    phone: "",
     outlets: "1",
     businessType: "",
     currentWorkflow: "",
@@ -65,16 +67,34 @@ export default function PilotPage() {
     if (!validate()) return;
     setBusy(true);
 
-    // Store pilot intent locally (real submission would POST to CRM/backend)
     try {
-      if (typeof window !== "undefined") {
-        localStorage.setItem(
-          "neumas_pilot_intent",
-          JSON.stringify({ ...form, submitted_at: new Date().toISOString() })
-        );
+      const params =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search)
+          : null;
+      const response = await fetch("/api/pilot-intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_name: form.companyName,
+          contact_name: form.contactName,
+          email: form.email,
+          phone: form.phone || null,
+          business_type: form.businessType,
+          outlet_count: form.outlets,
+          current_workflow: form.currentWorkflow,
+          preferred_start: null,
+          source: "pilot_page",
+          utm_source: params?.get("utm_source"),
+          utm_medium: params?.get("utm_medium"),
+          utm_campaign: params?.get("utm_campaign"),
+          utm_content: params?.get("utm_content"),
+          utm_term: params?.get("utm_term"),
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Pilot intake failed");
       }
-      // Small delay to feel like a real submission
-      await new Promise((r) => setTimeout(r, 800));
       setStep("success");
     } finally {
       setBusy(false);
@@ -255,6 +275,20 @@ export default function PilotPage() {
               {errors.email && (
                 <p className="mt-1 text-[11px] text-red-500">{errors.email}</p>
               )}
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[13px] font-semibold text-gray-700">
+                Phone
+              </label>
+              <input
+                type="tel"
+                autoComplete="tel"
+                placeholder="+65 8123 4567"
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-900 outline-none transition-colors placeholder:text-gray-300 hover:border-gray-300 focus:ring-2 focus:ring-[#0071a3]/20"
+              />
             </div>
           </div>
 

@@ -13,11 +13,13 @@ from app.api.deps import TenantContext, get_tenant_context, require_property
 from app.core.celery_app import celery_app
 from app.core.logging import get_logger
 from app.db.repositories.predictions import get_predictions_repository
+from app.services.entitlement_service import EntitlementService
 from app.services.prediction_outcome_service import PredictionOutcomeService
 
 logger = get_logger(__name__)
 router = APIRouter()
 prediction_outcome_service = PredictionOutcomeService()
+entitlement_service = EntitlementService()
 
 # Urgency ordering for sorting (lower = more urgent)
 _URGENCY_ORDER = {"critical": 0, "urgent": 1, "soon": 2, "later": 3}
@@ -52,6 +54,7 @@ async def forecast(
     Returns the task ID of the prediction task.
     """
     property_id = str(body.property_id or tenant.property_id)
+    await entitlement_service.enforce_forecast_frequency(tenant, UUID(property_id))
 
     try:
         # Step 1 -- recompute consumption patterns
