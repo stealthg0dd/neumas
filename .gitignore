@@ -81,3 +81,6 @@ celerybeat-schedule
 *.log
 .railway/
 .turbo/
+
+# Supabase CLI machine-local link metadata and version caches
+**/supabase/.temp/

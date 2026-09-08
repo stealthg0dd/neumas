@@ -1,0 +1,243 @@
+{
+  "project": {
+    "name": "Neumas",
+    "generated_at": "2026-08-12",
+    "repo_type": "monorepo",
+    "primary_goal": "Hospitality inventory intelligence across evidence capture, stock ledger, forecasting, procurement, vendor intelligence, reporting, and admin controls."
+  },
+  "repositories_and_surfaces": [
+    {
+      "id": "backend",
+      "path": "neumas-backend",
+      "stack": "FastAPI + Python 3.12 + Supabase + Celery + Redis",
+      "status": "primary",
+      "responsibilities": [
+        "auth and JWT claim hydration",
+        "inventory APIs and ledger",
+        "scan ingestion and approval",
+        "document review and posting",
+        "predictions and reorder intelligence",
+        "shopping, vendors, alerts, reports, analytics, admin"
+      ]
+    },
+    {
+      "id": "web",
+      "path": "neumas-web",
+      "stack": "Next.js 16 + React 19 + TypeScript",
+      "status": "primary",
+      "responsibilities": [
+        "public marketing site",
+        "pilot intake",
+        "authenticated operator dashboard",
+        "admin screens",
+        "PWA-capable web shell"
+      ]
+    },
+    {
+      "id": "health_agent",
+      "path": "neumas-health-agent",
+      "stack": "Python sidecar",
+      "status": "active",
+      "responsibilities": [
+        "backend health monitoring",
+        "Agent OS heartbeat registration"
+      ]
+    },
+    {
+      "id": "web_vite",
+      "path": "neumas-web-vite",
+      "stack": "Vite frontend",
+      "status": "legacy_or_secondary",
+      "responsibilities": [
+        "older or secondary web surface"
+      ]
+    }
+  ],
+  "core_business_modules": [
+    {
+      "name": "auth_and_tenancy",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/auth.py",
+        "neumas-backend/app/services/auth_service.py",
+        "neumas-backend/app/core/security.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/lib/auth-session.ts",
+        "neumas-web/src/lib/auth-bootstrap.ts",
+        "neumas-web/src/utils/supabase"
+      ],
+      "adr_dependencies": [
+        "docs/adr/002-auth-session-model.md"
+      ]
+    },
+    {
+      "name": "inventory_ledger",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/inventory.py",
+        "neumas-backend/app/services/inventory_service.py",
+        "neumas-backend/app/services/inventory_ledger_service.py",
+        "neumas-backend/app/db/repositories/inventory.py",
+        "neumas-backend/app/db/repositories/inventory_movements.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/app/dashboard/inventory/page.tsx"
+      ],
+      "adr_dependencies": [
+        "docs/adr/003-inventory-ledger-model.md"
+      ]
+    },
+    {
+      "name": "scans_and_vision",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/scans.py",
+        "neumas-backend/app/services/scan_service.py",
+        "neumas-backend/app/services/vision_agent.py",
+        "neumas-backend/app/tasks/scan_tasks.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/app/dashboard/scans/page.tsx",
+        "neumas-web/src/lib/scan-progress.ts",
+        "neumas-web/src/lib/scan-upload-contract.ts"
+      ]
+    },
+    {
+      "name": "documents_and_review",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/documents.py",
+        "neumas-backend/app/services/document_service.py",
+        "neumas-backend/app/services/document_review_service.py",
+        "neumas-backend/app/db/repositories/documents.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/app/dashboard/documents/page.tsx",
+        "neumas-web/src/components/documents"
+      ]
+    },
+    {
+      "name": "predictions_and_reorder",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/predictions.py",
+        "neumas-backend/app/services/prediction_service.py",
+        "neumas-backend/app/services/predict_agent.py",
+        "neumas-backend/app/services/pattern_agent.py",
+        "neumas-backend/app/services/reorder_service.py",
+        "neumas-backend/app/services/restock_service.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/app/dashboard/predictions/page.tsx",
+        "neumas-web/src/app/dashboard/restock/page.tsx"
+      ]
+    },
+    {
+      "name": "shopping_and_procurement",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/shopping.py",
+        "neumas-backend/app/services/shopping_service.py",
+        "neumas-backend/app/services/shopping_agent.py",
+        "neumas-backend/app/services/budget_agent.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/app/dashboard/shopping/page.tsx"
+      ]
+    },
+    {
+      "name": "vendors_and_price_intel",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/vendors.py",
+        "neumas-backend/app/api/routes/vendor_analytics.py",
+        "neumas-backend/app/services/vendor_service.py",
+        "neumas-backend/app/services/vendor_analytics_service.py",
+        "neumas-backend/app/services/catalog_service.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/app/dashboard/vendors/page.tsx"
+      ]
+    },
+    {
+      "name": "alerts_analytics_reports",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/alerts.py",
+        "neumas-backend/app/api/routes/analytics.py",
+        "neumas-backend/app/api/routes/reports.py",
+        "neumas-backend/app/api/routes/insights.py",
+        "neumas-backend/app/services/alert_service.py",
+        "neumas-backend/app/services/analytics_service.py",
+        "neumas-backend/app/services/report_service.py",
+        "neumas-backend/app/services/executive_briefing_service.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/app/dashboard/alerts/page.tsx",
+        "neumas-web/src/app/dashboard/analytics/page.tsx",
+        "neumas-web/src/app/dashboard/reports/page.tsx",
+        "neumas-web/src/app/insights"
+      ]
+    },
+    {
+      "name": "admin_control_plane",
+      "backend_paths": [
+        "neumas-backend/app/api/routes/admin.py",
+        "neumas-backend/app/api/admin",
+        "neumas-backend/app/services/admin_service.py",
+        "neumas-backend/app/services/audit_service.py",
+        "neumas-backend/app/services/usage_service.py"
+      ],
+      "frontend_paths": [
+        "neumas-web/src/app/dashboard/admin/page.tsx",
+        "neumas-web/src/components/admin"
+      ]
+    },
+    {
+      "name": "ai_routing_and_retrieval",
+      "backend_paths": [
+        "neumas-backend/app/services/orchestration_service.py",
+        "neumas-backend/app/services/llm_failover.py",
+        "neumas-backend/app/services/retrieval_service.py",
+        "neumas-backend/app/services/context_builder.py",
+        "neumas-backend/app/services/copilot_tool_service.py"
+      ],
+      "adr_dependencies": [
+        "docs/adr/004-ai-routing-and-cost-accounting.md",
+        "docs/adr/005-retrieval-architecture.md"
+      ]
+    }
+  ],
+  "key_dependency_rules": [
+    "Schema changes should follow ADR 001 and use forward-only migrations.",
+    "Frontend auth orchestration should remain centralized in neumas-web/src/lib/auth-session.ts.",
+    "Stock-changing logic should write inventory movements and honor idempotency.",
+    "AI provider calls should flow through orchestration/failover services, not directly from route handlers.",
+    "Retrieval is Postgres-first; do not introduce a separate vector store without an explicit architecture decision."
+  ],
+  "important_docs": [
+    "docs/adr/001-canonical-schema-strategy.md",
+    "docs/adr/002-auth-session-model.md",
+    "docs/adr/003-inventory-ledger-model.md",
+    "docs/adr/004-ai-routing-and-cost-accounting.md",
+    "docs/adr/005-retrieval-architecture.md",
+    "docs/api/product-surface.md",
+    "docs/api/admin-api-contract.md",
+    "docs/api/mobile-api-contract.md",
+    "docs/runbooks/auth-recovery.md",
+    "docs/runbooks/report-generation.md",
+    "docs/runbooks/retry-and-idempotency.md",
+    "docs/runbooks/scan-failure-recovery.md"
+  ],
+  "ci_cd": {
+    "ci_workflow": ".github/workflows/ci.yml",
+    "web_deploy_workflow": ".github/workflows/deploy-web.yml",
+    "backend_deploy_workflow": ".github/workflows/deploy-worker.yml",
+    "security_workflow": ".github/workflows/security-scan.yml"
+  },
+  "deployment_model": {
+    "backend": "Railway via monorepo root config and Nixpacks",
+    "web": "Vercel via GitHub Actions workflow",
+    "worker": "Railway service neumas-worker",
+    "health_agent": "Railway sidecar"
+  },
+  "current_builder_notes": {
+    "branch": "main",
+    "working_tree_state": "clean",
+    "priority_extension_direction": "Tighten evidence-capture to ledger to forecast to reorder loops before building net-new surfaces.",
+    "legacy_surface_warning": "neumas-web-vite exists alongside neumas-web; prefer extending neumas-web unless there is an explicit migration decision."
+  }
+}
