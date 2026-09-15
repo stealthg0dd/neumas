@@ -8,7 +8,7 @@ All endpoints require role == "admin" (enforced by require_admin_role dependency
 import contextlib
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -35,6 +35,45 @@ _audit_repo = AuditLogsRepository()
 _email_logs_repo = EmailLogsRepository()
 _integration_service = IntegrationService()
 _pilot_lead_service = PilotLeadService()
+
+MarketingCmsCollection = Literal[
+    "homepage_sections",
+    "media_assets",
+    "logos",
+    "metrics",
+    "team",
+    "videos",
+    "case_studies",
+    "testimonials",
+    "resources",
+    "integrations",
+]
+
+CMS_TABLES: dict[str, str] = {
+    "homepage_sections": "cms_homepage_sections",
+    "media_assets": "cms_media_assets",
+    "logos": "cms_logos",
+    "metrics": "cms_metrics",
+    "team": "cms_team",
+    "videos": "cms_videos",
+    "case_studies": "cms_case_studies",
+    "testimonials": "cms_testimonials",
+    "resources": "cms_resources",
+    "integrations": "cms_integrations",
+}
+
+CMS_ALLOWED_COLUMNS: dict[str, set[str]] = {
+    "homepage_sections": {"id", "section_key", "eyebrow", "headline", "body", "enabled", "approved_for_public", "display_order"},
+    "media_assets": {"id", "title", "type", "storage_path", "url", "alt_text", "caption", "approved_for_public"},
+    "logos": {"id", "name", "category", "logo_asset_id", "website_url", "approved_for_public", "display_order"},
+    "metrics": {"id", "label", "value", "qualifier", "evidence_note", "approved_for_public", "display_order"},
+    "team": {"id", "name", "title", "short_bio", "headshot_asset_id", "linkedin_url", "approved_for_public", "display_order"},
+    "videos": {"id", "title", "video_url", "poster_asset_id", "placement", "approved_for_public", "display_order"},
+    "case_studies": {"id", "title", "summary", "category", "url", "approved_for_public", "display_order"},
+    "testimonials": {"id", "quote", "attribution", "role", "approved_for_public", "display_order"},
+    "resources": {"id", "title", "summary", "resource_type", "url", "approved_for_public", "display_order"},
+    "integrations": {"id", "name", "category", "description", "logo_asset_id", "approved_for_public", "display_order"},
+}
 
 
 def _safe_float(value: object, default: float = 0.0) -> float:
@@ -146,6 +185,10 @@ class FeatureFlagUpdate(BaseModel):
     enabled: bool
 
 
+class MarketingCmsUpsertRequest(BaseModel):
+    data: dict
+
+
 @router.get("/feature-flags", summary="List feature flags")
 async def list_feature_flags(tenant: AdminTenant) -> dict:
     require_admin_role(tenant)
@@ -194,6 +237,43 @@ async def convert_pilot_lead(
         return await _pilot_lead_service.convert(tenant, lead_id, body)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/marketing-cms", summary="List marketing CMS content")
+async def list_marketing_cms(tenant: AdminTenant) -> dict[str, list[dict]]:
+    require_admin_role(tenant)
+    client = await get_async_supabase_admin()
+    result: dict[str, list[dict]] = {}
+    for collection, table in CMS_TABLES.items():
+        resp = await client.table(table).select("*").order("display_order").execute()
+        result[collection] = resp.data or []
+    return result
+
+
+@router.put("/marketing-cms/{collection}", summary="Create or update marketing CMS content")
+async def upsert_marketing_cms_row(
+    collection: MarketingCmsCollection,
+    body: MarketingCmsUpsertRequest,
+    tenant: AdminTenant,
+) -> dict:
+    require_admin_role(tenant)
+    allowed = CMS_ALLOWED_COLUMNS[collection]
+    payload = {key: value for key, value in body.data.items() if key in allowed}
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No allowed CMS fields provided")
+    payload["updated_at"] = datetime.now(UTC).isoformat()
+    table = CMS_TABLES[collection]
+    client = await get_async_supabase_admin()
+    resp = await client.table(table).upsert(payload).execute()
+    row = resp.data[0] if resp.data else {}
+    await _audit_repo.log(
+        tenant,
+        action="marketing_cms.upsert",
+        resource_type=table,
+        resource_id=str(row.get("id") or payload.get("id") or ""),
+        metadata={"collection": collection, "approved_for_public": row.get("approved_for_public")},
+    )
+    return row
 
 
 @router.patch("/feature-flags/{flag_name}", summary="Update feature flag")

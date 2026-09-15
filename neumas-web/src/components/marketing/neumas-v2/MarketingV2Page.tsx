@@ -28,19 +28,32 @@ import {
   videos,
 } from "./content";
 import type { ProductStory } from "./content";
+import type { MarketingCmsContent } from "./marketing-cms";
 
 const sectionShell = "mx-auto w-full max-w-7xl px-5 sm:px-8";
 
-function HeroSection() {
+function HeroSection({
+  section,
+  videoItems,
+}: {
+  section?: MarketingCmsContent["sections"][string];
+  videoItems: typeof videos;
+}) {
+  const heroCopy = {
+    eyebrow: section?.eyebrow ?? hero.eyebrow,
+    headline: section?.headline ?? hero.headline,
+    body: section?.body ?? hero.body,
+  };
+
   return (
     <section className="relative overflow-hidden bg-[#f8fbff]">
       <div className={`${sectionShell} grid min-h-[calc(100vh-72px)] items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:py-16`}>
         <div className="max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">{hero.eyebrow.toUpperCase()}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">{heroCopy.eyebrow.toUpperCase()}</p>
           <h1 className="mt-5 text-5xl font-bold leading-[1.02] tracking-normal text-[#0b1736] sm:text-6xl xl:text-7xl">
-            {hero.headline}
+            {heroCopy.headline}
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">{hero.body}</p>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">{heroCopy.body}</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <MarketingEventLink
               href={hero.primaryCta.href}
@@ -96,9 +109,9 @@ function HeroSection() {
           </div>
           <div className="mt-4 overflow-hidden rounded-lg border border-[#0b1736]/10 bg-[#0b1736]">
             <HeroVideo
-              src={videos[0].src}
-              poster={videos[0].poster}
-              posterAlt={videos[0].posterAlt}
+              src={videoItems[0].src}
+              poster={videoItems[0].poster}
+              posterAlt={videoItems[0].posterAlt}
             />
           </div>
         </div>
@@ -107,7 +120,7 @@ function HeroSection() {
   );
 }
 
-function MetricBand() {
+function MetricBand({ metricItems }: { metricItems: typeof metrics }) {
   const toneClasses = {
     blue: "border-[#0b4fd8]/20 bg-[#eef5ff]",
     yellow: "border-[#f5c15c]/40 bg-[#fff8e8]",
@@ -127,7 +140,7 @@ function MetricBand() {
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {metrics.map((metric) => (
+          {metricItems.map((metric) => (
             <div key={metric.label} className={`rounded-lg border p-5 ${toneClasses[metric.tone]}`}>
               <p className="text-3xl font-bold tracking-normal text-[#0b1736]">{metric.value}</p>
               <h2 className="mt-1 text-sm font-bold uppercase tracking-[0.12em] text-[#0b4fd8]">{metric.label}</h2>
@@ -338,7 +351,7 @@ function PlatformSection() {
   );
 }
 
-function VideoSection() {
+function VideoSection({ videoItems }: { videoItems: typeof videos }) {
   return (
     <section id="resources" className="bg-white py-20">
       <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center`}>
@@ -350,10 +363,10 @@ function VideoSection() {
           </p>
         </div>
         <article className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-xl shadow-[#0b1736]/8">
-          <LazyVideo title={videos[1].title} src={videos[1].src} poster={videos[1].poster} posterAlt={videos[1].posterAlt} />
+          <LazyVideo title={videoItems[1].title} src={videoItems[1].src} poster={videoItems[1].poster} posterAlt={videoItems[1].posterAlt} />
           <div className="border-t border-[#0b1736]/10 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0b4fd8]">{videos[1].role}</p>
-            <h3 className="mt-3 text-lg font-bold tracking-normal text-[#0b1736]">{videos[1].title}</h3>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0b4fd8]">{videoItems[1].role}</p>
+            <h3 className="mt-3 text-lg font-bold tracking-normal text-[#0b1736]">{videoItems[1].title}</h3>
           </div>
         </article>
       </div>
@@ -361,15 +374,15 @@ function VideoSection() {
   );
 }
 
-function DeepDemoSection() {
+function DeepDemoSection({ videoItems }: { videoItems: typeof videos }) {
   return (
     <section className="bg-[#0b1736] py-20 text-white">
       <div className={`${sectionShell} grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center`}>
         <article className="overflow-hidden rounded-lg border border-white/15 bg-white/8">
-          <LazyVideo title={videos[2].title} src={videos[2].src} poster={videos[2].poster} posterAlt={videos[2].posterAlt} />
+          <LazyVideo title={videoItems[2].title} src={videoItems[2].src} poster={videoItems[2].poster} posterAlt={videoItems[2].posterAlt} />
           <div className="p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">{videos[2].role}</p>
-            <h3 className="mt-3 text-lg font-bold tracking-normal">{videos[2].title}</h3>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">{videoItems[2].role}</p>
+            <h3 className="mt-3 text-lg font-bold tracking-normal">{videoItems[2].title}</h3>
           </div>
         </article>
         <div>
@@ -674,7 +687,7 @@ function ProductStorytellingSection() {
   );
 }
 
-function IntegrationsAndUseCases() {
+function IntegrationsAndUseCases({ integrationItems }: { integrationItems: readonly string[] }) {
   return (
     <section id="integrations" className="bg-white py-20">
       <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-start`}>
@@ -687,7 +700,7 @@ function IntegrationsAndUseCases() {
         </div>
         <div className="grid gap-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            {integrations.map((integration) => (
+            {integrationItems.map((integration) => (
               <div
                 key={integration}
                 className="rounded-lg border border-[#0b4fd8]/25 bg-[#eef5ff] p-5"
@@ -781,7 +794,7 @@ function ConversionSection() {
   );
 }
 
-function TeamSection() {
+function TeamSection({ teamMembers }: { teamMembers: typeof team }) {
   return (
     <section id="company" className="bg-[#f8fbff] py-20">
       <div className={sectionShell}>
@@ -793,7 +806,7 @@ function TeamSection() {
           </p>
         </div>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {team.map((member) => (
+          {teamMembers.map((member) => (
             <article key={member.name} className="rounded-lg border border-[#0b1736]/10 bg-white p-5">
               {member.image ? (
                 <Image
@@ -867,24 +880,31 @@ function Footer() {
   );
 }
 
-export function MarketingV2Page() {
+export function MarketingV2Page({ cmsContent }: { cmsContent?: MarketingCmsContent | null }) {
+  const section = (key: string) => cmsContent?.sections[key];
+  const sectionEnabled = (key: string) => section(key)?.enabled !== false;
+  const metricItems = cmsContent?.metrics ?? metrics;
+  const teamMembers = cmsContent?.team ?? team;
+  const integrationItems = cmsContent?.integrations ?? integrations;
+  const videoItems = cmsContent?.videos && cmsContent.videos.length >= 3 ? cmsContent.videos : videos;
+
   return (
     <div className="min-h-screen bg-white text-[#0b1736]">
       <MarketingNav />
       <main>
-        <HeroSection />
-        <MetricBand />
+        {sectionEnabled("hero") ? <HeroSection section={section("hero")} videoItems={videoItems} /> : null}
+        {sectionEnabled("metrics") ? <MetricBand metricItems={metricItems} /> : null}
         <ProofSection />
         <WorkflowSection />
         <PlatformSection />
-        <VideoSection />
+        <VideoSection videoItems={videoItems} />
         <ProductStorytellingSection />
         <MobileOperationsSection />
-        <DeepDemoSection />
-        <IntegrationsAndUseCases />
+        <DeepDemoSection videoItems={videoItems} />
+        {sectionEnabled("integrations") ? <IntegrationsAndUseCases integrationItems={integrationItems} /> : null}
         <UseCaseSection />
         <PartnerSection />
-        <TeamSection />
+        {sectionEnabled("team") ? <TeamSection teamMembers={teamMembers} /> : null}
         <TrustSection />
         <ConversionSection />
         <FinalCta />

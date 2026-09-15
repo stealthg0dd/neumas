@@ -15,6 +15,7 @@ import {
   Filter,
   Gauge,
   Globe,
+  Megaphone,
   RefreshCw,
   Search,
   Settings2,
@@ -34,6 +35,8 @@ import {
   listAuditLog,
   listFeatureFlags,
   updateFeatureFlag,
+  listMarketingCms,
+  saveMarketingCmsRow,
   type AdminOrg,
   type AdminUser,
   type AdminProperty,
@@ -42,6 +45,9 @@ import {
   type AuditEntry,
   type IntegrationConnection,
   type PilotLead,
+  type MarketingCmsCollection,
+  type MarketingCmsPayload,
+  type MarketingCmsRow,
 } from "@/lib/api/endpoints";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -53,6 +59,7 @@ const TABS = [
   { id: "properties", label: "Properties", icon: Globe },
   { id: "audit", label: "Audit & Support", icon: Shield },
   { id: "usage", label: "Usage & Metering", icon: BarChart2 },
+  { id: "marketing", label: "Marketing CMS", icon: Megaphone },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -1242,6 +1249,191 @@ function UsageTab() {
   );
 }
 
+const CMS_COLLECTIONS: MarketingCmsCollection[] = [
+  "homepage_sections",
+  "metrics",
+  "team",
+  "logos",
+  "videos",
+  "integrations",
+  "media_assets",
+  "resources",
+  "case_studies",
+  "testimonials",
+];
+
+const emptyCmsPayload = CMS_COLLECTIONS.reduce((acc, collection) => {
+  acc[collection] = [];
+  return acc;
+}, {} as MarketingCmsPayload);
+
+function MarketingCmsTab() {
+  const [payload, setPayload] = useState<MarketingCmsPayload>(emptyCmsPayload);
+  const [collection, setCollection] = useState<MarketingCmsCollection>("homepage_sections");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [draft, setDraft] = useState("{}");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const rows = payload[collection] ?? [];
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await listMarketingCms();
+      setPayload({ ...emptyCmsPayload, ...next });
+      const first = next[collection]?.[0] ?? {};
+      setDraft(JSON.stringify(first, null, 2));
+      setSelectedIndex(0);
+    } catch {
+      setError("Marketing CMS tables are not available yet.");
+    } finally {
+      setLoading(false);
+    }
+  }, [collection]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function selectRow(index: number) {
+    setSelectedIndex(index);
+    setDraft(JSON.stringify(rows[index] ?? {}, null, 2));
+    setError(null);
+  }
+
+  function changeCollection(next: string) {
+    const nextCollection = next as MarketingCmsCollection;
+    setCollection(nextCollection);
+    setSelectedIndex(0);
+    setDraft(JSON.stringify(payload[nextCollection]?.[0] ?? {}, null, 2));
+    setError(null);
+  }
+
+  async function saveDraft() {
+    setSaving(true);
+    setError(null);
+    try {
+      const parsed: unknown = JSON.parse(draft);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("CMS row must be an object");
+      }
+      const saved = await saveMarketingCmsRow(collection, parsed as MarketingCmsRow);
+      setPayload((prev) => {
+        const currentRows = prev[collection] ?? [];
+        const nextRows = [...currentRows];
+        if (selectedIndex >= currentRows.length) {
+          nextRows.push(saved);
+        } else {
+          nextRows[selectedIndex] = saved;
+        }
+        return { ...prev, [collection]: nextRows };
+      });
+      setDraft(JSON.stringify(saved, null, 2));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save CMS row.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return (
+    <div className="space-y-6">
+      <StatSkeleton />
+      <Skeleton rows={3} cols={2} />
+    </div>
+  );
+
+  return (
+    <div className="space-y-8">
+      <ConsoleHeader
+        title="Marketing CMS"
+        subtitle="Structured public-site content with explicit public approval controls."
+        action={
+          <button
+            onClick={() => void load()}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </button>
+        }
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
+        <section className="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <p className="text-[12px] font-semibold text-gray-700">Collection</p>
+            <Select
+              value={collection}
+              onChange={changeCollection}
+              options={CMS_COLLECTIONS.map((value) => ({ value, label: value.replace(/_/g, " ") }))}
+            />
+          </div>
+          <DataTable>
+            <thead>
+              <tr>
+                <TH>Row</TH>
+                <TH>Status</TH>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr
+                  key={String(row.id ?? index)}
+                  className={`cursor-pointer transition-colors ${selectedIndex === index ? "bg-[#f0f7fb]" : "hover:bg-gray-50"}`}
+                  onClick={() => selectRow(index)}
+                >
+                  <TD>
+                    <span className="font-medium text-gray-900">
+                      {String(row.name ?? row.title ?? row.headline ?? row.section_key ?? row.label ?? row.id ?? "Untitled")}
+                    </span>
+                  </TD>
+                  <TD muted>{row.approved_for_public === true ? "Approved" : "Draft"}</TD>
+                </tr>
+              ))}
+              <tr
+                className={`cursor-pointer transition-colors ${selectedIndex === rows.length ? "bg-[#f0f7fb]" : "hover:bg-gray-50"}`}
+                onClick={() => {
+                  setSelectedIndex(rows.length);
+                  setDraft(JSON.stringify({ approved_for_public: false, display_order: rows.length + 1 }, null, 2));
+                }}
+              >
+                <TD><span className="font-medium text-gray-900">New row</span></TD>
+                <TD muted>Draft</TD>
+              </tr>
+            </tbody>
+          </DataTable>
+        </section>
+
+        <section className="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[12px] font-semibold text-gray-700">Structured row editor</p>
+              <p className="mt-1 text-[11px] text-gray-400">Only allowlisted fields are accepted by the backend.</p>
+            </div>
+            <button
+              onClick={() => void saveDraft()}
+              disabled={saving}
+              className="rounded-xl bg-[#0071a3] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#005f8a] disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            rows={18}
+            spellCheck={false}
+            className="w-full rounded-xl border border-gray-200 bg-gray-950 p-4 font-mono text-[12px] leading-6 text-gray-100 outline-none focus:border-[#0071a3] focus:ring-2 focus:ring-[#0071a3]/20"
+          />
+          {error ? <p className="mt-3 text-[12px] font-medium text-red-600">{error}</p> : null}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main admin page ──────────────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -1290,6 +1482,7 @@ export default function AdminPage() {
         {tab === "properties" && <PropertiesTab />}
         {tab === "audit" && <AuditTab />}
         {tab === "usage" && <UsageTab />}
+        {tab === "marketing" && <MarketingCmsTab />}
       </div>
     </div>
   );

@@ -875,6 +875,28 @@ export interface PilotLeadConversionResponse {
   user_id: string;
 }
 
+export type MarketingCmsCollection =
+  | "homepage_sections"
+  | "media_assets"
+  | "logos"
+  | "metrics"
+  | "team"
+  | "videos"
+  | "case_studies"
+  | "testimonials"
+  | "resources"
+  | "integrations";
+
+export interface MarketingCmsRow {
+  id?: string;
+  approved_for_public?: boolean;
+  display_order?: number;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+export type MarketingCmsPayload = Record<MarketingCmsCollection, MarketingCmsRow[]>;
+
 export type IntegrationAdapterType =
   | "pos"
   | "supplier"
@@ -1000,6 +1022,18 @@ export async function convertPilotLead(
   payload: PilotLeadConversionPayload = {}
 ): Promise<PilotLeadConversionResponse> {
   return post<PilotLeadConversionResponse>(`/api/admin/pilot-leads/${leadId}/convert`, payload);
+}
+
+export async function listMarketingCms(): Promise<MarketingCmsPayload> {
+  return get<MarketingCmsPayload>("/api/admin/marketing-cms");
+}
+
+export async function saveMarketingCmsRow(
+  collection: MarketingCmsCollection,
+  data: MarketingCmsRow
+): Promise<MarketingCmsRow> {
+  const response = await apiClient.put<MarketingCmsRow>(`/api/admin/marketing-cms/${collection}`, { data });
+  return response.data;
 }
 
 export async function getEntitlements(): Promise<EntitlementResponse> {
