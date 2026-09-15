@@ -322,10 +322,12 @@ export const outcomes = [
 ] as const;
 
 export const useCases = [
-  { title: "Cafes", body: "Daily restocking, perishables, and supplier follow-up.", icon: Utensils },
-  { title: "Cloud kitchens", body: "Forecast-led purchasing across fast-moving menus.", icon: Sparkles },
-  { title: "Hawker and kopitiam teams", body: "Simple mobile workflows for practical daily ordering.", icon: MapPinned },
-  { title: "Multi-outlet groups", body: "Central visibility with outlet-level accountability.", icon: UsersRound },
+  { title: "Restaurants", body: "Cleaner stock records, fewer service-time surprises.", icon: Utensils },
+  { title: "Cafes & bakeries", body: "Restock perishables and prep staples with less waste risk.", icon: Store },
+  { title: "Cloud kitchens", body: "Plan fast-moving menus against live usage signals.", icon: Sparkles },
+  { title: "Hawker / quick-service operators", body: "Keep daily ordering lightweight and mobile-friendly.", icon: MapPinned },
+  { title: "Multi-outlet groups", body: "Compare outlet health and purchasing follow-up in one place.", icon: UsersRound },
+  { title: "Hospitality/F&B teams", body: "Give kitchens, managers, and ops leaders the same picture.", icon: Building2 },
 ] as const;
 
 export const team: TeamMember[] = [
@@ -364,13 +366,6 @@ export const videos: MarketingVideo[] = [
     posterAlt: "Neumas founder introducing the F&B operations platform",
   },
   {
-    title: "Founder intro",
-    role: "Full intro video",
-    src: "/marketing/neumas/videos/neumas-intro-full-web.mp4",
-    poster: "/marketing/neumas/videos/neumas-intro-poster.jpg",
-    posterAlt: "Neumas founder introducing the F&B operations platform",
-  },
-  {
     title: "Receipt capture flow",
     role: "Product how-it-works video",
     src: "/marketing/neumas/videos/neumas-receipt-capture-demo.mp4",
@@ -379,7 +374,7 @@ export const videos: MarketingVideo[] = [
   },
   {
     title: "Deeper product walkthrough",
-    role: "Product demo section",
+    role: "Deeper product demo",
     src: "/marketing/neumas/videos/neumas-operations-demo.mp4",
     poster: "/marketing/neumas/videos/neumas-demo-v2-poster.jpg",
     posterAlt: "Neumas product demo showing procurement recommendations and dashboards",

@@ -306,27 +306,122 @@ function PlatformSection() {
 
 function VideoSection() {
   return (
-    <section id="resources" className="bg-[#0b1736] py-20 text-white">
-      <div className={sectionShell}>
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5c15c]">Videos</p>
-            <h2 className="mt-4 max-w-2xl text-4xl font-bold tracking-normal">See the operating system in motion.</h2>
-          </div>
-          <p className="max-w-sm text-sm leading-6 text-white/70">
-            The intro film can move in the hero while the product demos stay user-controlled.
+    <section id="resources" className="bg-white py-20">
+      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">See How Neumas Works</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">Watch receipt capture become operating data.</h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">
+            Demo V1 sits with the workflow narrative, stays user-initiated, and loads the video file only after the poster is clicked.
           </p>
         </div>
-        <div className="mt-10 grid gap-5 lg:grid-cols-3">
-          {videos.slice(1).map((video) => (
-            <article key={video.src} className="overflow-hidden rounded-lg border border-white/15 bg-white/8">
-              <LazyVideo title={video.title} src={video.src} poster={video.poster} posterAlt={video.posterAlt} />
-              <div className="p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">{video.role}</p>
-                <h3 className="mt-3 text-lg font-bold tracking-normal">{video.title}</h3>
+        <article className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-xl shadow-[#0b1736]/8">
+          <LazyVideo title={videos[1].title} src={videos[1].src} poster={videos[1].poster} posterAlt={videos[1].posterAlt} />
+          <div className="border-t border-[#0b1736]/10 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0b4fd8]">{videos[1].role}</p>
+            <h3 className="mt-3 text-lg font-bold tracking-normal text-[#0b1736]">{videos[1].title}</h3>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function DeepDemoSection() {
+  return (
+    <section className="bg-[#0b1736] py-20 text-white">
+      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center`}>
+        <article className="overflow-hidden rounded-lg border border-white/15 bg-white/8">
+          <LazyVideo title={videos[2].title} src={videos[2].src} poster={videos[2].poster} posterAlt={videos[2].posterAlt} />
+          <div className="p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">{videos[2].role}</p>
+            <h3 className="mt-3 text-lg font-bold tracking-normal">{videos[2].title}</h3>
+          </div>
+        </article>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5c15c]">Deeper Product Demo</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal">Go deeper into recommendations, dashboards, and follow-up.</h2>
+          <p className="mt-5 text-base leading-7 text-white/70">
+            Demo V2 appears lower on the page so visitors can explore detail after the product story, without loading all media on the initial viewport.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MobileOperationsSection() {
+  return (
+    <section className="bg-white py-20">
+      <div className={`${sectionShell} grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Responsive Operations</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">Operations intelligence wherever the work happens.</h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">
+            Neumas is presented as responsive, PWA-style web usage for operators moving between office, storeroom, receiving area, and kitchen.
+          </p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {["Scan supplier paperwork", "Review alerts during prep", "Approve reorder plans", "Check outlet health"].map((item) => (
+              <p key={item} className="flex gap-3 text-sm font-medium text-slate-700">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#f5c15c]" aria-hidden="true" />
+                <span>{item}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-[0.72fr_1fr] sm:items-center">
+          <div className="mx-auto w-full max-w-[260px] rounded-[2rem] border-8 border-[#0b1736] bg-[#0b1736] shadow-2xl shadow-[#0b1736]/20">
+            <div className="overflow-hidden rounded-[1.35rem] bg-white">
+              <div className="bg-[#f8fbff] px-4 py-5">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0b4fd8]">Outlet A</p>
+                <h3 className="mt-2 text-lg font-bold tracking-normal text-[#0b1736]">Daily check</h3>
               </div>
-            </article>
-          ))}
+              <div className="space-y-3 p-4">
+                <div className="rounded-md border border-[#f5c15c]/45 bg-[#fff8e8] p-3">
+                  <p className="text-sm font-bold text-[#0b1736]">Low stock</p>
+                  <p className="mt-1 text-xs text-slate-600">Tomatoes below par</p>
+                </div>
+                <div className="rounded-md border border-[#0b4fd8]/20 bg-[#eef5ff] p-3">
+                  <p className="text-sm font-bold text-[#0b1736]">Suggested reorder</p>
+                  <p className="mt-1 text-xs text-slate-600">SGD 420 estimated plan</p>
+                </div>
+                <p className="rounded-md bg-[#0b4fd8] px-4 py-3 text-center text-sm font-bold text-white">Approve plan</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-[#0b1736]/10 bg-[#f8fbff] p-5">
+            <p className="text-sm font-bold text-[#0b1736]">Responsive web workspace</p>
+            <div className="mt-5 space-y-4">
+              <MiniBar label="Inventory health" value="86%" />
+              <MiniBar label="Open alerts reviewed" value="64%" tone="yellow" />
+              <MiniBar label="Ordering accuracy" value="92%" tone="green" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function UseCaseSection() {
+  return (
+    <section id="use-cases" className="bg-[#f8fbff] py-20">
+      <div className={sectionShell}>
+        <div className="max-w-3xl">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Operator Use Cases</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">Built for teams that buy, prep, serve, and reconcile every day.</h2>
+        </div>
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {useCases.map((useCase) => {
+            const Icon = useCase.icon;
+            return (
+              <article key={useCase.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6">
+                <Icon className="h-6 w-6 text-[#0b4fd8]" aria-hidden="true" />
+                <h3 className="mt-5 text-lg font-bold tracking-normal text-[#0b1736]">{useCase.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{useCase.body}</p>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -548,35 +643,29 @@ function ProductStorytellingSection() {
 function IntegrationsAndUseCases() {
   return (
     <section id="integrations" className="bg-white py-20">
-      <div className={`${sectionShell} grid gap-12 lg:grid-cols-2`}>
+      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center`}>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Connect Your Operation</p>
           <h2 className="mt-4 text-3xl font-bold tracking-normal text-[#0b1736]">F&B ecosystem integrations.</h2>
-          <div className="mt-8 flex flex-wrap gap-3">
-            {integrations.map((integration) => (
-              <span key={integration} className="rounded-md border border-[#0b1736]/10 bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#0b1736]">
-                {integration}
-              </span>
-            ))}
-          </div>
           <p className="mt-6 text-sm leading-6 text-slate-600">
             StoreHub and Qashier are represented only as existing integrations in this preview, not customers or pilots.
           </p>
         </div>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Use Cases</p>
-          <h2 className="mt-4 text-3xl font-bold tracking-normal text-[#0b1736]">Designed for the way F&B teams actually operate.</h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {useCases.map((useCase) => {
-              const Icon = useCase.icon;
-              return (
-                <article key={useCase.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-5">
-                  <Icon className="h-5 w-5 text-[#0b4fd8]" aria-hidden="true" />
-                  <h3 className="mt-4 text-base font-bold tracking-normal text-[#0b1736]">{useCase.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{useCase.body}</p>
-                </article>
-              );
-            })}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {integrations.map((integration, index) => (
+              <div
+                key={integration}
+                className={`rounded-lg border p-5 ${
+                  index < 2 ? "border-[#0b4fd8]/25 bg-[#eef5ff]" : "border-[#0b1736]/10 bg-[#f8fbff]"
+                }`}
+              >
+                <p className="text-sm font-bold text-[#0b1736]">{integration}</p>
+                <p className="mt-2 text-xs font-medium text-slate-500">
+                  {index < 2 ? "Existing integration context" : "Ecosystem connection area"}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -675,7 +764,10 @@ export function MarketingV2Page() {
         <PlatformSection />
         <VideoSection />
         <ProductStorytellingSection />
+        <MobileOperationsSection />
+        <DeepDemoSection />
         <IntegrationsAndUseCases />
+        <UseCaseSection />
         <TeamSection />
         <TrustSection />
         <FinalCta />
