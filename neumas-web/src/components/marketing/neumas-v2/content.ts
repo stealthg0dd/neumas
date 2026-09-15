@@ -310,10 +310,31 @@ export const productStories: ProductStory[] = [
 export const integrations = [
   "StoreHub",
   "Qashier",
-  "POS systems",
-  "Supplier catalogs",
-  "Accounting tools",
 ] as const;
+
+export const ecosystemContexts = [
+  { title: "Integrations", body: "StoreHub and Qashier are integration contexts only." },
+  { title: "Customers", body: "Customer logos are not shown until approved evidence is available." },
+  { title: "Partners", body: "Partner conversations are separated from customer proof." },
+  { title: "Pilots", body: "Pilot interest flows through the existing Neumas intake path." },
+] as const;
+
+export const partnerTypes = [
+  "POS and receipt-source platforms",
+  "F&B consultants and operators",
+  "Hospitality technology providers",
+  "ERP, accounting, and inventory providers",
+  "Supplier networks and distributors",
+] as const;
+
+export const conversion = {
+  headline: "See Neumas in your operation.",
+  body:
+    "Share your outlet profile, purchasing workflow, and current operating challenge. Neumas will map the right demo path without requiring a login.",
+  partnerHeadline: "Build the F&B operations ecosystem with Neumas.",
+  partnerBody:
+    "Neumas works with ecosystem partners who can help F&B teams connect receipts, purchasing, inventory, suppliers, and operational intelligence.",
+} as const;
 
 export const outcomes = [
   { title: "Measured Neumas metric", value: "92%", body: "Ordering accuracy measured inside Neumas operating workflows." },

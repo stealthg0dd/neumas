@@ -4,6 +4,8 @@ import Image from "next/image";
 import { Play } from "lucide-react";
 import { useState } from "react";
 
+import { track } from "@/lib/analytics";
+
 type LazyVideoProps = {
   title: string;
   src: string;
@@ -13,6 +15,7 @@ type LazyVideoProps = {
 
 export function LazyVideo({ title, src, poster, posterAlt }: LazyVideoProps) {
   const [active, setActive] = useState(false);
+  const [completed, setCompleted] = useState(false);
 
   return (
     <div className="relative aspect-video overflow-hidden bg-black">
@@ -26,6 +29,13 @@ export function LazyVideo({ title, src, poster, posterAlt }: LazyVideoProps) {
           preload="metadata"
           playsInline
           aria-label={title}
+          onPlay={() => track("marketing_video_started", { title, src })}
+          onEnded={() => {
+            if (!completed) {
+              track("marketing_video_completed", { title, src });
+              setCompleted(true);
+            }
+          }}
         />
       ) : (
         <button

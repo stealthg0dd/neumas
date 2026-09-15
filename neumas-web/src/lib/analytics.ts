@@ -54,7 +54,15 @@ export type NeumasEvent =
   | { event: "shopping_list_generated";  props: { critical_only: boolean; days_ahead: number; min_qty_pct: number } }
   | { event: "shopping_list_approved";   props: { list_id: string } }
   | { event: "pantry_report_generated";  props: { items_tracked: number; predictions_count: number } }
-  | { event: "alert_triggered";          props: { alert_type: "stockout"; severity: "critical" | "urgent"; item_count: number } };
+  | { event: "alert_triggered";          props: { alert_type: "stockout"; severity: "critical" | "urgent"; item_count: number } }
+  | { event: "marketing_demo_click";     props: { location: string } }
+  | { event: "marketing_demo_form_started"; props: { form: "demo" | "partner" } }
+  | { event: "marketing_demo_form_submitted"; props: { form: "demo"; business_type: string; outlet_count: string; country: string } }
+  | { event: "marketing_partner_click";  props: { location: string } }
+  | { event: "marketing_partner_form_submitted"; props: { form: "partner"; partner_type: string; country: string } }
+  | { event: "marketing_video_started";  props: { title: string; src: string } }
+  | { event: "marketing_video_completed"; props: { title: string; src: string } }
+  | { event: "marketing_login_clicked";  props: { location: string } };
 
 /** Fire a typed PostHog event (browser-only; no-ops on the server). */
 export function track<E extends NeumasEvent["event"]>(

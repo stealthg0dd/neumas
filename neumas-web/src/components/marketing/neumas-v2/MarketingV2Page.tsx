@@ -1,13 +1,16 @@
 import Image from "next/image";
-import Link from "next/link";
 import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 
 import { HeroVideo } from "./HeroVideo";
 import { LazyVideo } from "./LazyVideo";
+import { MarketingEventLink } from "./MarketingEventLink";
+import { MarketingLeadForm } from "./MarketingLeadForm";
 import { MarketingNav } from "./MarketingNav";
 import {
   complianceSignals,
+  conversion,
   cta,
+  ecosystemContexts,
   hero,
   integrations,
   marketingAssets,
@@ -17,6 +20,7 @@ import {
   platformInputs,
   platformOutputs,
   productStories,
+  partnerTypes,
   receiptWorkflow,
   team,
   trustNotes,
@@ -38,19 +42,23 @@ function HeroSection() {
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">{hero.body}</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
+            <MarketingEventLink
               href={hero.primaryCta.href}
+              event="marketing_demo_click"
+              props={{ location: "hero_primary" }}
               className="inline-flex items-center justify-center gap-2 rounded-md bg-[#f5c15c] px-5 py-3 text-sm font-bold text-[#0b1736] shadow-sm transition hover:bg-[#e8ae3f]"
             >
               {hero.primaryCta.label}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <a
+            </MarketingEventLink>
+            <MarketingEventLink
               href={hero.secondaryCta.href}
+              event="marketing_demo_click"
+              props={{ location: "hero_secondary" }}
               className="inline-flex items-center justify-center gap-2 rounded-md border border-[#0b1736]/15 bg-white px-5 py-3 text-sm font-bold text-[#0b1736] transition hover:border-[#0b4fd8]/40"
             >
               {hero.secondaryCta.label}
-            </a>
+            </MarketingEventLink>
           </div>
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
             {complianceSignals.map((signal) => {
@@ -669,30 +677,104 @@ function ProductStorytellingSection() {
 function IntegrationsAndUseCases() {
   return (
     <section id="integrations" className="bg-white py-20">
-      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center`}>
+      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-start`}>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Connect Your Operation</p>
           <h2 className="mt-4 text-3xl font-bold tracking-normal text-[#0b1736]">F&B ecosystem integrations.</h2>
           <p className="mt-6 text-sm leading-6 text-slate-600">
-            StoreHub and Qashier are represented only as existing integrations in this preview, not customers or pilots.
+            StoreHub and Qashier are represented only as integration context in this preview, not customers, partners, pilots, or proof logos.
           </p>
         </div>
-        <div>
+        <div className="grid gap-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            {integrations.map((integration, index) => (
+            {integrations.map((integration) => (
               <div
                 key={integration}
-                className={`rounded-lg border p-5 ${
-                  index < 2 ? "border-[#0b4fd8]/25 bg-[#eef5ff]" : "border-[#0b1736]/10 bg-[#f8fbff]"
-                }`}
+                className="rounded-lg border border-[#0b4fd8]/25 bg-[#eef5ff] p-5"
               >
                 <p className="text-sm font-bold text-[#0b1736]">{integration}</p>
                 <p className="mt-2 text-xs font-medium text-slate-500">
-                  {index < 2 ? "Existing integration context" : "Ecosystem connection area"}
+                  Integration context
                 </p>
               </div>
             ))}
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {ecosystemContexts.map((context) => (
+              <article key={context.title} className="rounded-lg border border-[#0b1736]/10 bg-[#f8fbff] p-5">
+                <h3 className="text-sm font-bold tracking-normal text-[#0b1736]">{context.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{context.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PartnerSection() {
+  return (
+    <section className="bg-[#f8fbff] py-20">
+      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-start`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Partner With Neumas</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">{conversion.partnerHeadline}</h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">{conversion.partnerBody}</p>
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            {partnerTypes.map((partnerType) => (
+              <p key={partnerType} className="rounded-lg border border-[#0b1736]/10 bg-white p-4 text-sm font-semibold text-slate-700">
+                {partnerType}
+              </p>
+            ))}
+          </div>
+          <MarketingEventLink
+            href="#partner-form"
+            event="marketing_partner_click"
+            props={{ location: "partner_section" }}
+            className="mt-8 inline-flex items-center justify-center gap-2 rounded-md bg-[#0b4fd8] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#073fae]"
+          >
+            Become a Partner
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </MarketingEventLink>
+        </div>
+        <div id="partner-form" className="rounded-lg border border-[#0b1736]/10 bg-white p-5 shadow-xl shadow-[#0b1736]/8">
+          <MarketingLeadForm kind="partner" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ConversionSection() {
+  return (
+    <section className="bg-white py-20">
+      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center`}>
+        <div className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-[#f8fbff] shadow-xl shadow-[#0b1736]/8">
+          <Image
+            src={marketingAssets.cta.src}
+            alt={marketingAssets.cta.alt}
+            width={1672}
+            height={941}
+            className="aspect-[1672/941] w-full object-cover"
+          />
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Book A Demo</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">{conversion.headline}</h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">{conversion.body}</p>
+          <div className="mt-8 rounded-lg border border-[#0b1736]/10 bg-[#f8fbff] p-5">
+            <MarketingLeadForm kind="demo" />
+          </div>
+          <MarketingEventLink
+            href="/pilot"
+            event="marketing_demo_click"
+            props={{ location: "conversion_pilot_link" }}
+            className="mt-5 inline-flex items-center justify-center gap-2 text-sm font-bold text-[#0b4fd8] hover:text-[#073fae]"
+          >
+            Use the full pilot intake route
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </MarketingEventLink>
         </div>
       </div>
     </section>
@@ -760,13 +842,15 @@ function FinalCta() {
           <h2 className="text-4xl font-bold tracking-normal">{cta.title}</h2>
           <p className="mt-4 text-base leading-7 text-white/80">{cta.body}</p>
         </div>
-        <Link
+        <MarketingEventLink
           href={cta.href}
+          event="marketing_demo_click"
+          props={{ location: "final_cta" }}
           className="inline-flex items-center justify-center gap-2 rounded-md bg-[#f5c15c] px-5 py-3 text-sm font-bold text-[#0b1736] shadow-sm transition hover:bg-[#e8ae3f]"
         >
           {cta.label}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
+        </MarketingEventLink>
       </div>
     </section>
   );
@@ -799,8 +883,10 @@ export function MarketingV2Page() {
         <DeepDemoSection />
         <IntegrationsAndUseCases />
         <UseCaseSection />
+        <PartnerSection />
         <TeamSection />
         <TrustSection />
+        <ConversionSection />
         <FinalCta />
       </main>
       <Footer />
