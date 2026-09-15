@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server'
 
 import { AUTH_BOOTSTRAP_COOKIE, encodePendingAuthSession } from '@/lib/auth-bootstrap'
 import { logger } from '@/lib/logger'
+import { resolveSafeNextPath } from '@/lib/safe-redirect'
 import { createRouteHandlerClient } from '@/utils/supabase/route-handler'
 
 const BACKEND_URL =
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
 
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/dashboard'
+  const next = resolveSafeNextPath(requestUrl.searchParams.get('next'))
 
   const origin = (() => {
     const forwardedHost = request.headers.get('x-forwarded-host')

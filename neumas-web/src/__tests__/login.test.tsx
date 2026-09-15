@@ -7,10 +7,11 @@ import { login } from "@/lib/api/endpoints";
 import { useAuthStore } from "@/lib/store/auth";
 
 const replace = vi.fn();
+let mockSearchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("next/link", () => ({
@@ -76,6 +77,8 @@ describe("login form", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    document.cookie = "neumas_session=; Path=/; Max-Age=0";
+    mockSearchParams = new URLSearchParams();
     resetAuthStore();
   });
 
@@ -129,6 +132,72 @@ describe("login form", () => {
         email: "chef@example.com",
         password: "correct-password",
       });
+      expect(replace).toHaveBeenCalledWith("/dashboard");
+    });
+
+    // Regression for AUTH-001: without this cookie, middleware (src/utils/supabase/proxy.ts)
+    // has no way to see an email/password session and bounces the browser back to
+    // /auth?next=%2Fdashboard even though login succeeded and router.replace fired.
+    expect(document.cookie).toContain("neumas_session=1");
+  });
+
+  it("redirects to a same-origin next= target after a successful login", async () => {
+    mockSearchParams = new URLSearchParams({ next: "/dashboard/inventory" });
+    mockLogin.mockResolvedValue({
+      access_token: "not-a-real-jwt",
+      token_type: "bearer",
+      expires_in: 3600,
+      refresh_token: "refresh-token",
+      profile: {
+        user_id: "user-1",
+        email: "chef@example.com",
+        full_name: "Test Chef",
+        org_id: "org-1",
+        org_name: "Neumas Test",
+        property_id: "property-1",
+        property_name: "Main Kitchen",
+        role: "admin",
+      },
+    });
+
+    render(<AuthPage />);
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: "chef@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/^password$/i), {
+      target: { value: "correct-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/dashboard/inventory");
+    });
+  });
+
+  it("redirects an already-authenticated user straight to dashboard on visiting /auth", async () => {
+    useAuthStore.setState({
+      token: "existing-token",
+      refreshToken: null,
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      profile: {
+        user_id: "user-1",
+        email: "chef@example.com",
+        full_name: "Test Chef",
+        org_id: "org-1",
+        org_name: "Neumas Test",
+        property_id: "property-1",
+        property_name: "Main Kitchen",
+        role: "admin",
+      },
+      orgId: "org-1",
+      propertyId: "property-1",
+      _hasHydrated: true,
+    });
+
+    render(<AuthPage />);
+
+    await waitFor(() => {
       expect(replace).toHaveBeenCalledWith("/dashboard");
     });
   });

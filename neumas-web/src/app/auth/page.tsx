@@ -19,6 +19,7 @@ import { login } from "@/lib/api/endpoints";
 import { selectHasSession, useAuthStore } from "@/lib/store/auth";
 import { track, identifyUser, captureUIError } from "@/lib/analytics";
 import { signInWithGoogle } from "@/lib/supabase";
+import { resolveSafeNextPath } from "@/lib/safe-redirect";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -43,12 +44,13 @@ function AuthForm() {
   const [showPwd, setShowPwd] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const oauthError = searchParams?.get("error") === "oauth_complete_failed";
+  const safeNext = resolveSafeNextPath(searchParams?.get("next"));
 
   useEffect(() => {
     if (hasHydrated && hasSession) {
-      router.replace("/dashboard");
+      router.replace(safeNext);
     }
-  }, [hasHydrated, hasSession, router]);
+  }, [hasHydrated, hasSession, router, safeNext]);
 
   async function handleGoogleSignIn() {
     setGoogleLoading(true);
@@ -81,7 +83,7 @@ function AuthForm() {
         propertyId: res.profile.property_id,
       });
       toast.success("Welcome back!");
-      router.replace("/dashboard");
+      router.replace(safeNext);
     } catch (err: unknown) {
       toast.error("Login failed. Please try again.");
       captureUIError("auth_login", err);

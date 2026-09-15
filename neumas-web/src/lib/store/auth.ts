@@ -13,8 +13,27 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { jwtDecode } from "jwt-decode";
 import { consumePendingAuthSessionCookie } from "@/lib/auth-bootstrap";
+import { NEUMAS_SESSION_COOKIE } from "@/lib/auth-session-cookie";
 import type { ProfileResponse } from "@/lib/api/types";
 import type { Session } from "@supabase/supabase-js";
+
+/**
+ * Sets/clears the lightweight `neumas_session` marker cookie middleware checks for (see
+ * src/lib/auth-session-cookie.ts for why this exists). Mirrors the exact lifecycle of the
+ * localStorage token: written in saveAuth, removed in clearAuth.
+ */
+function setNeumasSessionCookie(expiresInSeconds: number): void {
+  if (typeof document === "undefined") return;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  const maxAge = Math.max(1, Math.floor(expiresInSeconds));
+  document.cookie = `${NEUMAS_SESSION_COOKIE}=1; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+}
+
+function clearNeumasSessionCookie(): void {
+  if (typeof document === "undefined") return;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${NEUMAS_SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+}
 
 // ── JWT claim shape (Neumas custom claims embedded by the backend) ─────────────
 
@@ -176,6 +195,7 @@ export const useAuthStore = create<AuthStore>()(
         if (typeof window !== "undefined") {
           localStorage.setItem("neumas_access_token", access_token);
         }
+        setNeumasSessionCookie(expires_in);
 
         set({
           token: access_token,
@@ -194,6 +214,7 @@ export const useAuthStore = create<AuthStore>()(
           sessionStorage.removeItem("neumas_access_token");
           sessionStorage.removeItem("neumas-auth");
         }
+        clearNeumasSessionCookie();
         set({
           token: null,
           refreshToken: null,
