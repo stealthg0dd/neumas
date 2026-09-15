@@ -15,6 +15,7 @@ type LazyVideoProps = {
 
 export function LazyVideo({ title, src, poster, posterAlt }: LazyVideoProps) {
   const [active, setActive] = useState(false);
+  const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(false);
 
   return (
@@ -29,7 +30,12 @@ export function LazyVideo({ title, src, poster, posterAlt }: LazyVideoProps) {
           preload="metadata"
           playsInline
           aria-label={title}
-          onPlay={() => track("marketing_video_started", { title, src })}
+          onPlay={() => {
+            if (!started) {
+              track("marketing_video_started", { title, src });
+              setStarted(true);
+            }
+          }}
           onEnded={() => {
             if (!completed) {
               track("marketing_video_completed", { title, src });

@@ -6,7 +6,8 @@ import { track } from "@/lib/analytics";
 
 /** Maps URL pathnames to human-readable page names for analytics. */
 function getPageName(path: string): string {
-  if (path === "/" || path === "/dashboard") return "Dashboard Home";
+  if (path === "/") return "Marketing Homepage";
+  if (path === "/dashboard") return "Dashboard Home";
   if (path === "/dashboard/inventory")       return "Inventory";
   if (path === "/dashboard/scans")           return "Receipt Scans";
   if (path === "/dashboard/scans/history")   return "Scan History";
