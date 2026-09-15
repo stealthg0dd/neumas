@@ -4,6 +4,7 @@ import {
   Building2,
   ClipboardCheck,
   FileScan,
+  FileText,
   LineChart,
   LucideIcon,
   MapPinned,
@@ -15,6 +16,7 @@ import {
   Sparkles,
   Store,
   TrendingDown,
+  TriangleAlert,
   UsersRound,
   Utensils,
 } from "lucide-react";
@@ -35,6 +37,17 @@ export type WorkflowStep = {
   title: string;
   body: string;
   icon: LucideIcon;
+};
+
+export type PlatformFlowItem = {
+  label: string;
+  detail: string;
+  tone: "action" | "data";
+  icon: LucideIcon;
+};
+
+export type ReceiptWorkflowStep = WorkflowStep & {
+  microcopy: string;
 };
 
 export type Module = {
@@ -134,6 +147,72 @@ export const workflow: WorkflowStep[] = [
     title: "Predict and approve",
     body: "Forecast shortages, surface waste risk, and turn reorder suggestions into purchase action.",
     icon: ShoppingCart,
+  },
+];
+
+export const platformInputs: PlatformFlowItem[] = [
+  { label: "Invoices", detail: "Supplier bills, delivery notes, and purchase context", tone: "action", icon: FileText },
+  { label: "Receipts", detail: "Daily purchasing proof captured by operators", tone: "action", icon: ReceiptText },
+  { label: "Inventory", detail: "On-hand stock, movement, par levels, and expiry risk", tone: "data", icon: Boxes },
+  { label: "Vendors", detail: "Supplier records, reorder history, and price movement", tone: "data", icon: Store },
+];
+
+export const platformOutputs: PlatformFlowItem[] = [
+  { label: "Inventory intelligence", detail: "Cleaner live stock records by outlet", tone: "data", icon: PackageCheck },
+  { label: "Forecasts", detail: "Usage patterns and shortage signals", tone: "data", icon: LineChart },
+  { label: "Reorder plans", detail: "Recommended quantities ready for approval", tone: "action", icon: ShoppingCart },
+  { label: "Cost signals", detail: "Food-cost and price-variance opportunities", tone: "action", icon: TrendingDown },
+  { label: "Operational alerts", detail: "Low stock, over-order risk, and expiry warnings", tone: "action", icon: TriangleAlert },
+];
+
+export const receiptWorkflow: ReceiptWorkflowStep[] = [
+  {
+    title: "Scan invoice or receipt",
+    body: "Capture supplier paperwork at the outlet without manual spreadsheet entry.",
+    microcopy: "Receipt OCR",
+    icon: FileScan,
+  },
+  {
+    title: "Review extracted line items",
+    body: "Check item names, quantities, prices, and vendor matches before records update.",
+    microcopy: "AI extracted 32 lines",
+    icon: ClipboardCheck,
+  },
+  {
+    title: "Update live inventory",
+    body: "Push confirmed purchases into stock levels, values, and movement history.",
+    microcopy: "SGD 4,250 on hand",
+    icon: Boxes,
+  },
+  {
+    title: "Detect usage patterns",
+    body: "Learn how ingredients move by outlet, category, and operating cadence.",
+    microcopy: "Produce usage rising",
+    icon: BarChart3,
+  },
+  {
+    title: "Forecast shortage and over-order risk",
+    body: "Surface likely stock-outs, excess buying, and expiry pressure before service is affected.",
+    microcopy: "Low stock in 2 days",
+    icon: TriangleAlert,
+  },
+  {
+    title: "Generate reorder recommendation",
+    body: "Suggest supplier-linked quantities based on par levels, usage, and recent purchasing.",
+    microcopy: "Recommended reorder",
+    icon: LineChart,
+  },
+  {
+    title: "Approve the plan",
+    body: "Keep managers in control with approval before supplier or staff action.",
+    microcopy: "Approve & send",
+    icon: ShoppingCart,
+  },
+  {
+    title: "Track outcomes",
+    body: "Measure stock-outs avoided, waste risk, and ordering accuracy over time.",
+    microcopy: "92% measured ordering accuracy",
+    icon: PackageCheck,
   },
 ];
 

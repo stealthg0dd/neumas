@@ -14,11 +14,13 @@ import {
   metrics,
   modules,
   outcomes,
+  platformInputs,
+  platformOutputs,
+  receiptWorkflow,
   team,
   trustNotes,
   useCases,
   videos,
-  workflow,
 } from "./content";
 
 const sectionShell = "mx-auto w-full max-w-7xl px-5 sm:px-8";
@@ -129,41 +131,78 @@ function MetricBand() {
 }
 
 function WorkflowSection() {
+  const stepTone = (index: number) =>
+    index === 0 || index === 1 || index === 6
+      ? "border-[#f5c15c]/40 bg-[#fff8e8]"
+      : "border-[#0b4fd8]/20 bg-[#eef5ff]";
+
   return (
     <section id="workflow" className="bg-[#f8fbff] py-20">
-      <div className={`${sectionShell} grid gap-12 lg:grid-cols-[0.9fr_1.1fr]`}>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Input To Intelligence</p>
-          <h2 className="mt-4 max-w-xl text-4xl font-bold tracking-normal text-[#0b1736]">From receipt to reorder in minutes.</h2>
-          <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-            Neumas turns operational paperwork into living inventory, forecasting, and purchasing decisions for real F&B teams.
+      <div className={sectionShell}>
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Receipt To Reorder</p>
+            <h2 className="mt-4 max-w-2xl text-4xl font-bold tracking-normal text-[#0b1736]">From receipt to reorder.</h2>
+          </div>
+          <p className="max-w-md text-base leading-7 text-slate-600">
+            A controlled workflow that keeps people in the approval loop while the system cleans records, detects risk, and recommends action.
           </p>
-          <div className="mt-8 grid gap-4">
-            {workflow.map((step, index) => {
+        </div>
+
+        <div className="mt-12 overflow-x-auto pb-3 lg:overflow-visible">
+          <div className="grid min-w-[980px] grid-cols-8 gap-3 lg:min-w-0">
+            {receiptWorkflow.map((step, index) => {
               const Icon = step.icon;
               return (
-                <div key={step.title} className="grid grid-cols-[44px_1fr] gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-md bg-white text-[#0b4fd8] shadow-sm ring-1 ring-[#0b1736]/10">
+                <article key={step.title} className={`relative rounded-lg border p-4 ${stepTone(index)}`}>
+                  {index < receiptWorkflow.length - 1 ? (
+                    <div className="absolute -right-3 top-8 hidden h-px w-3 bg-[#0b1736]/20 lg:block" aria-hidden="true" />
+                  ) : null}
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white text-[#0b4fd8] shadow-sm">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Step {index + 1}</p>
-                    <h3 className="mt-1 text-lg font-bold tracking-normal text-[#0b1736]">{step.title}</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{step.body}</p>
-                  </div>
-                </div>
+                  <p className="mt-5 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Step {index + 1}</p>
+                  <h3 className="mt-2 min-h-12 text-sm font-bold leading-5 tracking-normal text-[#0b1736]">{step.title}</h3>
+                  <p className="mt-4 rounded-md bg-white/80 px-3 py-2 text-xs font-semibold text-[#0b1736]">{step.microcopy}</p>
+                </article>
               );
             })}
           </div>
         </div>
-        <div className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-xl shadow-[#0b1736]/8">
+
+        <div className="mt-10 grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {receiptWorkflow.map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <article key={step.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-[#eef5ff] text-[#0b4fd8]">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">0{index + 1}</p>
+                      <h3 className="mt-1 text-base font-bold tracking-normal text-[#0b1736]">{step.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{step.body}</p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <div className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-xl shadow-[#0b1736]/8">
+            <div className="border-b border-[#0b1736]/10 bg-white px-5 py-4">
+              <p className="text-sm font-bold text-[#0b1736]">Operator journey reference</p>
+              <p className="mt-1 text-xs text-slate-500">Cropped to avoid foregrounding old currency illustrations.</p>
+            </div>
           <Image
             src={marketingAssets.workflow.src}
             alt={marketingAssets.workflow.alt}
             width={1672}
             height={941}
-            className="h-[420px] w-full object-cover object-left-top sm:h-[520px]"
+              className="h-[420px] w-full object-cover object-[left_18%] sm:h-[520px]"
           />
+          </div>
         </div>
       </div>
     </section>
@@ -171,15 +210,76 @@ function WorkflowSection() {
 }
 
 function PlatformSection() {
+  const itemClasses = (tone: "action" | "data") =>
+    tone === "action"
+      ? "border-[#f5c15c]/45 bg-[#fff8e8] text-[#7a4b00]"
+      : "border-[#0b4fd8]/25 bg-[#eef5ff] text-[#0b4fd8]";
+
   return (
     <section id="platform" className="bg-white py-20">
       <div className={sectionShell}>
-        <div className="max-w-2xl">
+        <div className="max-w-3xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Platform</p>
           <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">One platform. Every operational decision.</h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">
+            Neumas connects daily operational inputs to decision-ready intelligence, using yellow for action states and blue for data intelligence.
+          </p>
         </div>
-        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {modules.map((module) => {
+
+        <div className="mt-12 grid gap-6 lg:grid-cols-[1fr_auto_1.2fr] lg:items-center">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            {platformInputs.map((item) => {
+              const Icon = item.icon;
+              return (
+                <article key={item.label} className={`rounded-lg border p-4 ${itemClasses(item.tone)}`}>
+                  <div className="flex items-start gap-3">
+                    <Icon className="mt-1 h-5 w-5 flex-none" aria-hidden="true" />
+                    <div>
+                      <h3 className="font-bold tracking-normal text-[#0b1736]">{item.label}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{item.detail}</p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center justify-center">
+            <div className="relative flex h-40 w-40 items-center justify-center rounded-lg border border-[#0b1736]/10 bg-[#0b1736] text-white shadow-xl shadow-[#0b1736]/15">
+              <svg className="absolute inset-0 h-full w-full" viewBox="0 0 160 160" aria-hidden="true">
+                <path d="M16 80H54" stroke="#f5c15c" strokeWidth="4" strokeLinecap="round" />
+                <path d="M106 80H144" stroke="#0b7cff" strokeWidth="4" strokeLinecap="round" />
+                <path d="M80 16V54" stroke="#0b7cff" strokeWidth="4" strokeLinecap="round" />
+                <path d="M80 106V144" stroke="#f5c15c" strokeWidth="4" strokeLinecap="round" />
+                <circle cx="80" cy="80" r="36" fill="#ffffff" opacity="0.08" />
+              </svg>
+              <div className="relative text-center">
+                <p className="font-mono text-sm font-bold tracking-[0.14em]">NEUMAS</p>
+                <p className="mt-2 text-xs text-white/65">AI ops layer</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {platformOutputs.map((item) => {
+              const Icon = item.icon;
+              return (
+                <article key={item.label} className={`rounded-lg border p-4 ${itemClasses(item.tone)}`}>
+                  <div className="flex items-start gap-3">
+                    <Icon className="mt-1 h-5 w-5 flex-none" aria-hidden="true" />
+                    <div>
+                      <h3 className="font-bold tracking-normal text-[#0b1736]">{item.label}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{item.detail}</p>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-12 grid gap-4 md:grid-cols-3">
+          {modules.slice(0, 3).map((module) => {
             const Icon = module.icon;
             return (
               <article key={module.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6 shadow-sm">
