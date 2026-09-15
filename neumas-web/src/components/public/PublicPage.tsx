@@ -7,17 +7,15 @@ import { PublicSiteFooter, PublicSiteHeader } from "./PublicSiteChrome";
 import { StructuredData } from "./StructuredData";
 
 const requiredLongFormPaths = new Set([
-  "/research/ai-grocery-intelligence",
-  "/research/receipt-intelligence",
-  "/research/household-consumption-patterns",
-  "/research/reducing-food-waste-with-ai",
-  "/research/smart-pantry-automation",
-  "/compare/manual-shopping-list-vs-ai-grocery-autopilot",
+  "/research/restaurant-inventory-operations",
+  "/research/receipt-to-reorder",
+  "/research/food-cost-benchmark",
+  "/compare/manual-ordering-vs-ai-operations",
   "/compare/receipt-scanner-vs-inventory-intelligence",
   "/glossary",
-  "/glossary/stockout-prediction",
-  "/glossary/receipt-intelligence",
-  "/glossary/pantry-inventory",
+  "/glossary/inventory-intelligence",
+  "/glossary/receipt-invoice-processing",
+  "/glossary/reorder-planning",
   "/about",
   "/contact",
   "/privacy",
@@ -115,49 +113,38 @@ export function PublicPage({ page }: { page: PublicPageContent }) {
                   Practical Workflow Context
                 </h2>
                 <p className="mt-4 max-w-4xl text-base leading-8 text-gray-600 sm:text-lg">
-                  Neumas content is written for practical decision-making, not for abstract AI branding. In a real household,
-                  grocery planning breaks when information is split across memory, paper slips, chat threads, and last-minute
-                  assumptions. The product workflow exists to reduce that fragmentation. A receipt is captured, line items are
-                  structured, pantry state is updated, and planning signals are surfaced with confidence context. This does not
-                  remove uncertainty from daily life, but it can reduce avoidable uncertainty where operational signals are clear.
-                  The value is not just in one dashboard screen. The value is in repeated weekly behavior: fewer duplicate buys,
-                  fewer missing essentials, and less cognitive overhead for everyone sharing the same kitchen. When users,
-                  partners, or investors read these pages, the intended takeaway is that Neumas treats household operations as a
-                  system problem with measurable workflow consequences. That posture is especially relevant in Singapore and
-                  Southeast Asia, where one household may buy from different channels with different data quality levels in the
-                  same week. A robust platform must support that reality while remaining transparent about where confidence is
-                  high, where confidence is moderate, and where human review remains necessary.
+                  Neumas content is written for practical F&B decision-making, not abstract AI branding. In real operations,
+                  planning breaks when invoices, receipts, inventory movement, vendor records, and consumption history live in
+                  disconnected systems. The product workflow exists to reduce that fragmentation. Documents are captured, line
+                  items are structured, stock records are updated, and planning signals are surfaced with confidence context.
+                  The value is not just in one dashboard screen. The value is in repeated operating behavior: clearer stock
+                  records, fewer surprise shortages, better reorder timing, and more useful vendor context across outlets.
+                  When operators, partners, or investors read these pages, the intended takeaway is that Neumas treats F&B
+                  operations as a system problem with measurable workflow consequences.
                 </p>
 
                 <h3 className="mt-10 text-xl font-semibold tracking-[-0.02em] text-gray-950 sm:text-2xl">
                   Limitations, Boundaries, and Responsible Claims
                 </h3>
                 <p className="mt-4 max-w-4xl text-base leading-8 text-gray-600 sm:text-lg">
-                  A trustworthy AI product should define what it does not claim. Neumas does not claim perfect receipt analysis,
-                  universal stockout accuracy, fake customer outcomes, or certifications that are not formally achieved. We are
-                  explicit that output quality can vary with receipt clarity, retailer format, language variation, and household
-                  behavior changes. That is why confidence signaling and correction paths are product requirements rather than
-                  optional support features. Public pages are indexable because users and evaluators deserve clarity before login.
-                  Private account data is not part of that public layer. This split between public educational content and private
-                  operational data is central to trust. It enables discoverability for search engines and AI systems while
-                  preserving confidentiality for household records. For legal, privacy, and policy topics, these pages provide
-                  practical guidance and contact paths, not legal posturing. As Neumas evolves, claims should become more
-                  specific only when evidence and operational maturity support them.
+                  A trustworthy AI product should define what it does not claim. Neumas does not claim perfect extraction,
+                  universal automatic supplier ordering, fake customer outcomes, unsupported connectors, or certifications that
+                  are not formally achieved. Output quality can vary with receipt clarity, invoice format, vendor naming, and
+                  operational changes. That is why confidence signaling, review paths, and approval workflows are product
+                  requirements. Public pages are indexable because buyers and evaluators deserve clarity before login. Private
+                  operational data is not part of that public layer.
                 </p>
 
                 <h3 className="mt-10 text-xl font-semibold tracking-[-0.02em] text-gray-950 sm:text-2xl">
                   Singapore and Southeast Asia Relevance
                 </h3>
                 <p className="mt-4 max-w-4xl text-base leading-8 text-gray-600 sm:text-lg">
-                  Grocery intelligence products built only on a single-market assumption often fail in Southeast Asia conditions.
-                  Households may combine supermarkets, convenience stores, neighborhood shops, wet markets, and delivery apps.
-                  Item naming conventions can vary, package sizes can vary, and shopping cadence can shift around school terms,
-                  holidays, travel, and family events. Neumas design choices reflect that operational diversity. We prioritize
+                  F&B operations in Singapore and Southeast Asia combine fragmented suppliers, outlet-specific workflows, mixed
+                  receipt and invoice quality, and fast-changing demand. Item naming conventions, pack sizes, and vendor terms
+                  can vary across outlets and markets. Neumas design choices reflect that operational diversity. We prioritize
                   resilient ingestion, adaptable normalization, and interpretable recommendation outputs over brittle precision
-                  claims. For cross-functional readers, this means the product is designed to be useful under imperfect input
-                  conditions rather than only in controlled demos. For households, it means workflows stay understandable even
-                  when some data is uncertain. For partners, it means integration discussions can start from realistic behavior,
-                  not hypothetical ideal data. If you are evaluating fit, read this page together with
+                  claims. For partners, this means integration discussions can start from realistic operating behavior, not
+                  hypothetical ideal data. If you are evaluating fit, read this page together with
                   <Link href="/how-it-works" className="ml-1 text-[#0071a3] hover:underline">How it works</Link>,
                   <Link href="/privacy" className="ml-1 text-[#0071a3] hover:underline">Privacy</Link>,
                   <Link href="/security" className="ml-1 text-[#0071a3] hover:underline">Security</Link>, and

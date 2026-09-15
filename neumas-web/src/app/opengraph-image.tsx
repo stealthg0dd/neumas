@@ -35,26 +35,26 @@ export default function OpenGraphImage() {
               color: "#334155",
             }}
           >
-            Grocery Autopilot
+            AI Operations for F&B
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 920 }}>
           <div style={{ display: "flex", flexDirection: "column", fontSize: 84, lineHeight: 0.95, letterSpacing: -3, fontWeight: 700 }}>
-            <span>Know your pantry</span>
-            <span>before the next shop.</span>
+            <span>Run a smarter</span>
+            <span>back of house.</span>
           </div>
           <div style={{ fontSize: 32, lineHeight: 1.4, color: "#475569", maxWidth: 900 }}>
-            AI-powered receipt intelligence, pantry tracking, stockout prediction, and smart shopping lists for households in Singapore and Southeast Asia.
+            Receipt and invoice processing, inventory intelligence, forecasts, reorder planning, vendor signals, and operational alerts for F&B teams.
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           {[
-            "Receipt intelligence",
-            "Pantry inventory",
-            "Stockout prediction",
-            "Smart shopping lists",
+            "Inventory intelligence",
+            "Reorder planning",
+            "Vendor signals",
+            "Multi-location visibility",
           ].map((label) => (
             <div
               key={label}

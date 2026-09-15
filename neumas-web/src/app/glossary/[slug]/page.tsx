@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { PublicPage } from "@/components/public/PublicPage";
 import { buildPublicMetadata, getPublicPage } from "@/lib/public-site";
 
-const glossarySlugs = ["stockout-prediction", "receipt-intelligence", "pantry-inventory"];
+const glossarySlugs = ["inventory-intelligence", "receipt-invoice-processing", "reorder-planning"];
 
 export function generateStaticParams() {
   return glossarySlugs.map((slug) => ({ slug }));

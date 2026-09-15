@@ -5,8 +5,8 @@ Format: PNG or JPG, export as og-image.png in this public/ folder
 
 Design:
 - Background: white
-- Left: NEUMAS wordmark + headline "Your grocery autopilot"
+- Left: NEUMAS wordmark + headline "Run a smarter back of house."
 - Right: screenshot of the prediction alert card (from the Neumas dashboard)
-- Bottom strip: "Trusted by households across Singapore and Southeast Asia"
+- Bottom strip: "AI operations for restaurants, cafes, cloud kitchens, and multi-location F&B teams"
 
 After exporting, save as: public/og-image.png

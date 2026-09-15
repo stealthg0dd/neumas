@@ -5,12 +5,9 @@ import { PublicPage } from "@/components/public/PublicPage";
 import { buildPublicMetadata, getPublicPage } from "@/lib/public-site";
 
 const researchSlugs = [
-  "ai-grocery-intelligence",
-  "receipt-intelligence",
-  "household-consumption-patterns",
-  "reducing-food-waste-with-ai",
-  "smart-pantry-automation",
-  "household-consumption-analytics",
+  "restaurant-inventory-operations",
+  "receipt-to-reorder",
+  "food-cost-benchmark",
 ];
 
 export function generateStaticParams() {

@@ -39,7 +39,7 @@ export async function generateMetadata({
   return {
     title: `${post.title} | Neumas Insights`,
     description: post.summary,
-    keywords: ["Neumas insights", post.category, "grocery intelligence", "household grocery research"],
+    keywords: ["Neumas insights", post.category, "F&B operations", "inventory intelligence"],
     alternates: {
       canonical,
     },
@@ -63,6 +63,14 @@ export async function generateMetadata({
       title: `${post.title} | Neumas Insights`,
       description: post.summary,
       images: [siteConfig.ogImagePath],
+    },
+    robots: {
+      index: false,
+      follow: false,
+      googleBot: {
+        index: false,
+        follow: false,
+      },
     },
   };
 }

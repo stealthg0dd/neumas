@@ -18,21 +18,21 @@ type Post = {
 
 const FILTERS: { id: string; label: string }[] = [
   { id: "", label: "All" },
-  { id: "grocery-trends", label: "Grocery Trends" },
+  { id: "operations", label: "Operations" },
   { id: "food-waste", label: "Food Waste" },
   { id: "ai-intelligence", label: "AI Intelligence" },
-  { id: "budgeting", label: "Budgeting" },
+  { id: "vendor-intelligence", label: "Vendor Intelligence" },
 ];
 
 function categoryBadgeClass(cat: string): string {
   switch (cat) {
-    case "grocery-trends":
+    case "operations":
       return "bg-blue-50 text-blue-700 border-blue-100";
     case "food-waste":
       return "bg-emerald-50 text-emerald-800 border-emerald-100";
     case "ai-intelligence":
       return "bg-purple-50 text-purple-800 border-purple-100";
-    case "budgeting":
+    case "vendor-intelligence":
       return "bg-amber-50 text-amber-900 border-amber-100";
     case "sustainability":
       return "bg-teal-50 text-teal-800 border-teal-100";
@@ -76,11 +76,11 @@ export default function InsightsPage() {
           NEUMAS INSIGHTS
         </span>
         <h1 className="mt-6 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-          Grocery intelligence, researched weekly
+          F&B operations intelligence, researched weekly
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-sm text-gray-500 sm:text-base">
-          Our AI agent researches the latest grocery trends, food waste data, and household economics —
-          published every week.
+          Research on inventory intelligence, receipt and invoice processing, forecasts, reorder planning,
+          vendor signals, waste risk, and cost control.
         </p>
       </header>
 
@@ -135,7 +135,7 @@ export default function InsightsPage() {
                       day: "numeric",
                     })}
                   </time>
-                  <span className="font-medium text-blue-600">Read →</span>
+                  <span className="font-medium text-blue-600">Read</span>
                 </div>
               </Link>
             ))}

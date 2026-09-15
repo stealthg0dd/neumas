@@ -3,9 +3,9 @@ import Link from "next/link";
 const headerLinks = [
   { href: "/about", label: "About" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/features/receipt-intelligence", label: "Features" },
-  { href: "/use-cases/families", label: "Use cases" },
-  { href: "/research/ai-grocery-intelligence", label: "Research" },
+  { href: "/features/inventory-intelligence", label: "Features" },
+  { href: "/use-cases/restaurants", label: "Use cases" },
+  { href: "/integrations", label: "Integrations" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -15,19 +15,21 @@ const footerColumns = [
     links: [
       { href: "/", label: "Homepage" },
       { href: "/how-it-works", label: "How it works" },
-      { href: "/features/receipt-intelligence", label: "Receipt intelligence" },
-      { href: "/features/pantry-inventory", label: "Pantry inventory" },
-      { href: "/features/stockout-prediction", label: "Stockout prediction" },
-      { href: "/features/smart-shopping-lists", label: "Smart shopping lists" },
+      { href: "/features/receipt-invoice-processing", label: "Receipt and invoice processing" },
+      { href: "/features/inventory-intelligence", label: "Inventory intelligence" },
+      { href: "/features/reorder-planning", label: "Reorder planning" },
+      { href: "/features/vendor-intelligence", label: "Vendor intelligence" },
+      { href: "/features/multi-location-operations", label: "Multi-location operations" },
     ],
   },
   {
     title: "Use cases",
     links: [
-      { href: "/use-cases/families", label: "Families" },
-      { href: "/use-cases/retail-cpg", label: "Retail and CPG pilots" },
-      { href: "/research/ai-grocery-intelligence", label: "AI grocery intelligence" },
-      { href: "/research/household-consumption-analytics", label: "Consumption analytics" },
+      { href: "/use-cases/restaurants", label: "Restaurants" },
+      { href: "/use-cases/cafes-bakeries", label: "Cafes and bakeries" },
+      { href: "/use-cases/cloud-kitchens", label: "Cloud kitchens" },
+      { href: "/use-cases/multi-outlet-groups", label: "Multi-outlet groups" },
+      { href: "/integrations", label: "Integrations" },
     ],
   },
   {
@@ -91,8 +93,8 @@ export function PublicSiteFooter() {
           <div>
             <p className="font-mono text-[14px] font-semibold tracking-[0.08em] text-[#0071a3]">NEUMAS</p>
             <p className="mt-4 max-w-sm text-sm leading-6 text-gray-600">
-              Neumas is an early-stage but serious grocery intelligence platform for households in Singapore and Southeast Asia.
-              We turn receipts into pantry visibility, stockout prediction, and practical weekly planning support.
+              Neumas is AI operations software for F&B teams. We turn receipts, invoices, inventory movements,
+              vendors, and consumption history into clearer stock records, forecasts, reorder plans, and alerts.
             </p>
             <p className="mt-4 text-sm text-gray-500">info@neumas.ai</p>
           </div>

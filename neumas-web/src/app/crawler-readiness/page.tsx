@@ -18,7 +18,7 @@ type DiagnosticCheck = {
   details: string;
 };
 
-const LAST_UPDATED_ISO = "2026-05-18";
+const LAST_UPDATED_ISO = "2026-09-15";
 
 const maybePage = getPublicPage("/crawler-readiness");
 
@@ -156,7 +156,7 @@ export default async function CrawlerReadinessPage() {
             <p className="mt-5 max-w-4xl text-lg leading-8 text-gray-600">{page.intro}</p>
             <div className="mt-6 grid gap-3 text-sm text-gray-600 sm:grid-cols-2">
               <p><span className="font-semibold text-gray-900">Company:</span> {siteConfig.companyName}</p>
-              <p><span className="font-semibold text-gray-900">Product category:</span> Household grocery intelligence software</p>
+              <p><span className="font-semibold text-gray-900">Product category:</span> AI operations for F&B</p>
               <p><span className="font-semibold text-gray-900">Last updated:</span> {new Date(LAST_UPDATED_ISO).toLocaleDateString()}</p>
               <p>
                 <span className="font-semibold text-gray-900">Contact:</span>{" "}
@@ -190,18 +190,18 @@ export default async function CrawlerReadinessPage() {
             <article className="rounded-[28px] border border-black/[0.06] bg-white/85 p-8 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
               <h2 className="text-2xl font-semibold tracking-[-0.03em] text-gray-950">Key workflows</h2>
               <ul className="mt-5 space-y-2 text-sm leading-7 text-gray-600">
-                <li>1. Upload a receipt image.</li>
-                <li>2. Extract line items and metadata.</li>
-                <li>3. Update pantry inventory.</li>
-                <li>4. Recompute household baseline.</li>
-                <li>5. Refresh stockout predictions and shopping actions.</li>
+                <li>1. Scan or upload an invoice or receipt.</li>
+                <li>2. Review extracted line items, quantities, vendors, and price signals.</li>
+                <li>3. Update live inventory and movement records.</li>
+                <li>4. Detect consumption patterns, shortage risk, and over-order risk.</li>
+                <li>5. Generate reorder recommendations, vendor signals, and operational alerts.</li>
               </ul>
 
               <h3 className="mt-7 text-base font-semibold text-gray-900">Target users</h3>
               <ul className="mt-3 space-y-2 text-sm leading-7 text-gray-600">
-                <li>Busy families and shared households.</li>
-                <li>Budget-conscious and health-conscious home shoppers.</li>
-                <li>Retail and CPG pilot teams using aggregate signals.</li>
+                <li>Restaurants, cafes, bakeries, and cloud kitchens.</li>
+                <li>Hawker, quick-service, hospitality, and F&B operations teams.</li>
+                <li>Multi-location F&B groups that need outlet-level and group-level visibility.</li>
               </ul>
             </article>
 

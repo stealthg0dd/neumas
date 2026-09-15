@@ -1,4 +1,4 @@
-const DEFAULT_APP_URL = "https://neumas-web.vercel.app";
+const DEFAULT_APP_URL = "https://www.neumas.cc";
 const LEGACY_APP_HOSTS = new Set(["neumasfinal.vercel.app"]);
 
 function normalizeAbsoluteUrl(value?: string | null): string | null {

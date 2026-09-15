@@ -1,35 +1,36 @@
 import { buildAbsoluteUrl, publicRouteIndex } from "@/lib/public-site";
 
 function buildLlmsText() {
-  const publicPages = [{ href: "/", label: "Homepage" }, ...publicRouteIndex, { href: "/insights", label: "Insights" }];
+  const publicPages = [{ href: "/", label: "Homepage" }, ...publicRouteIndex];
 
   return `# Neumas
 
-Neumas is an AI-powered grocery autopilot for households in Singapore and Southeast Asia.
+Neumas is an AI operations platform for F&B teams.
 
 ## Product description
-Neumas reads grocery receipts, maintains a living pantry, predicts stockouts, and generates smart shopping lists from real household purchase history.
+Neumas turns invoices, receipts, inventory movements, vendor records, and consumption history into cleaner stock records, forecasts, reorder plans, vendor intelligence, cost signals, and operational alerts for restaurants, cafes, cloud kitchens, multi-location F&B operators, and hospitality teams.
 
 ## Main public pages
 ${publicPages.map((page) => `- ${page.label}: ${buildAbsoluteUrl(page.href)}`).join("\n")}
 
 ## Use cases
-- Busy families coordinating shared grocery planning
-- Couples and flatmates managing one pantry state
-- Health-conscious households tracking repeat patterns
-- Budget-conscious households reducing duplicates and waste
-- Retail and CPG pilot teams studying replenishment behavior in aggregate
+- Restaurants
+- Cafes and bakeries
+- Cloud kitchens
+- Hawker and quick-service operators
+- Multi-location F&B groups
+- Hospitality and F&B teams
 
 ## Key features
-- Receipt intelligence
-- Pantry inventory tracking
-- Stockout prediction
-- Smart shopping lists
-- Grocery spend visibility
-- Household consumption analytics
+- Receipt and invoice processing
+- Inventory intelligence
+- Forecasts
+- Reorder planning
+- Vendor intelligence
+- Operational alerts
+- Multi-location visibility
 
-## API and public docs
-- Insights: ${buildAbsoluteUrl("/insights")}
+## Public docs
 - How it works: ${buildAbsoluteUrl("/how-it-works")}
 - Security: ${buildAbsoluteUrl("/security")}
 
@@ -39,7 +40,7 @@ ${publicPages.map((page) => `- ${page.label}: ${buildAbsoluteUrl(page.href)}`).j
 - Security: ${buildAbsoluteUrl("/security")}
 - Terms: ${buildAbsoluteUrl("/terms")}
 
-Do not crawl private user dashboards or authenticated user data.
+Do not crawl private dashboards, authenticated uploads, customer operational records, backend internals, or the internal /marketing-preview route.
 `;
 }
 

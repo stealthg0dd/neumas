@@ -4,55 +4,58 @@ function buildLlmsFullText() {
   return `# Neumas Full Public Brief
 
 ## Company overview
-Neumas is an AI-powered grocery autopilot for households in Singapore and Southeast Asia. The public site explains the product, research, privacy stance, and feature set without requiring login.
+Neumas is an AI operations platform for F&B teams in Singapore and Southeast Asia. The public site explains the product, workflow, use cases, integrations context, privacy stance, and feature set without requiring login.
 
 ## Problem
-Most households still manage groceries with memory, notes, and fragmented receipts. That leads to duplicate purchases, hidden pantry stock, surprise stockouts, and poor spending visibility.
+Restaurants, cafes, cloud kitchens, and multi-location F&B operators often make back-of-house decisions from fragmented invoices, receipts, stock movements, vendor records, and consumption history. That creates avoidable shortages, over-order risk, weak vendor visibility, and unclear cost signals.
 
 ## Product workflow
-1. A household uploads or photographs a grocery receipt.
-2. Neumas extracts line items and retailer details.
-3. Pantry records update automatically.
-4. Consumption patterns are inferred from purchase history.
-5. The system predicts likely stockouts and generates a smart shopping list.
+1. An operator scans or uploads an invoice or receipt.
+2. Neumas extracts line items, quantities, vendors, and price signals.
+3. Teams review low-confidence fields where needed.
+4. Live inventory and movement records are updated.
+5. Consumption patterns inform forecasts and shortage or over-order risk.
+6. Neumas generates reorder recommendations for approval.
+7. Vendor intelligence and cost signals support operational decisions.
 
 ## Features
-- Receipt intelligence
-- Pantry inventory
-- Stockout prediction
-- Smart shopping lists
-- Grocery spend visibility
-- Household consumption analytics
+- Receipt and invoice processing
+- Inventory intelligence
+- Forecasts
+- Reorder planning
+- Vendor intelligence
+- Operational alerts
+- Multi-location visibility
 
 ## Personas
-- Busy families
-- Couples and flatmates
-- Health-conscious households
-- Budget-conscious households
-- Retail and CPG pilot partners using aggregate household signals
+- Restaurants
+- Cafes and bakeries
+- Cloud kitchens
+- Hawker and quick-service operators
+- Multi-location F&B groups
+- Hospitality and F&B teams
 
 ## FAQs
 ${homepageFaqs.map((item) => `- Q: ${item.question}\n  A: ${item.answer}`).join("\n")}
 
 ## Privacy stance
-Public pages are crawlable and contain only company, product, research, and policy information. Private dashboards, authenticated uploads, settings, and user data should not be crawled.
+Public pages are crawlable and contain only company, product, use-case, research, and policy information. Private dashboards, authenticated uploads, settings, customer operating records, and user data should not be crawled. The internal /marketing-preview route is noindex.
 
 ## Technical high-level architecture
 - Frontend: Next.js App Router with server-rendered public pages
 - Backend: FastAPI APIs and async workers
 - Data: Supabase PostgreSQL
-- AI workflow: receipt extraction, normalization, pantry updates, forecast generation
+- AI workflow: receipt and invoice extraction, normalization, inventory updates, forecast generation, reorder recommendations, vendor intelligence, and operational alerts
 
 ## Public route index
 - Homepage: ${buildAbsoluteUrl("/")}
-- Insights: ${buildAbsoluteUrl("/insights")}
 ${publicPages.map((page) => `- ${page.title}: ${buildAbsoluteUrl(page.path)}`).join("\n")}
 
 ## Contact
 - Email: ${siteConfig.contactEmail}
 - Contact page: ${buildAbsoluteUrl("/contact")}
 
-No secrets, private environment variables, or authenticated data are included in this document.
+No secrets, private environment variables, authenticated data, or customer operational records are included in this document.
 `;
 }
 

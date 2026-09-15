@@ -5,10 +5,11 @@ import { PublicPage } from "@/components/public/PublicPage";
 import { buildPublicMetadata, getPublicPage } from "@/lib/public-site";
 
 const featureSlugs = [
-  "receipt-intelligence",
-  "pantry-inventory",
-  "stockout-prediction",
-  "smart-shopping-lists",
+  "receipt-invoice-processing",
+  "inventory-intelligence",
+  "reorder-planning",
+  "vendor-intelligence",
+  "multi-location-operations",
 ];
 
 export function generateStaticParams() {

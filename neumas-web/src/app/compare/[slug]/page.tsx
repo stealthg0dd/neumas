@@ -5,7 +5,7 @@ import { PublicPage } from "@/components/public/PublicPage";
 import { buildPublicMetadata, getPublicPage } from "@/lib/public-site";
 
 const compareSlugs = [
-  "manual-shopping-list-vs-ai-grocery-autopilot",
+  "manual-ordering-vs-ai-operations",
   "receipt-scanner-vs-inventory-intelligence",
 ];
 

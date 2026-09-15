@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { PublicPage } from "@/components/public/PublicPage";
 import { buildPublicMetadata, getPublicPage } from "@/lib/public-site";
 
-const useCaseSlugs = ["families", "retail-cpg"];
+const useCaseSlugs = ["restaurants", "cafes-bakeries", "cloud-kitchens", "multi-outlet-groups"];
 
 export function generateStaticParams() {
   return useCaseSlugs.map((slug) => ({ slug }));
