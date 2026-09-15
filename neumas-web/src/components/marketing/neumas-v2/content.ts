@@ -101,11 +101,11 @@ export const marketingAssets = {
 } satisfies Record<string, MarketingAsset>;
 
 export const hero = {
-  eyebrow: "AI Operations For F&B",
+  eyebrow: "AI OPERATIONS FOR F&B",
   headline: "Run a smarter back of house.",
   body:
-    "Neumas turns invoices, receipts, inventory movements, and consumption history into cleaner stock records, forecasts, reorder plans, and operational intelligence for F&B teams.",
-  primaryCta: { label: "Book a demo", href: "/pilot" },
+    "Neumas turns invoices, receipts, inventory movements and consumption history into cleaner stock records, forecasts, reorder plans and operational intelligence for F&B teams.",
+  primaryCta: { label: "Book a Demo", href: "/pilot" },
   secondaryCta: { label: "See how Neumas works", href: "#workflow" },
 };
 
@@ -127,12 +127,6 @@ export const metrics: Metric[] = [
     label: "ordering accuracy",
     note: "Measured Neumas operational metric.",
     tone: "green",
-  },
-  {
-    value: "6-10%",
-    label: "food-cost optimization opportunity",
-    note: "Verified industry benchmark, not a universal customer outcome.",
-    tone: "yellow",
   },
 ];
 
@@ -340,7 +334,6 @@ export const outcomes = [
   { title: "Measured Neumas metric", value: "92%", body: "Ordering accuracy measured inside Neumas operating workflows." },
   { title: "Verified benchmark", value: "6-10%", body: "Food-cost optimization opportunity used as a benchmark lens, not a guaranteed result." },
   { title: "Projected potential", value: "Up to 30%", body: "Projected waste-reduction potential, qualified as forward-looking and operationally dependent." },
-  { title: "Operational footprint", value: "1,510+", body: "Items tracked in current Neumas inventory and purchasing records." },
 ] as const;
 
 export const useCases = [
@@ -385,11 +378,11 @@ export const team: TeamMember[] = [
 
 export const videos: MarketingVideo[] = [
   {
-    title: "F&B operations overview",
-    role: "Hero storytelling loop",
+    title: "Why Neumas",
+    role: "Founder / Why Neumas",
     src: "/marketing/neumas/videos/neumas-intro-hero-loop.mp4",
     poster: "/marketing/neumas/videos/neumas-intro-poster.jpg",
-    posterAlt: "Neumas founder introducing the F&B operations platform",
+    posterAlt: "Varun Srivastava explaining why Neumas is building for F&B operations",
   },
   {
     title: "Receipt capture flow",
@@ -407,21 +400,12 @@ export const videos: MarketingVideo[] = [
   },
 ];
 
-export const trustNotes = [
-  { title: "Operationally grounded", body: "Built around receipts, stock, suppliers, and purchase decisions." },
-  { title: "SEA ready", body: "Singapore-facing product visuals and copy avoid misleading global assumptions." },
-  { title: "Private by design", body: "Public marketing stays separate from authenticated dashboards and tenant data." },
-  { title: "Integration aware", body: "StoreHub and Qashier are listed only as integrations, never as customers." },
-  { title: "Responsible claims", body: "Quantitative claims are qualified where they are benchmarked or projected." },
-  { title: "B2B first", body: "This preview does not alter the existing household homepage." },
-] as const;
-
 export const cta = {
-  title: "Ready to transform F&B operations?",
+  title: "See Neumas in your operation.",
   body:
-    "Book a pilot conversation and map Neumas to your outlets, vendors, purchasing cadence, and current inventory workflow.",
+    "Book a demo conversation and map Neumas to your outlets, vendors, purchasing cadence and current inventory workflow.",
   href: "/pilot",
-  label: "Book a demo",
+  label: "Book a Demo",
 };
 
 export const complianceSignals = [

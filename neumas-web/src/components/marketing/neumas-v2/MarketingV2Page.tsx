@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 
-import { HeroVideo } from "./HeroVideo";
 import { LazyVideo } from "./LazyVideo";
 import { MarketingEventLink } from "./MarketingEventLink";
 import { MarketingLeadForm } from "./MarketingLeadForm";
@@ -9,13 +8,11 @@ import { MarketingNav } from "./MarketingNav";
 import {
   complianceSignals,
   conversion,
-  cta,
   ecosystemContexts,
   hero,
   integrations,
   marketingAssets,
   metrics,
-  modules,
   outcomes,
   platformInputs,
   platformOutputs,
@@ -23,7 +20,6 @@ import {
   partnerTypes,
   receiptWorkflow,
   team,
-  trustNotes,
   useCases,
   videos,
 } from "./content";
@@ -32,13 +28,7 @@ import type { MarketingCmsContent } from "./marketing-cms";
 
 const sectionShell = "mx-auto w-full max-w-7xl px-5 sm:px-8";
 
-function HeroSection({
-  section,
-  videoItems,
-}: {
-  section?: MarketingCmsContent["sections"][string];
-  videoItems: typeof videos;
-}) {
+function HeroSection({ section }: { section?: MarketingCmsContent["sections"][string] }) {
   const heroCopy = {
     eyebrow: section?.eyebrow ?? hero.eyebrow,
     headline: section?.headline ?? hero.headline,
@@ -47,7 +37,7 @@ function HeroSection({
 
   return (
     <section className="relative overflow-hidden bg-[#f8fbff]">
-      <div className={`${sectionShell} grid min-h-[calc(100vh-72px)] items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:py-16`}>
+      <div className={`${sectionShell} grid min-h-[calc(100vh-72px)] items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:py-14`}>
         <div className="max-w-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">{heroCopy.eyebrow.toUpperCase()}</p>
           <h1 className="mt-5 text-5xl font-bold leading-[1.02] tracking-normal text-[#0b1736] sm:text-6xl xl:text-7xl">
@@ -86,7 +76,7 @@ function HeroSection({
           </div>
         </div>
         <div className="relative">
-          <div className="relative overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-2xl shadow-[#0b1736]/12">
+          <div className="relative overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-xl shadow-[#0b1736]/10">
             <Image
               src={marketingAssets.hero.src}
               alt={marketingAssets.hero.alt}
@@ -95,24 +85,17 @@ function HeroSection({
               priority
               className="aspect-[1672/941] w-full object-cover"
             />
-            <div className="absolute inset-x-[4%] bottom-[3%] rounded-md border border-[#0b4fd8]/20 bg-white/95 p-3 shadow-lg backdrop-blur sm:inset-x-[8%] sm:bottom-[5%]">
+            <div className="absolute inset-x-[4%] bottom-[3%] rounded-md border border-[#0b4fd8]/20 bg-white p-3 shadow-lg sm:inset-x-[8%] sm:bottom-[5%]">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#eef5ff] text-[#0b4fd8]">
                   <Sparkles className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div>
-                  <p className="text-sm font-bold text-[#0b1736]">Projected waste reduction potential of up to 30%</p>
+                  <p className="text-sm font-bold text-[#0b1736]">Projected waste-reduction potential up to 30%</p>
                   <p className="text-xs font-medium text-slate-500">Qualified public benchmark, not a historical guarantee.</p>
                 </div>
               </div>
             </div>
-          </div>
-          <div className="mt-4 overflow-hidden rounded-lg border border-[#0b1736]/10 bg-[#0b1736]">
-            <HeroVideo
-              src={videoItems[0].src}
-              poster={videoItems[0].poster}
-              posterAlt={videoItems[0].posterAlt}
-            />
           </div>
         </div>
       </div>
@@ -128,23 +111,13 @@ function MetricBand({ metricItems }: { metricItems: typeof metrics }) {
   };
 
   return (
-    <section className="border-y border-[#0b1736]/10 bg-white py-8" aria-label="Traction metrics">
+    <section className="border-y border-[#0b1736]/10 bg-white py-6" aria-label="Traction metrics">
       <div className={`${sectionShell}`}>
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Current Traction</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-normal text-[#0b1736]">Factual operating footprint, not a logo strip.</h2>
-          </div>
-          <p className="max-w-sm text-sm leading-6 text-slate-600">
-            These metrics describe current Neumas usage and measured operations signals.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-3">
           {metricItems.map((metric) => (
-            <div key={metric.label} className={`rounded-lg border p-5 ${toneClasses[metric.tone]}`}>
+            <div key={metric.label} className={`rounded-lg border px-5 py-4 ${toneClasses[metric.tone]}`}>
               <p className="text-3xl font-bold tracking-normal text-[#0b1736]">{metric.value}</p>
               <h2 className="mt-1 text-sm font-bold uppercase tracking-[0.12em] text-[#0b4fd8]">{metric.label}</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{metric.note}</p>
             </div>
           ))}
         </div>
@@ -153,23 +126,23 @@ function MetricBand({ metricItems }: { metricItems: typeof metrics }) {
   );
 }
 
-function ProofSection() {
+function OutcomesSection() {
   return (
-    <section className="bg-[#0b1736] py-20 text-white" aria-labelledby="proof-heading">
+    <section className="bg-white py-20" aria-labelledby="outcomes-heading">
       <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start`}>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5c15c]">Proof And Outcomes</p>
-          <h2 id="proof-heading" className="mt-4 text-4xl font-bold tracking-normal">Clear numbers, clear boundaries.</h2>
-          <p className="mt-5 text-base leading-7 text-white/70">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Outcomes</p>
+          <h2 id="outcomes-heading" className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">Clear numbers, clear boundaries.</h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">
             Neumas separates measured platform metrics from benchmark opportunities and projected potential, so operators can evaluate the product without inflated claims.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           {outcomes.map((outcome) => (
-            <article key={outcome.title} className="rounded-lg border border-white/12 bg-white/8 p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">{outcome.title}</p>
-              <p className="mt-4 text-3xl font-bold tracking-normal">{outcome.value}</p>
-              <p className="mt-3 text-sm leading-6 text-white/70">{outcome.body}</p>
+            <article key={outcome.title} className="rounded-lg border border-[#0b1736]/10 bg-[#f8fbff] p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0b4fd8]">{outcome.title}</p>
+              <p className="mt-4 text-3xl font-bold tracking-normal text-[#0b1736]">{outcome.value}</p>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{outcome.body}</p>
             </article>
           ))}
         </div>
@@ -326,26 +299,6 @@ function PlatformSection() {
           </div>
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
-          {modules.slice(0, 3).map((module) => {
-            const Icon = module.icon;
-            return (
-              <article key={module.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6 shadow-sm">
-                <Icon className="h-6 w-6 text-[#0b4fd8]" aria-hidden="true" />
-                <h3 className="mt-5 text-xl font-bold tracking-normal text-[#0b1736]">{module.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{module.body}</p>
-                <ul className="mt-5 space-y-3">
-                  {module.bullets.map((bullet) => (
-                    <li key={bullet} className="flex gap-3 text-sm text-slate-600">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#f5c15c]" aria-hidden="true" />
-                      <span>{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            );
-          })}
-        </div>
       </div>
     </section>
   );
@@ -353,7 +306,7 @@ function PlatformSection() {
 
 function VideoSection({ videoItems }: { videoItems: typeof videos }) {
   return (
-    <section id="resources" className="bg-white py-20">
+    <section id="product-demo" className="bg-white py-20">
       <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center`}>
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">See How Neumas Works</p>
@@ -759,6 +712,45 @@ function PartnerSection() {
   );
 }
 
+function FounderSection({ videoItems }: { videoItems: typeof videos }) {
+  const founderVideo = videoItems[0];
+
+  return (
+    <section className="bg-[#f8fbff] py-20">
+      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.88fr_1.12fr] lg:items-center`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Why Neumas</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">
+            Built around the decisions F&B teams make every day.
+          </h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">
+            F&B teams generate operational data constantly, but invoices, inventory, supplier information and purchasing decisions often remain fragmented. Neumas brings those signals together so operators can see what is changing, understand what is likely to happen next, and act earlier.
+          </p>
+          <div className="mt-8 border-l-2 border-[#f5c15c] pl-5">
+            <p className="text-base font-bold text-[#0b1736]">Varun Srivastava</p>
+            <p className="mt-1 text-sm font-medium text-slate-600">Founder & CEO, Neumas</p>
+            <p className="mt-4 text-sm leading-6 text-slate-500">
+              Why we are building an operational intelligence layer for F&B.
+            </p>
+          </div>
+        </div>
+        <article className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-xl shadow-[#0b1736]/8">
+          <LazyVideo
+            title={founderVideo.title}
+            src={founderVideo.src}
+            poster={founderVideo.poster}
+            posterAlt={founderVideo.posterAlt}
+          />
+          <div className="border-t border-[#0b1736]/10 p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0b4fd8]">{founderVideo.role}</p>
+            <h3 className="mt-3 text-lg font-bold tracking-normal text-[#0b1736]">{founderVideo.title}</h3>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 function ConversionSection() {
   return (
     <section className="bg-white py-20">
@@ -779,15 +771,6 @@ function ConversionSection() {
           <div className="mt-8 rounded-lg border border-[#0b1736]/10 bg-[#f8fbff] p-5">
             <MarketingLeadForm kind="demo" />
           </div>
-          <MarketingEventLink
-            href="/pilot"
-            event="marketing_demo_click"
-            props={{ location: "conversion_pilot_link" }}
-            className="mt-5 inline-flex items-center justify-center gap-2 text-sm font-bold text-[#0b4fd8] hover:text-[#073fae]"
-          >
-            Use the full pilot intake route
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </MarketingEventLink>
         </div>
       </div>
     </section>
@@ -832,43 +815,6 @@ function TeamSection({ teamMembers }: { teamMembers: typeof team }) {
   );
 }
 
-function TrustSection() {
-  return (
-    <section className="bg-white py-16">
-      <div className={`${sectionShell} grid gap-4 md:grid-cols-2 lg:grid-cols-3`}>
-        {trustNotes.map((note) => (
-          <article key={note.title} className="rounded-lg border border-[#0b1736]/10 p-5">
-            <h2 className="text-base font-bold tracking-normal text-[#0b1736]">{note.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{note.body}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function FinalCta() {
-  return (
-    <section className="bg-[#0b4fd8] py-20 text-white">
-      <div className={`${sectionShell} flex flex-col gap-8 md:flex-row md:items-center md:justify-between`}>
-        <div className="max-w-2xl">
-          <h2 className="text-4xl font-bold tracking-normal">{cta.title}</h2>
-          <p className="mt-4 text-base leading-7 text-white/80">{cta.body}</p>
-        </div>
-        <MarketingEventLink
-          href={cta.href}
-          event="marketing_demo_click"
-          props={{ location: "final_cta" }}
-          className="inline-flex items-center justify-center gap-2 rounded-md bg-[#f5c15c] px-5 py-3 text-sm font-bold text-[#0b1736] shadow-sm transition hover:bg-[#e8ae3f]"
-        >
-          {cta.label}
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </MarketingEventLink>
-      </div>
-    </section>
-  );
-}
-
 function Footer() {
   return (
     <footer className="border-t border-[#0b1736]/10 bg-white py-8">
@@ -883,7 +829,7 @@ function Footer() {
 export function MarketingV2Page({ cmsContent }: { cmsContent?: MarketingCmsContent | null }) {
   const section = (key: string) => cmsContent?.sections[key];
   const sectionEnabled = (key: string) => section(key)?.enabled !== false;
-  const metricItems = cmsContent?.metrics ?? metrics;
+  const metricItems = (cmsContent?.metrics ?? metrics).slice(0, 3);
   const teamMembers = cmsContent?.team ?? team;
   const integrationItems = cmsContent?.integrations ?? integrations;
   const videoItems = cmsContent?.videos && cmsContent.videos.length >= 3 ? cmsContent.videos : videos;
@@ -892,11 +838,10 @@ export function MarketingV2Page({ cmsContent }: { cmsContent?: MarketingCmsConte
     <div className="min-h-screen bg-white text-[#0b1736]">
       <MarketingNav />
       <main>
-        {sectionEnabled("hero") ? <HeroSection section={section("hero")} videoItems={videoItems} /> : null}
+        {sectionEnabled("hero") ? <HeroSection section={section("hero")} /> : null}
         {sectionEnabled("metrics") ? <MetricBand metricItems={metricItems} /> : null}
-        <ProofSection />
-        <WorkflowSection />
         <PlatformSection />
+        <WorkflowSection />
         <VideoSection videoItems={videoItems} />
         <ProductStorytellingSection />
         <MobileOperationsSection />
@@ -904,10 +849,10 @@ export function MarketingV2Page({ cmsContent }: { cmsContent?: MarketingCmsConte
         {sectionEnabled("integrations") ? <IntegrationsAndUseCases integrationItems={integrationItems} /> : null}
         <UseCaseSection />
         <PartnerSection />
+        <OutcomesSection />
+        <FounderSection videoItems={videoItems} />
         {sectionEnabled("team") ? <TeamSection teamMembers={teamMembers} /> : null}
-        <TrustSection />
         <ConversionSection />
-        <FinalCta />
       </main>
       <Footer />
     </div>

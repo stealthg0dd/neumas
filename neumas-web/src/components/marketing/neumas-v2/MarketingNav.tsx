@@ -14,7 +14,6 @@ const navLinks = [
   { label: "Solutions", href: "#solutions" },
   { label: "Integrations", href: "#integrations" },
   { label: "Company", href: "#company" },
-  { label: "Resources", href: "#resources" },
 ] as const;
 
 export function MarketingNav() {
@@ -38,20 +37,20 @@ export function MarketingNav() {
 
         <div className="hidden items-center gap-2 md:flex">
           <MarketingEventLink
-            href="/auth"
-            event="marketing_login_clicked"
-            props={{ location: "desktop_nav" }}
-            className="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-[#0b1736]"
-          >
-            Login
-          </MarketingEventLink>
-          <MarketingEventLink
             href={hero.primaryCta.href}
             event="marketing_demo_click"
             props={{ location: "desktop_nav" }}
             className="inline-flex items-center rounded-md bg-[#0b4fd8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#073fae]"
           >
             {hero.primaryCta.label}
+          </MarketingEventLink>
+          <MarketingEventLink
+            href="/auth"
+            event="marketing_login_clicked"
+            props={{ location: "desktop_nav" }}
+            className="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-[#0b1736]"
+          >
+            Login
           </MarketingEventLink>
         </div>
 
@@ -81,15 +80,6 @@ export function MarketingNav() {
             ))}
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#0b1736]/10 pt-4">
               <MarketingEventLink
-                href="/auth"
-                event="marketing_login_clicked"
-                props={{ location: "mobile_nav" }}
-                className="rounded-md border border-[#0b1736]/10 px-3 py-3 text-center text-sm font-semibold text-[#0b1736]"
-                afterClick={() => setOpen(false)}
-              >
-                Login
-              </MarketingEventLink>
-              <MarketingEventLink
                 href={hero.primaryCta.href}
                 event="marketing_demo_click"
                 props={{ location: "mobile_nav" }}
@@ -97,6 +87,15 @@ export function MarketingNav() {
                 afterClick={() => setOpen(false)}
               >
                 Book a Demo
+              </MarketingEventLink>
+              <MarketingEventLink
+                href="/auth"
+                event="marketing_login_clicked"
+                props={{ location: "mobile_nav" }}
+                className="rounded-md border border-[#0b1736]/10 px-3 py-3 text-center text-sm font-semibold text-[#0b1736]"
+                afterClick={() => setOpen(false)}
+              >
+                Login
               </MarketingEventLink>
             </div>
           </div>
