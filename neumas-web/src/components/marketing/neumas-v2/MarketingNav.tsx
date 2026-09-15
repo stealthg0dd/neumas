@@ -21,8 +21,8 @@ export function MarketingNav() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#0b1736]/10 bg-white/90 backdrop-blur-xl">
-      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Marketing preview">
-        <Link href="/marketing-preview" className="flex items-center gap-3" aria-label="Neumas marketing preview">
+      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-4 sm:px-8" aria-label="Primary">
+        <Link href="/" className="flex items-center gap-3" aria-label="Neumas homepage">
           <Image src={marketingAssets.logo.src} alt="" width={32} height={32} className="h-8 w-8 rounded-md" />
           <span className="font-mono text-sm font-semibold tracking-[0.12em] text-[#0b1736]">NEUMAS</span>
         </Link>
