@@ -56,6 +56,7 @@ export type MarketingVideo = {
   role: string;
   src: string;
   poster: string;
+  posterAlt: string;
 };
 
 export const marketingAssets = {
@@ -227,21 +228,31 @@ export const team: TeamMember[] = [
 export const videos: MarketingVideo[] = [
   {
     title: "F&B operations overview",
-    role: "Intro film",
-    src: "/marketing/neumas/videos/neumas-intro-web.mp4",
-    poster: marketingAssets.hero.src,
+    role: "Hero storytelling loop",
+    src: "/marketing/neumas/videos/neumas-intro-hero-loop.mp4",
+    poster: "/marketing/neumas/videos/neumas-intro-poster.jpg",
+    posterAlt: "Neumas founder introducing the F&B operations platform",
+  },
+  {
+    title: "Founder intro",
+    role: "Full intro video",
+    src: "/marketing/neumas/videos/neumas-intro-full-web.mp4",
+    poster: "/marketing/neumas/videos/neumas-intro-poster.jpg",
+    posterAlt: "Neumas founder introducing the F&B operations platform",
   },
   {
     title: "Receipt capture flow",
-    role: "Product demo",
+    role: "Product how-it-works video",
     src: "/marketing/neumas/videos/neumas-receipt-capture-demo.mp4",
-    poster: marketingAssets.workflow.src,
+    poster: "/marketing/neumas/videos/neumas-demo-v1-poster.jpg",
+    posterAlt: "Neumas product demo showing supplier receipts and extracted costs",
   },
   {
-    title: "Operations workflow",
-    role: "Demo walkthrough",
+    title: "Deeper product walkthrough",
+    role: "Product demo section",
     src: "/marketing/neumas/videos/neumas-operations-demo.mp4",
-    poster: marketingAssets.cta.src,
+    poster: "/marketing/neumas/videos/neumas-demo-v2-poster.jpg",
+    posterAlt: "Neumas product demo showing procurement recommendations and dashboards",
   },
 ];
 

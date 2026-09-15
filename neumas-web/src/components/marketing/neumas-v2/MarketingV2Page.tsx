@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Play, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 
+import { HeroVideo } from "./HeroVideo";
+import { LazyVideo } from "./LazyVideo";
 import {
   complianceSignals,
   cta,
@@ -97,7 +99,7 @@ function HeroSection() {
           </div>
         </div>
         <div className="relative">
-          <div className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-2xl shadow-[#0b1736]/12">
+          <div className="relative overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-2xl shadow-[#0b1736]/12">
             <Image
               src={marketingAssets.hero.src}
               alt={marketingAssets.hero.alt}
@@ -106,7 +108,7 @@ function HeroSection() {
               priority
               className="aspect-[1672/941] w-full object-cover"
             />
-            <div className="absolute inset-x-[8%] bottom-[5%] rounded-md border border-[#0b4fd8]/20 bg-white/95 p-3 shadow-lg backdrop-blur">
+            <div className="absolute inset-x-[4%] bottom-[3%] rounded-md border border-[#0b4fd8]/20 bg-white/95 p-3 shadow-lg backdrop-blur sm:inset-x-[8%] sm:bottom-[5%]">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#eef5ff] text-[#0b4fd8]">
                   <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -119,15 +121,10 @@ function HeroSection() {
             </div>
           </div>
           <div className="mt-4 overflow-hidden rounded-lg border border-[#0b1736]/10 bg-[#0b1736]">
-            <video
-              className="aspect-video w-full object-cover"
-              poster={videos[0].poster}
+            <HeroVideo
               src={videos[0].src}
-              autoPlay
-              muted
-              loop
-              playsInline
-              aria-label={videos[0].title}
+              poster={videos[0].poster}
+              posterAlt={videos[0].posterAlt}
             />
           </div>
         </div>
@@ -192,7 +189,7 @@ function WorkflowSection() {
             alt={marketingAssets.workflow.alt}
             width={1672}
             height={941}
-            className="aspect-[1672/941] w-full object-cover"
+            className="h-[420px] w-full object-cover object-left-top sm:h-[520px]"
           />
         </div>
       </div>
@@ -247,23 +244,11 @@ function VideoSection() {
           </p>
         </div>
         <div className="mt-10 grid gap-5 lg:grid-cols-3">
-          {videos.map((video, index) => (
+          {videos.slice(1).map((video) => (
             <article key={video.src} className="overflow-hidden rounded-lg border border-white/15 bg-white/8">
-              <video
-                className="aspect-video w-full bg-black object-cover"
-                poster={video.poster}
-                src={video.src}
-                controls
-                muted={index === 0}
-                preload="metadata"
-                playsInline
-                aria-label={video.title}
-              />
+              <LazyVideo title={video.title} src={video.src} poster={video.poster} posterAlt={video.posterAlt} />
               <div className="p-5">
-                <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">
-                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                  {video.role}
-                </p>
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">{video.role}</p>
                 <h3 className="mt-3 text-lg font-bold tracking-normal">{video.title}</h3>
               </div>
             </article>
