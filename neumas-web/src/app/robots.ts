@@ -10,6 +10,7 @@ const privatePaths = [
   "/api/internal",
   "/account",
   "/settings",
+  "/marketing-preview",
 ];
 
 const crawlableAgents = [

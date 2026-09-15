@@ -1,0 +1,445 @@
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, CheckCircle2, Play, Sparkles } from "lucide-react";
+
+import {
+  complianceSignals,
+  cta,
+  hero,
+  integrations,
+  marketingAssets,
+  metrics,
+  modules,
+  outcomes,
+  team,
+  trustNotes,
+  useCases,
+  videos,
+  workflow,
+} from "./content";
+
+const sectionShell = "mx-auto w-full max-w-7xl px-5 sm:px-8";
+
+function MarketingNav() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-[#0b1736]/10 bg-white/90 backdrop-blur-xl">
+      <nav className={`${sectionShell} flex items-center justify-between py-4`} aria-label="Marketing preview">
+        <Link href="/marketing-preview" className="flex items-center gap-3" aria-label="Neumas marketing preview">
+          <Image src={marketingAssets.logo.src} alt="" width={32} height={32} className="h-8 w-8 rounded-md" />
+          <span className="font-mono text-sm font-semibold tracking-[0.12em] text-[#0b1736]">NEUMAS</span>
+        </Link>
+        <div className="hidden items-center gap-6 md:flex">
+          <a href="#workflow" className="text-sm font-medium text-slate-600 hover:text-[#0b1736]">
+            How it works
+          </a>
+          <a href="#platform" className="text-sm font-medium text-slate-600 hover:text-[#0b1736]">
+            Platform
+          </a>
+          <a href="#outcomes" className="text-sm font-medium text-slate-600 hover:text-[#0b1736]">
+            Outcomes
+          </a>
+          <a href="#team" className="text-sm font-medium text-slate-600 hover:text-[#0b1736]">
+            Team
+          </a>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/auth" className="hidden px-3 py-2 text-sm font-semibold text-slate-600 hover:text-[#0b1736] sm:inline-flex">
+            Sign in
+          </Link>
+          <Link
+            href={hero.primaryCta.href}
+            className="inline-flex items-center gap-2 rounded-md bg-[#0b4fd8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#073fae]"
+          >
+            {hero.primaryCta.label}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+      </nav>
+    </header>
+  );
+}
+
+function HeroSection() {
+  return (
+    <section className="relative overflow-hidden bg-[#f8fbff]">
+      <div className={`${sectionShell} grid min-h-[calc(100vh-72px)] items-center gap-10 py-14 lg:grid-cols-[0.92fr_1.08fr] lg:py-18`}>
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">{hero.eyebrow}</p>
+          <h1 className="mt-5 text-5xl font-bold leading-[1.02] tracking-normal text-[#0b1736] sm:text-6xl lg:text-7xl">
+            {hero.headline}
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">{hero.body}</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href={hero.primaryCta.href}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-[#f5c15c] px-5 py-3 text-sm font-bold text-[#0b1736] shadow-sm transition hover:bg-[#e8ae3f]"
+            >
+              {hero.primaryCta.label}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+            <a
+              href={hero.secondaryCta.href}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-[#0b1736]/15 bg-white px-5 py-3 text-sm font-bold text-[#0b1736] transition hover:border-[#0b4fd8]/40"
+            >
+              {hero.secondaryCta.label}
+            </a>
+          </div>
+          <div className="mt-10 grid gap-3 sm:grid-cols-3">
+            {complianceSignals.map((signal) => {
+              const Icon = signal.icon;
+              return (
+                <div key={signal.label} className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                  <Icon className="h-4 w-4 text-[#0b4fd8]" aria-hidden="true" />
+                  <span>{signal.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="relative">
+          <div className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-2xl shadow-[#0b1736]/12">
+            <Image
+              src={marketingAssets.hero.src}
+              alt={marketingAssets.hero.alt}
+              width={1672}
+              height={941}
+              priority
+              className="aspect-[1672/941] w-full object-cover"
+            />
+            <div className="absolute inset-x-[8%] bottom-[5%] rounded-md border border-[#0b4fd8]/20 bg-white/95 p-3 shadow-lg backdrop-blur">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#eef5ff] text-[#0b4fd8]">
+                  <Sparkles className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-[#0b1736]">Projected waste reduction potential of up to 30%</p>
+                  <p className="text-xs font-medium text-slate-500">Qualified public benchmark, not a historical guarantee.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 overflow-hidden rounded-lg border border-[#0b1736]/10 bg-[#0b1736]">
+            <video
+              className="aspect-video w-full object-cover"
+              poster={videos[0].poster}
+              src={videos[0].src}
+              autoPlay
+              muted
+              loop
+              playsInline
+              aria-label={videos[0].title}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MetricBand() {
+  const toneClasses = {
+    blue: "border-[#0b4fd8]/20 bg-[#eef5ff]",
+    yellow: "border-[#f5c15c]/40 bg-[#fff8e8]",
+    green: "border-emerald-500/20 bg-emerald-50",
+  };
+
+  return (
+    <section className="border-y border-[#0b1736]/10 bg-white py-8" aria-label="Traction metrics">
+      <div className={`${sectionShell} grid gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
+        {metrics.map((metric) => (
+          <div key={metric.label} className={`rounded-lg border p-5 ${toneClasses[metric.tone]}`}>
+            <p className="text-3xl font-bold tracking-normal text-[#0b1736]">{metric.value}</p>
+            <h2 className="mt-1 text-sm font-bold uppercase tracking-[0.12em] text-[#0b4fd8]">{metric.label}</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">{metric.note}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WorkflowSection() {
+  return (
+    <section id="workflow" className="bg-[#f8fbff] py-20">
+      <div className={`${sectionShell} grid gap-12 lg:grid-cols-[0.9fr_1.1fr]`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Input To Intelligence</p>
+          <h2 className="mt-4 max-w-xl text-4xl font-bold tracking-normal text-[#0b1736]">From receipt to reorder in minutes.</h2>
+          <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
+            Neumas turns operational paperwork into living inventory, forecasting, and purchasing decisions for real F&B teams.
+          </p>
+          <div className="mt-8 grid gap-4">
+            {workflow.map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.title} className="grid grid-cols-[44px_1fr] gap-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-md bg-white text-[#0b4fd8] shadow-sm ring-1 ring-[#0b1736]/10">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Step {index + 1}</p>
+                    <h3 className="mt-1 text-lg font-bold tracking-normal text-[#0b1736]">{step.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{step.body}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-xl shadow-[#0b1736]/8">
+          <Image
+            src={marketingAssets.workflow.src}
+            alt={marketingAssets.workflow.alt}
+            width={1672}
+            height={941}
+            className="aspect-[1672/941] w-full object-cover"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PlatformSection() {
+  return (
+    <section id="platform" className="bg-white py-20">
+      <div className={sectionShell}>
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Platform</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">One platform. Every operational decision.</h2>
+        </div>
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {modules.map((module) => {
+            const Icon = module.icon;
+            return (
+              <article key={module.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6 shadow-sm">
+                <Icon className="h-6 w-6 text-[#0b4fd8]" aria-hidden="true" />
+                <h3 className="mt-5 text-xl font-bold tracking-normal text-[#0b1736]">{module.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{module.body}</p>
+                <ul className="mt-5 space-y-3">
+                  {module.bullets.map((bullet) => (
+                    <li key={bullet} className="flex gap-3 text-sm text-slate-600">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#f5c15c]" aria-hidden="true" />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function VideoSection() {
+  return (
+    <section className="bg-[#0b1736] py-20 text-white">
+      <div className={sectionShell}>
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5c15c]">Videos</p>
+            <h2 className="mt-4 max-w-2xl text-4xl font-bold tracking-normal">See the operating system in motion.</h2>
+          </div>
+          <p className="max-w-sm text-sm leading-6 text-white/70">
+            The intro film can move in the hero while the product demos stay user-controlled.
+          </p>
+        </div>
+        <div className="mt-10 grid gap-5 lg:grid-cols-3">
+          {videos.map((video, index) => (
+            <article key={video.src} className="overflow-hidden rounded-lg border border-white/15 bg-white/8">
+              <video
+                className="aspect-video w-full bg-black object-cover"
+                poster={video.poster}
+                src={video.src}
+                controls
+                muted={index === 0}
+                preload="metadata"
+                playsInline
+                aria-label={video.title}
+              />
+              <div className="p-5">
+                <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">
+                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                  {video.role}
+                </p>
+                <h3 className="mt-3 text-lg font-bold tracking-normal">{video.title}</h3>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function OutcomesSection() {
+  return (
+    <section id="outcomes" className="bg-[#f8fbff] py-20">
+      <div className={`${sectionShell} grid gap-12 lg:grid-cols-[1.1fr_0.9fr]`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Outcomes</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">Less guesswork. Better margins.</h2>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {outcomes.map((outcome) => (
+              <article key={outcome.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6">
+                <h3 className="text-lg font-bold tracking-normal text-[#0b1736]">{outcome.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{outcome.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white">
+          <Image
+            src={marketingAssets.cta.src}
+            alt={marketingAssets.cta.alt}
+            width={1672}
+            height={941}
+            className="h-full min-h-[360px] w-full object-cover"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function IntegrationsAndUseCases() {
+  return (
+    <section className="bg-white py-20">
+      <div className={`${sectionShell} grid gap-12 lg:grid-cols-2`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Integrations</p>
+          <h2 className="mt-4 text-3xl font-bold tracking-normal text-[#0b1736]">Built to connect with your operating stack.</h2>
+          <div className="mt-8 flex flex-wrap gap-3">
+            {integrations.map((integration) => (
+              <span key={integration} className="rounded-md border border-[#0b1736]/10 bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#0b1736]">
+                {integration}
+              </span>
+            ))}
+          </div>
+          <p className="mt-6 text-sm leading-6 text-slate-600">
+            StoreHub and Qashier are represented only as existing integrations in this preview, not customers or pilots.
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Use Cases</p>
+          <h2 className="mt-4 text-3xl font-bold tracking-normal text-[#0b1736]">Designed for the way F&B teams actually operate.</h2>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {useCases.map((useCase) => {
+              const Icon = useCase.icon;
+              return (
+                <article key={useCase.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-5">
+                  <Icon className="h-5 w-5 text-[#0b4fd8]" aria-hidden="true" />
+                  <h3 className="mt-4 text-base font-bold tracking-normal text-[#0b1736]">{useCase.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{useCase.body}</p>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TeamSection() {
+  return (
+    <section id="team" className="bg-[#f8fbff] py-20">
+      <div className={sectionShell}>
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Team</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">Built by operators, product builders, and Singapore market specialists.</h2>
+        </div>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {team.map((member) => (
+            <article key={member.name} className="rounded-lg border border-[#0b1736]/10 bg-white p-5">
+              {member.image ? (
+                <Image
+                  src={member.image.src}
+                  alt={member.image.alt}
+                  width={160}
+                  height={160}
+                  className="h-24 w-24 rounded-lg object-cover"
+                />
+              ) : (
+                <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-[#0b1736] text-xl font-bold text-[#f5c15c]">
+                  {member.initials}
+                </div>
+              )}
+              <h3 className="mt-5 text-lg font-bold tracking-normal text-[#0b1736]">{member.name}</h3>
+              <p className="mt-1 text-sm font-medium text-slate-600">{member.role}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrustSection() {
+  return (
+    <section className="bg-white py-16">
+      <div className={`${sectionShell} grid gap-4 md:grid-cols-2 lg:grid-cols-3`}>
+        {trustNotes.map((note) => (
+          <article key={note.title} className="rounded-lg border border-[#0b1736]/10 p-5">
+            <h2 className="text-base font-bold tracking-normal text-[#0b1736]">{note.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{note.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FinalCta() {
+  return (
+    <section className="bg-[#0b4fd8] py-20 text-white">
+      <div className={`${sectionShell} flex flex-col gap-8 md:flex-row md:items-center md:justify-between`}>
+        <div className="max-w-2xl">
+          <h2 className="text-4xl font-bold tracking-normal">{cta.title}</h2>
+          <p className="mt-4 text-base leading-7 text-white/80">{cta.body}</p>
+        </div>
+        <Link
+          href={cta.href}
+          className="inline-flex items-center justify-center gap-2 rounded-md bg-[#f5c15c] px-5 py-3 text-sm font-bold text-[#0b1736] shadow-sm transition hover:bg-[#e8ae3f]"
+        >
+          {cta.label}
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-[#0b1736]/10 bg-white py-8">
+      <div className={`${sectionShell} flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between`}>
+        <p>Neumas marketing v2 preview. Existing production homepage remains unchanged.</p>
+        <p>{new Date().getFullYear()} Neumas</p>
+      </div>
+    </footer>
+  );
+}
+
+export function MarketingV2Page() {
+  return (
+    <div className="min-h-screen bg-white text-[#0b1736]">
+      <MarketingNav />
+      <main>
+        <HeroSection />
+        <MetricBand />
+        <WorkflowSection />
+        <PlatformSection />
+        <VideoSection />
+        <OutcomesSection />
+        <IntegrationsAndUseCases />
+        <TeamSection />
+        <TrustSection />
+        <FinalCta />
+      </main>
+      <Footer />
+    </div>
+  );
+}
