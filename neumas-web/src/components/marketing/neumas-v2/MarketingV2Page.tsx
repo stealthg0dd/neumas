@@ -13,6 +13,7 @@ import {
   marketingAssets,
   metrics,
   modules,
+  outcomes,
   platformInputs,
   platformOutputs,
   productStories,
@@ -124,6 +125,31 @@ function MetricBand() {
               <h2 className="mt-1 text-sm font-bold uppercase tracking-[0.12em] text-[#0b4fd8]">{metric.label}</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">{metric.note}</p>
             </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProofSection() {
+  return (
+    <section className="bg-[#0b1736] py-20 text-white" aria-labelledby="proof-heading">
+      <div className={`${sectionShell} grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start`}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#f5c15c]">Proof And Outcomes</p>
+          <h2 id="proof-heading" className="mt-4 text-4xl font-bold tracking-normal">Clear numbers, clear boundaries.</h2>
+          <p className="mt-5 text-base leading-7 text-white/70">
+            Neumas separates measured platform metrics from benchmark opportunities and projected potential, so operators can evaluate the product without inflated claims.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {outcomes.map((outcome) => (
+            <article key={outcome.title} className="rounded-lg border border-white/12 bg-white/8 p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">{outcome.title}</p>
+              <p className="mt-4 text-3xl font-bold tracking-normal">{outcome.value}</p>
+              <p className="mt-3 text-sm leading-6 text-white/70">{outcome.body}</p>
+            </article>
           ))}
         </div>
       </div>
@@ -677,9 +703,12 @@ function TeamSection() {
   return (
     <section id="company" className="bg-[#f8fbff] py-20">
       <div className={sectionShell}>
-        <div className="max-w-2xl">
+        <div className="max-w-3xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Team</p>
-          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">Built by operators, product builders, and Singapore market specialists.</h2>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">The team building Neumas for F&B operations.</h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">
+            Public team information is limited to confirmed Neumas roles and approved presentation. Unconfirmed headshots stay out of the page.
+          </p>
         </div>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {team.map((member) => (
@@ -699,6 +728,7 @@ function TeamSection() {
               )}
               <h3 className="mt-5 text-lg font-bold tracking-normal text-[#0b1736]">{member.name}</h3>
               <p className="mt-1 text-sm font-medium text-slate-600">{member.role}</p>
+              <p className="mt-4 text-sm leading-6 text-slate-600">{member.bio}</p>
             </article>
           ))}
         </div>
@@ -760,6 +790,7 @@ export function MarketingV2Page() {
       <main>
         <HeroSection />
         <MetricBand />
+        <ProofSection />
         <WorkflowSection />
         <PlatformSection />
         <VideoSection />

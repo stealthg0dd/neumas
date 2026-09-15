@@ -69,6 +69,7 @@ export type TeamMember = {
   name: string;
   role: string;
   initials: string;
+  bio: string;
   image?: MarketingAsset;
 };
 
@@ -112,13 +113,13 @@ export const metrics: Metric[] = [
   {
     value: "1,510+",
     label: "items tracked",
-    note: "Current inventory footprint across active F&B operations.",
+    note: "Current item footprint tracked in Neumas operating records.",
     tone: "blue",
   },
   {
     value: "100+",
     label: "users",
-    note: "Operators and team members using Neumas workflows.",
+    note: "People with access to Neumas workflows across current usage.",
     tone: "yellow",
   },
   {
@@ -129,8 +130,8 @@ export const metrics: Metric[] = [
   },
   {
     value: "6-10%",
-    label: "food cost opportunity",
-    note: "Verified benchmark, presented as savings opportunity.",
+    label: "food-cost optimization opportunity",
+    note: "Verified industry benchmark, not a universal customer outcome.",
     tone: "yellow",
   },
 ];
@@ -315,10 +316,10 @@ export const integrations = [
 ] as const;
 
 export const outcomes = [
-  { title: "Fewer stock-outs", body: "Keep service levels steady with better demand visibility." },
-  { title: "Less waste", body: "Projected waste reduction potential of up to 30%." },
-  { title: "Better margins", body: "Use the verified 6-10% food cost benchmark as an opportunity lens." },
-  { title: "Aligned teams", body: "Give managers, kitchen teams, and operators the same operating picture." },
+  { title: "Measured Neumas metric", value: "92%", body: "Ordering accuracy measured inside Neumas operating workflows." },
+  { title: "Verified benchmark", value: "6-10%", body: "Food-cost optimization opportunity used as a benchmark lens, not a guaranteed result." },
+  { title: "Projected potential", value: "Up to 30%", body: "Projected waste-reduction potential, qualified as forward-looking and operationally dependent." },
+  { title: "Operational footprint", value: "1,510+", body: "Items tracked in current Neumas inventory and purchasing records." },
 ] as const;
 
 export const useCases = [
@@ -335,11 +336,13 @@ export const team: TeamMember[] = [
     name: "Varun Srivastava",
     role: "CEO & Co-founder",
     initials: "VS",
+    bio: "Leads product direction, commercial strategy, and the operating-system vision for F&B teams.",
   },
   {
     name: "Anupama Sarraf",
     role: "COO & Co-founder",
     initials: "AS",
+    bio: "Shapes operating discipline, execution cadence, and customer-facing workflow quality.",
     image: {
       src: "/marketing/neumas/team/team-anupama-sarraf-headshot.jpg",
       alt: "Anupama Sarraf, COO and Co-founder of Neumas",
@@ -349,11 +352,13 @@ export const team: TeamMember[] = [
     name: "Vy Nguyen",
     role: "Co-founder",
     initials: "VN",
+    bio: "Supports product and go-to-market development across Neumas operations.",
   },
   {
     name: "Alpesh Bijlani",
     role: "Singapore Operations",
     initials: "AB",
+    bio: "Supports Singapore operations, partner coordination, and local implementation readiness.",
   },
 ];
 
