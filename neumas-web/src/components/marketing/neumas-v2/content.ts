@@ -82,14 +82,14 @@ export const hero = {
   eyebrow: "AI Operations For F&B",
   headline: "Run a smarter back of house.",
   body:
-    "From invoices and receipts to live inventory, predictive reordering, and waste control, Neumas gives F&B operators the operational intelligence they have been missing.",
+    "Neumas turns invoices, receipts, inventory movements, and consumption history into cleaner stock records, forecasts, reorder plans, and operational intelligence for F&B teams.",
   primaryCta: { label: "Book a demo", href: "/pilot" },
-  secondaryCta: { label: "See workflow", href: "#workflow" },
+  secondaryCta: { label: "See how Neumas works", href: "#workflow" },
 };
 
 export const metrics: Metric[] = [
   {
-    value: "1,510",
+    value: "1,510+",
     label: "items tracked",
     note: "Current inventory footprint across active F&B operations.",
     tone: "blue",
