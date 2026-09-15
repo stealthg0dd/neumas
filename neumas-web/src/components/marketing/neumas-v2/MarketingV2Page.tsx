@@ -13,15 +13,16 @@ import {
   marketingAssets,
   metrics,
   modules,
-  outcomes,
   platformInputs,
   platformOutputs,
+  productStories,
   receiptWorkflow,
   team,
   trustNotes,
   useCases,
   videos,
 } from "./content";
+import type { ProductStory } from "./content";
 
 const sectionShell = "mx-auto w-full max-w-7xl px-5 sm:px-8";
 
@@ -332,30 +333,212 @@ function VideoSection() {
   );
 }
 
-function OutcomesSection() {
+function MiniBar({ label, value, tone = "blue" }: { label: string; value: string; tone?: "blue" | "yellow" | "green" }) {
+  const width = Number.parseInt(value, 10);
+  const color = tone === "yellow" ? "bg-[#f5c15c]" : tone === "green" ? "bg-emerald-500" : "bg-[#0b4fd8]";
+
   return (
-    <section id="solutions" className="bg-[#f8fbff] py-20">
-      <div className={`${sectionShell} grid gap-12 lg:grid-cols-[1.1fr_0.9fr]`}>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Outcomes</p>
-          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">Less guesswork. Better margins.</h2>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            {outcomes.map((outcome) => (
-              <article key={outcome.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6">
-                <h3 className="text-lg font-bold tracking-normal text-[#0b1736]">{outcome.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{outcome.body}</p>
-              </article>
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-4 text-xs font-semibold text-slate-500">
+        <span>{label}</span>
+        <span>{value}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(width, 100)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function ProductScene({ scene }: { scene: ProductStory["scene"] }) {
+  if (scene === "inventory") {
+    return (
+      <div className="rounded-lg border border-[#0b1736]/10 bg-white p-5 shadow-xl shadow-[#0b1736]/8">
+        <div className="flex items-center justify-between border-b border-[#0b1736]/10 pb-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0b4fd8]">Outlet A</p>
+            <h3 className="mt-1 text-xl font-bold tracking-normal text-[#0b1736]">Live Inventory</h3>
+          </div>
+          <p className="rounded-md bg-[#eef5ff] px-3 py-2 text-sm font-bold text-[#0b4fd8]">SGD 34,680</p>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-md bg-[#f8fbff] p-4">
+            <p className="text-sm font-bold text-[#0b1736]">Stock levels</p>
+            <div className="mt-4 space-y-4">
+              <MiniBar label="Chicken breast" value="74%" />
+              <MiniBar label="Tomatoes" value="42%" tone="yellow" />
+              <MiniBar label="Olive oil" value="86%" tone="green" />
+              <MiniBar label="Mozzarella" value="29%" tone="yellow" />
+            </div>
+          </div>
+          <div className="rounded-md bg-[#fff8e8] p-4">
+            <p className="text-sm font-bold text-[#0b1736]">Movement signals</p>
+            <div className="mt-4 space-y-3 text-sm text-slate-600">
+              <p className="flex justify-between gap-4"><span>Low-stock risk</span><strong className="text-[#7a4b00]">4 items</strong></p>
+              <p className="flex justify-between gap-4"><span>Inventory movement</span><strong className="text-[#0b1736]">+12.5%</strong></p>
+              <p className="flex justify-between gap-4"><span>Expiry watch</span><strong className="text-[#7a4b00]">2 days</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (scene === "prediction") {
+    return (
+      <div className="rounded-lg border border-[#0b1736]/10 bg-white p-5 shadow-xl shadow-[#0b1736]/8">
+        <div className="grid gap-4 lg:grid-cols-[1fr_0.82fr]">
+          <div className="rounded-md bg-[#eef5ff] p-5">
+            <p className="text-sm font-bold text-[#0b1736]">Forecast</p>
+            <div className="mt-6 flex h-40 items-end gap-3">
+              {[42, 56, 61, 68, 74, 81, 76].map((height, index) => (
+                <div key={height} className="flex flex-1 flex-col items-center gap-2">
+                  <div className="w-full rounded-t-md bg-[#0b4fd8]" style={{ height: `${height}%` }} />
+                  <span className="text-[10px] font-semibold text-slate-500">D{index + 1}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-md bg-[#fff8e8] p-5">
+            <p className="text-sm font-bold text-[#0b1736]">Recommended reorder</p>
+            <div className="mt-4 space-y-3 text-sm text-slate-700">
+              <p className="flex justify-between gap-4"><span>Chicken breast</span><strong>8 kg</strong></p>
+              <p className="flex justify-between gap-4"><span>Tomatoes</span><strong>10 kg</strong></p>
+              <p className="flex justify-between gap-4"><span>Onions</span><strong>8 kg</strong></p>
+              <p className="flex justify-between gap-4 border-t border-[#0b1736]/10 pt-3"><span>Estimated plan</span><strong>SGD 420</strong></p>
+            </div>
+            <p className="mt-5 rounded-md bg-[#0b4fd8] px-4 py-3 text-center text-sm font-bold text-white">Manager approval required</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (scene === "vendors") {
+    return (
+      <div className="rounded-lg border border-[#0b1736]/10 bg-white p-5 shadow-xl shadow-[#0b1736]/8">
+        <div className="grid gap-4 sm:grid-cols-[0.85fr_1fr]">
+          <div className="space-y-3">
+            {["FreshMart Foods", "Daily Produce Co.", "Harbour Dry Goods"].map((vendor, index) => (
+              <div key={vendor} className={`rounded-md border p-4 ${index === 0 ? "border-[#0b4fd8]/30 bg-[#eef5ff]" : "border-[#0b1736]/10 bg-white"}`}>
+                <p className="font-bold tracking-normal text-[#0b1736]">{vendor}</p>
+                <p className="mt-1 text-xs text-slate-500">Active vendor record</p>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-md bg-[#f8fbff] p-5">
+            <p className="text-sm font-bold text-[#0b1736]">Vendor analytics</p>
+            <div className="mt-5 space-y-4">
+              <MiniBar label="Monthly spend" value="68%" />
+              <MiniBar label="Price movement" value="18%" tone="yellow" />
+              <MiniBar label="Reorder history match" value="82%" tone="green" />
+            </div>
+            <div className="mt-5 rounded-md border border-[#f5c15c]/45 bg-[#fff8e8] p-4 text-sm text-slate-700">
+              Alert: invoice price variance detected on produce category.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (scene === "cost") {
+    return (
+      <div className="rounded-lg border border-[#0b1736]/10 bg-white p-5 shadow-xl shadow-[#0b1736]/8">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-md bg-[#fff8e8] p-5">
+            <p className="text-3xl font-bold tracking-normal text-[#0b1736]">Up to 30%</p>
+            <p className="mt-2 text-sm font-semibold text-slate-600">Projected waste reduction potential</p>
+          </div>
+          <div className="rounded-md bg-[#eef5ff] p-5">
+            <p className="text-3xl font-bold tracking-normal text-[#0b1736]">6-10%</p>
+            <p className="mt-2 text-sm font-semibold text-slate-600">Food-cost benchmark opportunity</p>
+          </div>
+          <div className="rounded-md bg-emerald-50 p-5">
+            <p className="text-3xl font-bold tracking-normal text-[#0b1736]">92%</p>
+            <p className="mt-2 text-sm font-semibold text-slate-600">Measured Neumas ordering accuracy</p>
+          </div>
+        </div>
+        <div className="mt-5 rounded-md border border-[#0b1736]/10 p-4">
+          <p className="text-sm font-bold text-[#0b1736]">Risk queue</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {["Low stock", "Over-order risk", "Expiry risk"].map((risk) => (
+              <p key={risk} className="rounded-md bg-[#f8fbff] px-3 py-3 text-sm font-semibold text-slate-700">{risk}</p>
             ))}
           </div>
         </div>
-        <div className="overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white">
-          <Image
-            src={marketingAssets.cta.src}
-            alt={marketingAssets.cta.alt}
-            width={1672}
-            height={941}
-            className="h-full min-h-[360px] w-full object-cover"
-          />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-[#0b1736]/10 bg-white p-5 shadow-xl shadow-[#0b1736]/8">
+      <div className="grid gap-4 lg:grid-cols-[0.8fr_1fr]">
+        <div className="rounded-md bg-[#0b1736] p-5 text-white">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#f5c15c]">Organization</p>
+          <h3 className="mt-2 text-xl font-bold tracking-normal">Group roll-up</h3>
+          <div className="mt-6 space-y-3">
+            <p className="flex justify-between gap-4"><span>Properties</span><strong>4</strong></p>
+            <p className="flex justify-between gap-4"><span>Items tracked</span><strong>1,510+</strong></p>
+            <p className="flex justify-between gap-4"><span>Open alerts</span><strong>12</strong></p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            ["Outlet A", "Healthy", "86%"],
+            ["Outlet B", "Review", "72%"],
+            ["Outlet C", "Action", "64%"],
+            ["Outlet D", "Healthy", "91%"],
+          ].map(([outlet, status, health]) => (
+            <div key={outlet} className="rounded-md border border-[#0b1736]/10 bg-[#f8fbff] p-4">
+              <div className="flex items-center justify-between gap-4">
+                <p className="font-bold text-[#0b1736]">{outlet}</p>
+                <span className="rounded-md bg-white px-2 py-1 text-xs font-bold text-[#0b4fd8]">{status}</span>
+              </div>
+              <div className="mt-4">
+                <MiniBar label="Outlet health" value={health} tone={status === "Action" ? "yellow" : "blue"} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductStorytellingSection() {
+  return (
+    <section id="solutions" className="bg-[#f8fbff] py-20">
+      <div className={sectionShell}>
+        <div className="max-w-3xl">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Product Story</p>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">The operating layer between stock, suppliers, and decisions.</h2>
+          <p className="mt-5 text-base leading-7 text-slate-600">
+            Large product scenes show how Neumas turns existing inventory, prediction, vendor, reporting, and property concepts into a commercial F&B workflow.
+          </p>
+        </div>
+        <div className="mt-14 space-y-14">
+          {productStories.map((story, index) => (
+            <article
+              key={story.headline}
+              className={`grid gap-8 lg:grid-cols-2 lg:items-center ${index % 2 === 1 ? "lg:[&>div:first-child]:order-2" : ""}`}
+            >
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">{story.eyebrow}</p>
+                <h3 className="mt-4 text-3xl font-bold tracking-normal text-[#0b1736] sm:text-4xl">{story.headline}</h3>
+                <p className="mt-5 text-base leading-7 text-slate-600">{story.body}</p>
+                <ul className="mt-7 grid gap-3 sm:grid-cols-2">
+                  {story.bullets.map((bullet) => (
+                    <li key={bullet} className="flex gap-3 text-sm font-medium text-slate-700">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#f5c15c]" aria-hidden="true" />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <ProductScene scene={story.scene} />
+            </article>
+          ))}
         </div>
       </div>
     </section>
@@ -491,7 +674,7 @@ export function MarketingV2Page() {
         <WorkflowSection />
         <PlatformSection />
         <VideoSection />
-        <OutcomesSection />
+        <ProductStorytellingSection />
         <IntegrationsAndUseCases />
         <TeamSection />
         <TrustSection />

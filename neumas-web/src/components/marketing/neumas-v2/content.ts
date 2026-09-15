@@ -50,6 +50,14 @@ export type ReceiptWorkflowStep = WorkflowStep & {
   microcopy: string;
 };
 
+export type ProductStory = {
+  eyebrow: string;
+  headline: string;
+  body: string;
+  bullets: string[];
+  scene: "inventory" | "prediction" | "vendors" | "cost" | "locations";
+};
+
 export type Module = {
   title: string;
   body: string;
@@ -252,6 +260,49 @@ export const modules: Module[] = [
     body: "Turn daily purchasing and inventory work into decision-ready reporting.",
     bullets: ["Usage patterns by category", "Margin and waste signals", "Weekly operating summaries"],
     icon: BarChart3,
+  },
+];
+
+export const productStories: ProductStory[] = [
+  {
+    eyebrow: "Inventory Intelligence",
+    headline: "Know what you have. Before it costs you.",
+    body:
+      "Give operators a live view of outlet inventory, stock movement, low-stock risk, and inventory value without changing the underlying dashboard workflow.",
+    bullets: ["Outlet inventory", "Stock levels and movement", "Low-stock risk", "Inventory value"],
+    scene: "inventory",
+  },
+  {
+    eyebrow: "Predictive Purchasing",
+    headline: "Know what you'll need next.",
+    body:
+      "Use forecasts and reorder recommendations to prepare supplier-linked plans for manager approval. Neumas recommends; operators stay in control.",
+    bullets: ["Forecasts", "Reorder recommendations", "Approval workflow", "Supplier linkage"],
+    scene: "prediction",
+  },
+  {
+    eyebrow: "Vendor Intelligence",
+    headline: "Know your suppliers as well as your kitchen.",
+    body:
+      "Turn vendor records, spend, price movement, alerts, and reorder history into a clearer supplier operating picture.",
+    bullets: ["Vendor directory", "Spend and price movement", "Comparisons and alerts", "Reorder history"],
+    scene: "vendors",
+  },
+  {
+    eyebrow: "Waste Risk & Cost Control",
+    headline: "Act before waste becomes cost.",
+    body:
+      "Track risk signals before they turn into lost margin, using projected waste reduction potential and food-cost benchmarks responsibly.",
+    bullets: ["Projected waste reduction potential up to 30%", "6-10% food-cost benchmark opportunity", "Expiry and over-order signals", "Measured ordering accuracy"],
+    scene: "cost",
+  },
+  {
+    eyebrow: "Multi-location Operations",
+    headline: "One dashboard. Every outlet.",
+    body:
+      "Show organization-level roll-ups across properties, outlet health, inventory, alerts, and operating follow-up with anonymized outlet labels.",
+    bullets: ["Organization and properties", "Outlet health", "Inventory and alerts", "Group-level roll-up"],
+    scene: "locations",
   },
 ];
 
