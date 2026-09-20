@@ -88,7 +88,7 @@ jobs:
         run: pnpm run seo:audit
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm test -- --pool=forks --maxWorkers=1
 
   # ---------------------------------------------------------------------------
   # neumas-backend — lint + pytest
