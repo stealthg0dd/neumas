@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "seo:audit": "node scripts/seo-audit.mjs",
+    "sitemap:health": "node scripts/production-sitemap-health.mjs",
     "vercel-build": "next build"
   },
   "dependencies": {
