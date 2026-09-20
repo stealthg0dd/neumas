@@ -74,14 +74,15 @@ function getExpectedConcepts(path) {
   return conceptExpectations.find((expectation) => expectation.match.test(path))?.concepts ?? [];
 }
 
-function getInternalLinks(html, sitemapUrls) {
+function getInternalLinks(html) {
   const urls = new Set();
   for (const tag of getTags(html, "a")) {
     const href = getAttribute(tag, "href");
-    if (!href) continue;
+    if (!href || href.startsWith("#")) continue;
     const absolute = href.startsWith("http") ? href : new URL(href, canonicalHost).toString();
-    const normalized = absolute.replace(/\/$/, "");
-    if (sitemapUrls.has(normalized)) urls.add(normalized);
+    const parsed = new URL(absolute);
+    if (parsed.origin !== canonicalHost) continue;
+    urls.add(`${parsed.origin}${parsed.pathname}`.replace(/\/$/, ""));
   }
   return urls;
 }
@@ -143,6 +144,7 @@ async function main() {
     const privatePrefixes = ["/auth", "/dashboard", "/api", "/onboard", "/pilot", "/insights", "/marketing-preview"];
     const errors = [];
     const pages = new Map();
+    const internalLinks = new Set();
 
     for (const url of sitemapUrls) {
       if (!url.startsWith(canonicalHost)) errors.push(`${url}: non-canonical sitemap host`);
@@ -181,7 +183,15 @@ async function main() {
 
       const blockedPath = [...robots.matchAll(/^Disallow:\s*(\S+)/gim)].map((match) => match[1]).find((disallow) => disallow !== "/" && path.startsWith(disallow));
       if (blockedPath) errors.push(`${url}: blocked by robots.txt rule ${blockedPath}`);
-      pages.set(url, { links: getInternalLinks(html, sitemapUrlSet) });
+      const links = getInternalLinks(html);
+      for (const link of links) internalLinks.add(link);
+      pages.set(url, { links: new Set([...links].filter((link) => sitemapUrlSet.has(link))) });
+    }
+
+    for (const link of internalLinks) {
+      const path = new URL(link).pathname;
+      const response = await fetch(`${baseUrl}${path}`, { redirect: "manual" });
+      if (response.status >= 400) errors.push(`${link}: rendered internal link returns HTTP ${response.status}`);
     }
 
     const incoming = new Map(sitemapUrls.map((url) => [url, 0]));

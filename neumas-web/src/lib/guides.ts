@@ -74,14 +74,14 @@ const guideDefinitions: GuideContent[] = [
   {
     slug: "restaurant-inventory-management",
     path: "/guides/restaurant-inventory-management",
-    title: "Restaurant Inventory Management: A Practical Guide for Modern F&B Operators",
+    title: "Restaurant Inventory Management Guide for Singapore",
     description:
-      "A practical guide to restaurant inventory management: definitions, workflow, common failure points, key metrics, and a decision framework for modern F&B operators.",
+      "A practical Singapore guide to restaurant inventory management, covering stock workflows, supplier invoices, food cost, counts, reordering, and implementation.",
     h1: "Restaurant Inventory Management: A Practical Guide for Modern F&B Operators",
     dek:
       "For restaurant operators, restaurant groups, and multi-location F&B teams, inventory is where purchasing decisions, food cost, and service reliability meet. This guide walks through what restaurant inventory management actually involves, where it typically breaks down, and how to think about upgrading it.",
     summary:
-      "A practical guide to restaurant inventory management, covering workflow, failure points, metrics, and a decision framework for F&B operators.",
+      "A practical Singapore guide to restaurant inventory management, covering stock workflows, supplier invoices, food cost, counts, reordering, and implementation.",
     publishedAt: "2026-09-20",
     updatedAt: "2026-09-20",
     category: "Guide",
@@ -89,9 +89,11 @@ const guideDefinitions: GuideContent[] = [
     canonicalUrl: "https://www.neumas.cc/guides/restaurant-inventory-management",
     readingTime: "11 min read",
     keywords: [
-      "restaurant inventory management software",
-      "restaurant inventory intelligence",
-      "multi-location restaurant operations",
+      "Restaurant Inventory Management in Singapore",
+      "inventory management for restaurants",
+      "restaurant stock management",
+      "food inventory management",
+      "restaurant inventory best practices",
     ],
     sections: [
       {
@@ -131,6 +133,18 @@ const guideDefinitions: GuideContent[] = [
           "4. Counting — periodic physical counts (full or cycle counts) establish what is actually on the shelf.",
           "5. Variance review — actual counts are compared against theoretical usage to spot shrinkage, over-portioning, or data entry errors.",
           "6. Reordering — par levels, recent usage, and any pending deliveries inform what gets ordered next, and from which supplier.",
+        ],
+      },
+      {
+        heading: "Manual versus automated inventory workflows",
+        type: "workflow",
+        body: [
+          "Manual stock sheets can be workable when a small team has stable suppliers and one person can see the whole operation. They become fragile when invoices arrive in different formats, ingredients have multiple names or pack sizes, and counts happen across several outlets or shifts.",
+          "An automated workflow should not mean removing judgment. It should reduce repetitive transcription: supplier invoices create structured starting records, normalized ingredients make comparisons clearer, and stock or reorder signals give a manager something specific to review. Physical counts and approval remain important controls.",
+        ],
+        relatedLinks: [
+          { href: "/compare/manual-ordering-vs-ai-operations", label: "Manual ordering vs AI operations" },
+          { href: "/solutions/invoice-intelligence", label: "Invoice intelligence" },
         ],
       },
       {
@@ -186,6 +200,40 @@ const guideDefinitions: GuideContent[] = [
         ],
       },
       {
+        heading: "What Singapore F&B operators should evaluate",
+        type: "decision-framework",
+        body: [
+          "Singapore F&B teams should evaluate inventory management around operating fit rather than a generic feature checklist. Start with whether supplier invoices can be reviewed at line-item level, whether ingredient names and units can be kept consistent, and whether stock counts, reorder points, and price changes can be reviewed by the people accountable for each outlet.",
+          "For multi-location operations, also check whether the system preserves outlet-level accountability while giving operations and procurement a meaningful group view. A useful inventory system should make stockout risk, waste, supplier price changes, and transfer or ordering decisions easier to investigate, not hide them behind an opaque score.",
+        ],
+        bullets: [
+          "Supplier invoice capture, review, and item-level normalization.",
+          "Stock counts and adjustments that remain auditable.",
+          "Clear reorder points and human approval before purchasing decisions are finalized.",
+          "Food-cost and supplier-price context connected to the ingredients being managed.",
+          "Outlet-level records with a group-level view for multi-location teams.",
+        ],
+        relatedLinks: [
+          { href: "/solutions/procurement-intelligence", label: "Procurement intelligence" },
+          { href: "/solutions/predictive-reordering", label: "Predictive reordering" },
+          { href: "/solutions/food-cost-control", label: "Food cost control" },
+        ],
+      },
+      {
+        heading: "A practical implementation checklist",
+        type: "decision-framework",
+        body: [
+          "A reliable rollout starts by making the operating record usable, then introducing decisions in a controlled order. Begin with a limited set of high-value ingredients or one outlet, establish who reviews ambiguous supplier lines, and set a repeatable physical-count routine before expanding the scope.",
+        ],
+        bullets: [
+          "Map suppliers, invoice formats, ingredient names, pack sizes, and storage units.",
+          "Choose an owner for receiving, invoice review, stock counts, and stock adjustments.",
+          "Set starting reorder points and review them after actual usage is visible.",
+          "Track stockouts, waste, unusual movement, and supplier price changes as investigation prompts.",
+          "Expand from one outlet or category only after the review and counting routine is working.",
+        ],
+      },
+      {
         heading: "Where Neumas fits",
         type: "neumas-fit",
         body: [
@@ -196,6 +244,9 @@ const guideDefinitions: GuideContent[] = [
           { href: "/features/inventory-intelligence", label: "Inventory intelligence feature" },
           { href: "/solutions/restaurant-inventory-management", label: "Restaurant inventory management solution" },
           { href: "/solutions/invoice-intelligence", label: "Invoice intelligence solution" },
+          { href: "/solutions/food-cost-control", label: "Food cost control solution" },
+          { href: "/solutions/procurement-intelligence", label: "Procurement intelligence solution" },
+          { href: "/solutions/predictive-reordering", label: "Predictive reordering solution" },
         ],
       },
     ],
@@ -221,10 +272,22 @@ const guideDefinitions: GuideContent[] = [
         answer:
           "There is no single, universal benchmark, and treating one as a target can create false confidence. It is more useful to track your own variance trend by category over time, investigate outliers, and focus on whether variance is improving or worsening rather than comparing to an external number.",
       },
+      {
+        question: "How do supplier invoices affect restaurant inventory management?",
+        answer:
+          "Supplier invoices record what was delivered, in what quantity, unit, and price. Turning them into reviewed line-item records helps keep the stock ledger current, exposes ingredient naming or pack-size differences, and provides the purchasing context needed for stock and food-cost review.",
+      },
+      {
+        question: "How can restaurants reduce stockout risk without over-ordering?",
+        answer:
+          "Use periodic counts to anchor the physical reality, then review current stock, recent usage, pending deliveries, and item-specific reorder points together. The goal is a reviewable reorder decision, not an automatic order based on one signal alone.",
+      },
     ],
     relatedSolutionLinks: [
       { href: "/solutions/restaurant-inventory-management", label: "Restaurant inventory management" },
       { href: "/solutions/invoice-intelligence", label: "Invoice intelligence" },
+      { href: "/solutions/food-cost-control", label: "Food cost control" },
+      { href: "/solutions/procurement-intelligence", label: "Procurement intelligence" },
       { href: "/solutions/predictive-reordering", label: "Predictive reordering" },
     ],
     ctaTitle: "See how Neumas keeps inventory records current",
@@ -233,7 +296,7 @@ const guideDefinitions: GuideContent[] = [
   {
     slug: "restaurant-food-cost-control",
     path: "/guides/restaurant-food-cost-control",
-    title: "Restaurant Food Cost Control: From Supplier Invoice to Margin Visibility",
+    title: "Restaurant Food Cost Control Guide",
     description:
       "A practical guide to restaurant food cost control: definitions, the invoice-to-margin workflow, common failure points, key metrics, and how to think about upgrading your process.",
     h1: "Restaurant Food Cost Control: From Supplier Invoice to Margin Visibility",

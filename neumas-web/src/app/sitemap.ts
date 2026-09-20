@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { buildAbsoluteUrl, publicPages } from "@/lib/public-site";
 import { guides } from "@/lib/guides";
+import { publicHubs } from "@/lib/public-hubs";
 
 function getChangeFrequency(path: string): MetadataRoute.Sitemap[number]["changeFrequency"] {
   return path.startsWith("/research/") || path.startsWith("/guides/") ? "monthly" : "weekly";
@@ -15,6 +16,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 1,
     },
+    ...publicHubs.map((hub) => ({
+      url: buildAbsoluteUrl(hub.path),
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     ...publicPages.map((page) => ({
       url: buildAbsoluteUrl(page.path),
       lastModified: new Date(),

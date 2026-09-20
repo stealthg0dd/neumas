@@ -554,14 +554,19 @@ const b2bPublicPages: PublicPageDefinition[] = [
   },
   {
     path: "/solutions/restaurant-inventory-management",
-    title: "Restaurant Inventory Management Software",
+    title: "Restaurant Inventory Management Software Singapore",
     description:
-      "Restaurant inventory management software that turns invoices, receipts, and stock movements into live, outlet-level inventory visibility.",
-    h1: "Restaurant inventory management, built on real operating documents.",
+      "Restaurant inventory management software for Singapore F&B teams, turning invoices, receipts, and stock movements into live inventory visibility.",
+    h1: "Restaurant inventory management for Singapore F&B teams.",
     eyebrow: "Solution",
     intro:
-      "Restaurant operators, executive chefs, and multi-location groups need to know what is on hand right now, not just at the last manual count. Neumas keeps inventory records current using the invoices, receipts, and stock movements your team already generates.",
-    keywords: ["restaurant inventory management software", "restaurant inventory intelligence", "multi-location inventory visibility"],
+      "Restaurant operators, executive chefs, and multi-location F&B groups in Singapore need to know what is on hand now, not only at the last manual count. Neumas keeps inventory records current using the invoices, receipts, and stock movements your team already generates.",
+    keywords: [
+      "restaurant inventory management software",
+      "restaurant inventory management Singapore",
+      "restaurant inventory software",
+      "F&B inventory management",
+    ],
     sections: [
       {
         title: "The problem",
@@ -602,6 +607,17 @@ const b2bPublicPages: PublicPageDefinition[] = [
         ],
       },
       {
+        title: "A practical F&B inventory system",
+        body:
+          "Inventory software is most useful when it fits the work already happening in the kitchen, store room, and purchasing process. Neumas starts with supplier invoices and receipts, then combines those records with stock movements and periodic counts. That gives operators a clearer view of stock without requiring them to replace every existing process at once.",
+        bullets: [
+          "Supplier documents become reviewable item, quantity, vendor, and price records.",
+          "Periodic stock counts reconcile the ledger with physical reality.",
+          "Reorder points and low-stock signals give operators a prompt for review, not an automatic order.",
+          "Multi-location teams retain outlet detail while procurement and operations can compare a group-level view.",
+        ],
+      },
+      {
         title: "Who this is for",
         body: "Built for the people who manage or oversee stock:",
         bullets: ["Restaurant operators", "Executive chefs", "Operations managers", "Multi-location F&B groups"],
@@ -623,12 +639,19 @@ const b2bPublicPages: PublicPageDefinition[] = [
         answer:
           "Alerts are based on stock levels and movement patterns identified from your processed documents and recorded activity, such as items running low.",
       },
+      {
+        question: "What should a Singapore restaurant evaluate in inventory management software?",
+        answer:
+          "Start with the documents and decisions your team handles today: supplier invoice intake, item and pack-size consistency, stock counts, low-stock review, reorder approval, vendor price visibility, and the ability to separate outlet detail from a group view. The right fit should improve those routines without requiring unsupported integrations or autonomous purchasing claims.",
+      },
     ],
     ctaTitle: "See restaurant inventory management in context",
     ctaBody: "Walk through the full receipt-to-reorder workflow, or contact Neumas about your current stock process.",
     relatedLinks: [
       { href: "/features/inventory-intelligence", label: "Inventory intelligence" },
       { href: "/solutions/invoice-intelligence", label: "Invoice intelligence" },
+      { href: "/solutions/food-cost-control", label: "Food cost control" },
+      { href: "/solutions/procurement-intelligence", label: "Procurement intelligence" },
       { href: "/solutions/predictive-reordering", label: "Predictive reordering" },
       { href: "/guides/restaurant-inventory-management", label: "Guide: Restaurant inventory management" },
       { href: "/use-cases/cafes-bakeries", label: "Cafes and bakeries" },
@@ -1386,12 +1409,10 @@ export const publicRouteIndex: PublicLink[] = publicPages.map((page) => ({
   label: page.title,
 }));
 
-// Stable @id anchors so Organization/WebSite/SoftwareApplication merge into one
-// consistent knowledge-graph entity instead of duplicating disconnected nodes.
+// Stable @id anchors keep Organization and WebSite references consistent.
 export const entityIds = {
   organization: `${siteConfig.url}/#organization`,
   website: `${siteConfig.url}/#website`,
-  software: `${siteConfig.url}/#software`,
 };
 
 /** Nested contact node (no @context — only used embedded inside Organization). */
@@ -1429,34 +1450,6 @@ export function buildWebSiteSchema(): JsonLd {
     description: siteConfig.description,
     inLanguage: "en",
     publisher: { "@id": entityIds.organization },
-  };
-}
-
-export function buildSoftwareApplicationSchema(): JsonLd {
-  return {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "@id": entityIds.software,
-    name: siteConfig.name,
-    applicationCategory: "BusinessApplication",
-    applicationSubCategory: "Restaurant / F&B Operations Intelligence",
-    operatingSystem: "Web",
-    description: siteConfig.description,
-    url: siteConfig.url,
-    featureList: [
-      "Supplier invoice intelligence",
-      "Invoice OCR and line-item normalization",
-      "Inventory management",
-      "Food-cost visibility",
-      "Supplier price-change monitoring",
-      "Procurement intelligence",
-      "Stockout prediction",
-      "Waste reduction",
-      "Predictive reordering",
-      "Multi-location operations",
-    ],
-    publisher: { "@id": entityIds.organization },
-    creator: { "@id": entityIds.organization },
   };
 }
 
@@ -1524,7 +1517,6 @@ export function getHomepageSchemas(): JsonLd[] {
   return [
     buildOrganizationSchema(),
     buildWebSiteSchema(),
-    buildSoftwareApplicationSchema(),
     buildWebPageSchema({
       path: "/",
       title: "Neumas — AI Operations for F&B",

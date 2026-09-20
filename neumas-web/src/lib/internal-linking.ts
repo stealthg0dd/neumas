@@ -1,4 +1,5 @@
 import { guides } from "@/lib/guides";
+import { publicHubs } from "@/lib/public-hubs";
 import { publicPages } from "@/lib/public-site";
 
 export type InternalLinkReportRow = {
@@ -17,7 +18,7 @@ const homepageLinks = [
 ];
 
 function getPublicPaths(): string[] {
-  return ["/", "/guides", ...publicPages.map((page) => page.path), ...guides.map((guide) => guide.path)];
+  return ["/", "/guides", ...publicHubs.map((hub) => hub.path), ...publicPages.map((page) => page.path), ...guides.map((guide) => guide.path)];
 }
 
 function getControlledLinks(): Map<string, string[]> {
@@ -27,10 +28,17 @@ function getControlledLinks(): Map<string, string[]> {
   links.set("/", homepageLinks);
   links.set("/guides", guides.map((guide) => guide.path));
 
+  for (const hub of publicHubs) {
+    links.set(hub.path, publicPages.filter((page) => page.path.startsWith(`${hub.path}/`)).map((page) => page.path));
+  }
+
   for (const page of publicPages) {
     links.set(
       page.path,
-      page.relatedLinks.map((link) => link.href).filter((href) => knownPaths.has(href)),
+      [
+        ...page.relatedLinks.map((link) => link.href),
+        ...publicHubs.filter((hub) => page.path.startsWith(`${hub.path}/`)).map((hub) => hub.path),
+      ].filter((href) => knownPaths.has(href)),
     );
   }
 
