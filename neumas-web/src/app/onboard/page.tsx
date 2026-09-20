@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Building2, Home, Loader2 } from "lucide-react";
+import { ArrowRight, Building2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import ClientOnboardPage from "./ClientOnboardPage";
@@ -40,7 +40,7 @@ function PersonaCards({
           </p>
         </div>
 
-        <div className="mx-auto mt-10 grid max-w-4xl gap-5 md:grid-cols-2">
+        <div className="mx-auto mt-10 grid max-w-lg gap-5">
           <button
             type="button"
             onClick={() => onSelect("FNB")}
@@ -68,41 +68,13 @@ function PersonaCards({
               )}
             </div>
           </button>
-
-          <button
-            type="button"
-            onClick={() => onSelect("HOUSEHOLD")}
-            disabled={busyPersona !== null}
-            className="rounded-3xl border border-gray-200 bg-white p-7 text-left shadow-sm transition-all hover:border-[#0071a3] hover:shadow-md disabled:opacity-70"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0071a3]/10 text-[#0071a3]">
-              <Home className="h-6 w-6" />
-            </div>
-            <h2 className="mt-5 text-xl font-semibold text-gray-900">Home &amp; Household</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Manage groceries, pantry, spending, waste and replenishment.
-            </p>
-            <div className="mt-6 flex items-center gap-2 text-sm font-semibold text-[#0071a3]">
-              {busyPersona === "HOUSEHOLD" ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Setting up workspace
-                </>
-              ) : (
-                <>
-                  Continue with household
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </div>
-          </button>
         </div>
 
         <p className="mt-8 text-center text-sm text-gray-500">
           Joining an existing team? Invitation-based users should inherit organization context.
         </p>
         <p className="mt-3 text-center text-xs text-gray-400">
-          Need help? <Link href="mailto:hello@neumas.io" className="underline">Email us</Link>
+          Need help? <Link href="mailto:team@neumas.cc" className="underline">Email us</Link>
         </p>
       </div>
     </div>

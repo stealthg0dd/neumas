@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "seo:audit": "node scripts/seo-audit.mjs",
     "vercel-build": "next build"
   },
   "dependencies": {

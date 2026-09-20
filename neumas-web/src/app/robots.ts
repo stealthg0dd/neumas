@@ -19,6 +19,7 @@ const crawlableAgents = [
   "Bingbot",
   "OAI-SearchBot",
   "GPTBot",
+  "ChatGPT-User",
   "ClaudeBot",
   "Claude-SearchBot",
   "Claude-User",

@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { PWARegistration } from "@/components/pwa-registration";
 import { getCanonicalAppUrl } from "@/lib/app-url";
+import { siteConfig } from "@/lib/public-site";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-neumas-sans",
@@ -24,8 +25,7 @@ export const metadata: Metadata = {
     default: "Neumas — AI Operations for F&B",
     template: "%s | Neumas",
   },
-  description:
-    "Neumas turns invoices, receipts, inventory movements, and consumption history into inventory intelligence, forecasts, reorder plans, vendor signals, and operational alerts for F&B teams.",
+  description: siteConfig.description,
   keywords: [
     "AI operations for F&B",
     "restaurant inventory software",
@@ -43,15 +43,19 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Neumas",
     title: "Neumas — AI Operations for F&B",
-    description:
-      "AI operations intelligence for restaurants, cafes, cloud kitchens, and multi-location F&B teams.",
+    description: siteConfig.description,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Neumas AI operations for F&B" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Neumas — AI Operations for F&B",
-    description: "Run a smarter back of house with receipt, inventory, forecast, reorder, and vendor intelligence.",
+    description: siteConfig.description,
     images: ["/twitter-image"],
+  },
+  alternates: {
+    types: {
+      "application/rss+xml": [{ url: "/feed.xml", title: "Neumas Resources" }],
+    },
   },
   manifest: "/manifest.webmanifest",
   appleWebApp: {

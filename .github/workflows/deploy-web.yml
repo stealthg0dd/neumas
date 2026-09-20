@@ -32,6 +32,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: read
   contents: read
   checks: read
 
@@ -142,6 +143,36 @@ jobs:
           done
           echo "Health check failed after 5 attempts"
           exit 1
+
+      - name: Find previous successful production deployment
+        id: indexnow-base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUNS=$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/deploy-web.yml/runs?status=success&per_page=20") || {
+              echo "Could not read previous deployment history; IndexNow will be skipped."
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            }
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          BASE_SHA=$(echo "$RUNS" | jq -r --argjson current "$GITHUB_RUN_ID" '.workflow_runs[] | select(.id != $current) | .head_sha' | head -1)
+          if [ -n "$BASE_SHA" ] && [ "$BASE_SHA" != "null" ]; then
+            echo "sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+            echo "Previous successful production SHA: $BASE_SHA"
+          else
+            echo "No prior successful production deployment found."
+          fi
+
+      - name: Submit changed public URLs to IndexNow
+        if: steps.indexnow-base.outputs.ready == 'true'
+        env:
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+          INDEXNOW_KEY_LOCATION: https://www.neumas.cc/indexnow-key
+          INDEXNOW_BASE_SHA: ${{ steps.indexnow-base.outputs.sha }}
+        run: node neumas-web/scripts/indexnow-submit.mjs || echo "IndexNow failed non-fatally"
 
       - name: Create Sentry release
         if: steps.deploy.outputs.url != ''

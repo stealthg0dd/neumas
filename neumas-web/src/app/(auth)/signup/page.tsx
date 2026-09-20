@@ -54,10 +54,7 @@ type Step3 = z.infer<typeof step3Schema>;
 
 // ── Org types ─────────────────────────────────────────────────────────────────
 
-const ORG_TYPES = [
-  { value: "FNB", label: "F&B Business" },
-  { value: "HOUSEHOLD", label: "Home & Household" },
-];
+const ORG_TYPES = [{ value: "FNB", label: "F&B Business" }];
 
 // ── Step progress indicator ────────────────────────────────────────────────────
 

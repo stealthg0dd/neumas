@@ -1185,7 +1185,7 @@ export default function ClientOnboardPage({
         {step < TOTAL_STEPS && (
           <p className="mt-6 text-center text-[12px] text-gray-400">
             Need help?{" "}
-            <Link href="mailto:hello@neumas.io" className="underline hover:text-gray-600">
+            <Link href="mailto:team@neumas.cc" className="underline hover:text-gray-600">
               Email us
             </Link>
           </p>

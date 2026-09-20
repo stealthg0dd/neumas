@@ -84,6 +84,9 @@ jobs:
           SENTRY_AUTH_TOKEN: ""
         run: pnpm run build
 
+      - name: SEO and AI visibility audit
+        run: pnpm run seo:audit
+
       - name: Run tests
         run: pnpm test
 

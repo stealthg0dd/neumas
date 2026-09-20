@@ -1,39 +1,41 @@
 import { buildAbsoluteUrl, homepageFaqs, publicPages, siteConfig } from "@/lib/public-site";
 
 function buildLlmsFullText() {
-  return `# Neumas Full Public Brief
+  return `# Neumas — Full Public Brief
 
 ## Company overview
-Neumas is an AI operations platform for F&B teams in Singapore and Southeast Asia. The public site explains the product, workflow, use cases, integrations context, privacy stance, and feature set without requiring login.
+Neumas is a B2B AI operations intelligence platform for F&B businesses: restaurants, restaurant groups, cafes, cloud kitchens, hotel kitchens, central kitchens, and multi-location F&B operators. It is not a consumer, household, or grocery app. The public site explains the product, workflow, use cases, integrations context, privacy stance, and feature set without requiring login.
 
 ## Problem
-Restaurants, cafes, cloud kitchens, and multi-location F&B operators often make back-of-house decisions from fragmented invoices, receipts, stock movements, vendor records, and consumption history. That creates avoidable shortages, over-order risk, weak vendor visibility, and unclear cost signals.
+Restaurants and multi-location F&B operators often make back-of-house decisions from fragmented supplier invoices, receipts, stock movements, vendor records, and consumption history. That fragmentation creates avoidable stockouts, over-ordering, weak supplier price visibility, and unclear food-cost signals.
 
 ## Product workflow
-1. An operator scans or uploads an invoice or receipt.
-2. Neumas extracts line items, quantities, vendors, and price signals.
+1. An operator scans or uploads a supplier invoice or receipt.
+2. Neumas extracts line items, quantities, vendors, and price signals using OCR and normalization.
 3. Teams review low-confidence fields where needed.
 4. Live inventory and movement records are updated.
-5. Consumption patterns inform forecasts and shortage or over-order risk.
-6. Neumas generates reorder recommendations for approval.
-7. Vendor intelligence and cost signals support operational decisions.
+5. Consumption and vendor patterns inform forecasts, stockout prediction, and food-cost signals.
+6. Neumas generates reorder recommendations for human approval — it does not place autonomous supplier orders.
+7. Supplier price-change tracking and procurement intelligence support purchasing decisions across locations.
 
-## Features
-- Receipt and invoice processing
-- Inventory intelligence
-- Forecasts
-- Reorder planning
-- Vendor intelligence
-- Operational alerts
-- Multi-location visibility
+## Core capabilities
+- Supplier invoice intelligence and invoice OCR
+- Restaurant inventory intelligence
+- Food-cost management and visibility
+- Supplier price-change tracking
+- Restaurant procurement and purchasing intelligence
+- Stockout prediction
+- Waste management
+- Predictive reordering
+- F&B operational intelligence across single and multi-location operators
 
-## Personas
-- Restaurants
-- Cafes and bakeries
+## Who it's for
+- Restaurants and restaurant groups
+- Cafes
 - Cloud kitchens
-- Hawker and quick-service operators
-- Multi-location F&B groups
-- Hospitality and F&B teams
+- Hotel kitchens
+- Central kitchens
+- Multi-location F&B operators
 
 ## FAQs
 ${homepageFaqs.map((item) => `- Q: ${item.question}\n  A: ${item.answer}`).join("\n")}
@@ -45,7 +47,7 @@ Public pages are crawlable and contain only company, product, use-case, research
 - Frontend: Next.js App Router with server-rendered public pages
 - Backend: FastAPI APIs and async workers
 - Data: Supabase PostgreSQL
-- AI workflow: receipt and invoice extraction, normalization, inventory updates, forecast generation, reorder recommendations, vendor intelligence, and operational alerts
+- AI workflow: invoice/receipt OCR and normalization, inventory updates, forecast generation, stockout prediction, reorder recommendations, supplier price tracking, and operational alerts
 
 ## Public route index
 - Homepage: ${buildAbsoluteUrl("/")}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { getCanonicalAppUrl } from "@/lib/app-url";
+import { buildContentMetadata, type IndexableContent, validateIndexableContent } from "@/lib/content-seo";
 
 export type PublicLink = {
   href: string;
@@ -18,7 +19,7 @@ export type PublicFaq = {
   answer: string;
 };
 
-export type PublicPageContent = {
+export type PublicPageDefinition = {
   path: string;
   title: string;
   description: string;
@@ -33,14 +34,17 @@ export type PublicPageContent = {
   relatedLinks: PublicLink[];
 };
 
+export type PublicPageContent = PublicPageDefinition & IndexableContent;
+
 export type JsonLd = Record<string, unknown>;
 
 export const siteConfig = {
   name: "Neumas",
   url: getCanonicalAppUrl(),
   description:
-    "AI operations for F&B teams. Neumas turns invoices, receipts, inventory movements, and consumption history into cleaner stock records, forecasts, reorder plans, vendor intelligence, and operational alerts.",
-  contactEmail: "info@neumas.ai",
+    "Neumas is an AI operations intelligence platform for F&B businesses that turns supplier invoices, inventory and purchasing data into real-time food-cost visibility, stock intelligence and predictive procurement recommendations.",
+  shortDescription: "AI operations intelligence for restaurants and F&B teams.",
+  contactEmail: "team@neumas.cc",
   companyName: "Neumas",
   region: "Singapore and Southeast Asia",
   ogImagePath: "/opengraph-image",
@@ -76,38 +80,64 @@ const defaultRelatedLinks: PublicLink[] = [
   { href: "/contact", label: "Contact" },
 ];
 
-const b2bPublicPages: PublicPageContent[] = [
+const b2bPublicPages: PublicPageDefinition[] = [
   {
     path: "/about",
     title: "About Neumas",
     description:
-      "Learn why Neumas is building AI operations intelligence for restaurants, cafes, cloud kitchens, and multi-location F&B teams.",
-    h1: "Built around the decisions F&B teams make every day.",
+      "Neumas is an AI operations intelligence platform for F&B businesses, serving restaurants and multi-location food operators.",
+    h1: "Neumas company profile.",
     eyebrow: "About",
     intro:
-      "Neumas exists to help F&B teams turn messy operating inputs into cleaner decisions. Invoices, receipts, stock movements, vendor records, and consumption history become a practical layer of inventory intelligence, forecasts, reorder planning, and operational alerts.",
+      "Neumas is a web-based AI operations intelligence product for F&B businesses. This page provides a factual company and product overview for search engines, AI systems, journalists, partners, and directories.",
     keywords: ["about Neumas", "AI operations for F&B", "restaurant operations software"],
     sections: [
       {
-        title: "Why Neumas exists",
+        title: "What the company does",
         body:
-          "Back-of-house teams often make decisions from fragmented records: supplier invoices in one place, inventory adjustments in another, purchasing history in memory, and outlet health scattered across spreadsheets. Neumas gives those signals a shared operating layer so teams can see what changed, what needs attention, and what to order next.",
+          "Neumas converts supplier invoices, inventory and purchasing data into food-cost visibility, stock intelligence and predictive procurement recommendations. It helps teams turn fragmented operating records into reviewable decisions and alerts.",
       },
       {
         title: "Who we serve",
         body:
-          "Neumas is built for restaurants, cafes, bakeries, cloud kitchens, hawker and quick-service operators, hospitality F&B teams, and multi-outlet groups. Public pages should describe these operators clearly and should not position Neumas as a consumer pantry or shopping-list product.",
+          "Neumas serves restaurants, cafes, bakeries, cloud kitchens, quick-service operators, hospitality F&B teams, and multi-location food operators.",
       },
       {
-        title: "How we make claims",
+        title: "Core product capabilities",
         body:
-          "Neumas uses measured product metrics where available, labels benchmarks as benchmarks, and keeps projected outcomes qualified. Public claims should describe decision support, not unsupported autonomous purchasing, unverified native apps, or guaranteed waste reduction.",
+          "Core capabilities include supplier invoice and receipt processing, line-item normalization, inventory intelligence, food-cost visibility, vendor and price signals, forecast-informed reorder recommendations, approval workflows, operational alerts, and multi-location reporting.",
+      },
+      {
+        title: "Markets served",
+        body: "Neumas serves F&B businesses in Singapore and Southeast Asia.",
+      },
+      {
+        title: "Company and product status",
+        body: "Neumas is an active web-based product. Its public website describes the platform, while customer dashboards and operational data remain authenticated and private.",
+      },
+      {
+        title: "Official website",
+        body: "https://www.neumas.cc",
+      },
+      {
+        title: "Official LinkedIn",
+        body: "Neumas does not currently publish an official LinkedIn URL on this website.",
+      },
+      {
+        title: "Contact",
+        body: "team@neumas.cc",
+      },
+      {
+        title: "Boilerplate",
+        body:
+          "Neumas is an AI operations intelligence platform for F&B businesses. It converts supplier invoices, inventory and purchasing data into food-cost visibility, stock intelligence and predictive procurement recommendations for restaurants and multi-location food operators.",
       },
     ],
     relatedLinks: [
       { href: "/how-it-works", label: "How Neumas works" },
       { href: "/features/inventory-intelligence", label: "Inventory intelligence" },
       { href: "/use-cases/restaurants", label: "Restaurants" },
+      { href: "/crawler-readiness", label: "Crawler and AI visibility" },
       ...defaultRelatedLinks,
     ],
   },
@@ -142,6 +172,9 @@ const b2bPublicPages: PublicPageContent[] = [
     relatedLinks: [
       { href: "/features/receipt-invoice-processing", label: "Receipt and invoice processing" },
       { href: "/features/reorder-planning", label: "Reorder planning" },
+      { href: "/research/receipt-to-reorder", label: "Receipt-to-reorder workflow research" },
+      { href: "/glossary", label: "F&B operations glossary" },
+      { href: "/compare/manual-ordering-vs-ai-operations", label: "Manual ordering versus AI operations" },
       ...defaultRelatedLinks,
     ],
   },
@@ -169,7 +202,11 @@ const b2bPublicPages: PublicPageContent[] = [
     ],
     relatedLinks: [
       { href: "/features/inventory-intelligence", label: "Inventory intelligence" },
+      { href: "/solutions/invoice-intelligence", label: "Invoice intelligence solution" },
       { href: "/how-it-works", label: "How it works" },
+      { href: "/research/restaurant-inventory-operations", label: "Restaurant inventory operations research" },
+      { href: "/glossary/receipt-invoice-processing", label: "Receipt and invoice processing glossary" },
+      { href: "/compare/receipt-scanner-vs-inventory-intelligence", label: "Receipt scanner versus inventory intelligence" },
       ...defaultRelatedLinks,
     ],
   },
@@ -198,6 +235,8 @@ const b2bPublicPages: PublicPageContent[] = [
     relatedLinks: [
       { href: "/features/reorder-planning", label: "Reorder planning" },
       { href: "/features/multi-location-operations", label: "Multi-location operations" },
+      { href: "/solutions/restaurant-inventory-management", label: "Restaurant inventory management solution" },
+      { href: "/glossary/inventory-intelligence", label: "Inventory intelligence glossary" },
       ...defaultRelatedLinks,
     ],
   },
@@ -225,7 +264,9 @@ const b2bPublicPages: PublicPageContent[] = [
     ],
     relatedLinks: [
       { href: "/features/vendor-intelligence", label: "Vendor intelligence" },
+      { href: "/solutions/predictive-reordering", label: "Predictive reordering solution" },
       { href: "/how-it-works", label: "How it works" },
+      { href: "/glossary/reorder-planning", label: "Reorder planning glossary" },
       ...defaultRelatedLinks,
     ],
   },
@@ -254,6 +295,8 @@ const b2bPublicPages: PublicPageContent[] = [
     relatedLinks: [
       { href: "/features/reorder-planning", label: "Reorder planning" },
       { href: "/features/inventory-intelligence", label: "Inventory intelligence" },
+      { href: "/solutions/food-cost-control", label: "Food cost control solution" },
+      { href: "/solutions/procurement-intelligence", label: "Procurement intelligence solution" },
       ...defaultRelatedLinks,
     ],
   },
@@ -282,6 +325,7 @@ const b2bPublicPages: PublicPageContent[] = [
     relatedLinks: [
       { href: "/use-cases/multi-outlet-groups", label: "Multi-outlet groups" },
       { href: "/features/inventory-intelligence", label: "Inventory intelligence" },
+      { href: "/solutions/procurement-intelligence", label: "Procurement intelligence solution" },
       ...defaultRelatedLinks,
     ],
   },
@@ -423,6 +467,416 @@ const b2bPublicPages: PublicPageContent[] = [
     relatedLinks: [
       { href: "/features/vendor-intelligence", label: "Vendor intelligence" },
       { href: "/contact", label: "Contact" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/solutions/invoice-intelligence",
+    title: "Restaurant Invoice Automation & Supplier Invoice Intelligence",
+    description:
+      "How Neumas automates restaurant invoice processing: OCR extraction, line-item review, and inventory posting for single and multi-location F&B operators.",
+    h1: "Restaurant invoice automation, from PDF to posted stock.",
+    eyebrow: "Solution",
+    intro:
+      "Restaurant operators, F&B finance teams, and multi-location groups lose real time re-typing supplier invoices into spreadsheets or POS systems. Neumas turns supplier invoices and receipts into structured, reviewable line items that post directly into your inventory ledger.",
+    keywords: ["restaurant invoice automation", "supplier invoice intelligence", "invoice OCR for restaurants"],
+    sections: [
+      {
+        title: "The problem",
+        body:
+          "Supplier invoices arrive as PDFs, photos, or paper across multiple vendors and outlets. Re-keying line items by hand is slow, error-prone, and creates a lag between what was delivered and what shows up in stock or cost records.",
+      },
+      {
+        title: "How Neumas addresses it",
+        body:
+          "Neumas extracts line items, quantities, vendors, and prices from invoices and receipts, then routes low-confidence fields to a review queue before anything posts to inventory. This keeps a person in control of accuracy without requiring manual entry for every line.",
+      },
+      {
+        title: "Capabilities",
+        body: "Core invoice-intelligence capabilities available today:",
+        bullets: [
+          "Line-item extraction from invoices and receipts",
+          "Review queue for low-confidence fields",
+          "Vendor and item-name normalization",
+          "Posting approved lines to the inventory ledger",
+        ],
+      },
+      {
+        title: "Workflow",
+        body: "The typical receipt-to-ledger workflow:",
+        bullets: [
+          "1. Upload or scan a supplier invoice or receipt",
+          "2. Neumas extracts line items, quantities, vendors, and prices",
+          "3. Low-confidence fields are queued for human review",
+          "4. Approved lines post to live inventory records",
+        ],
+      },
+      {
+        title: "Operational outcomes",
+        body: "What teams can reasonably expect, without guaranteed figures:",
+        bullets: [
+          "Less manual re-keying of invoice data",
+          "A more consistent, reviewable paper trail across outlets",
+          "Faster visibility into what was actually delivered versus what was billed",
+        ],
+      },
+      {
+        title: "Who this is for",
+        body: "Built for the people who currently process or approve supplier invoices:",
+        bullets: ["Restaurant operators", "F&B finance teams", "Operations managers", "Multi-location F&B groups"],
+      },
+    ],
+    faq: [
+      {
+        question: "Does Neumas replace my accounting software?",
+        answer:
+          "No. Neumas extracts and structures invoice and receipt data for inventory and purchasing workflows. It is not a general ledger or accounting system.",
+      },
+      {
+        question: "What happens if an invoice line is extracted incorrectly?",
+        answer:
+          "Low-confidence fields are flagged for review before they affect inventory records, so a person can confirm or correct them before they post.",
+      },
+      {
+        question: "Can multiple outlets submit invoices into one workspace?",
+        answer:
+          "Yes. Multi-location operators can centralize invoice intake while keeping outlet-level records distinct.",
+      },
+    ],
+    ctaTitle: "See how invoice intelligence fits your workflow",
+    ctaBody: "Review the full receipt-to-reorder workflow, or contact Neumas to discuss your current invoice process.",
+    relatedLinks: [
+      { href: "/features/receipt-invoice-processing", label: "Receipt and invoice processing" },
+      { href: "/solutions/restaurant-inventory-management", label: "Restaurant inventory management" },
+      { href: "/solutions/food-cost-control", label: "Food cost control" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/solutions/restaurant-inventory-management",
+    title: "Restaurant Inventory Management Software",
+    description:
+      "Restaurant inventory management software that turns invoices, receipts, and stock movements into live, outlet-level inventory visibility.",
+    h1: "Restaurant inventory management, built on real operating documents.",
+    eyebrow: "Solution",
+    intro:
+      "Restaurant operators, executive chefs, and multi-location groups need to know what is on hand right now, not just at the last manual count. Neumas keeps inventory records current using the invoices, receipts, and stock movements your team already generates.",
+    keywords: ["restaurant inventory management software", "restaurant inventory intelligence", "multi-location inventory visibility"],
+    sections: [
+      {
+        title: "The problem",
+        body:
+          "Stock records fall out of date between manual counts, and multi-outlet operators often have no single view of inventory across locations. That makes it hard to catch shortages early or spot slow-moving stock before it becomes waste.",
+      },
+      {
+        title: "How Neumas addresses it",
+        body:
+          "Every processed invoice, receipt, and recorded movement updates live inventory. Operational alerts surface items running low or behaving unexpectedly, so teams do not have to rely solely on manual stock counts to know their position.",
+      },
+      {
+        title: "Capabilities",
+        body: "Core inventory-intelligence capabilities available today:",
+        bullets: [
+          "Live stock context updated from processed documents and movements",
+          "Operational alerts for low stock and unusual movement",
+          "Outlet-level visibility for multi-location operators",
+        ],
+      },
+      {
+        title: "Workflow",
+        body: "How inventory visibility is maintained:",
+        bullets: [
+          "1. Invoices, receipts, and manual movements are recorded",
+          "2. Neumas updates live stock records per outlet",
+          "3. Alerts surface low-stock or unusual movement for review",
+          "4. Teams act on alerts inside their existing workflow",
+        ],
+      },
+      {
+        title: "Operational outcomes",
+        body: "What teams can reasonably expect, without guaranteed figures:",
+        bullets: [
+          "Clearer day-to-day stock visibility than manual counts alone",
+          "Earlier awareness of items running low",
+          "A shared view of inventory across outlets for multi-location groups",
+        ],
+      },
+      {
+        title: "Who this is for",
+        body: "Built for the people who manage or oversee stock:",
+        bullets: ["Restaurant operators", "Executive chefs", "Operations managers", "Multi-location F&B groups"],
+      },
+    ],
+    faq: [
+      {
+        question: "Do I still need to do manual stock counts?",
+        answer:
+          "Neumas reduces reliance on manual counts by updating stock from processed documents and movements, but periodic physical counts remain good practice for reconciliation.",
+      },
+      {
+        question: "Does this work across multiple outlets?",
+        answer:
+          "Yes. Multi-location operators can see outlet-level inventory alongside a group-level view.",
+      },
+      {
+        question: "What triggers an inventory alert?",
+        answer:
+          "Alerts are based on stock levels and movement patterns identified from your processed documents and recorded activity, such as items running low.",
+      },
+    ],
+    ctaTitle: "See restaurant inventory management in context",
+    ctaBody: "Walk through the full receipt-to-reorder workflow, or contact Neumas about your current stock process.",
+    relatedLinks: [
+      { href: "/features/inventory-intelligence", label: "Inventory intelligence" },
+      { href: "/solutions/invoice-intelligence", label: "Invoice intelligence" },
+      { href: "/solutions/predictive-reordering", label: "Predictive reordering" },
+      { href: "/guides/restaurant-inventory-management", label: "Guide: Restaurant inventory management" },
+      { href: "/use-cases/cafes-bakeries", label: "Cafes and bakeries" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/solutions/food-cost-control",
+    title: "Restaurant Food Cost Management & Supplier Price Tracking",
+    description:
+      "Restaurant food cost management software that tracks supplier price changes and turns invoice data into food-cost visibility for F&B finance teams.",
+    h1: "Food cost control, grounded in your actual invoices.",
+    eyebrow: "Solution",
+    intro:
+      "F&B finance teams and executive chefs need to know when food cost is drifting and why. Neumas turns processed invoices into supplier price tracking and cost signals instead of end-of-month surprises.",
+    keywords: ["restaurant food cost management", "supplier price tracking", "food cost visibility"],
+    sections: [
+      {
+        title: "The problem",
+        body:
+          "Supplier prices change item by item, often without a clear notice, and small increases across many line items can quietly erode margin. Waste adds a second, harder-to-track cost. Without line-item history, finance teams usually catch cost drift only after it shows up in the P&L.",
+      },
+      {
+        title: "How Neumas addresses it",
+        body:
+          "As invoices are processed, Neumas tracks price signals at the line-item and vendor level, so price changes become visible closer to when they happen instead of at month-end reconciliation.",
+      },
+      {
+        title: "Capabilities",
+        body: "Core food-cost and vendor-intelligence capabilities available today:",
+        bullets: [
+          "Supplier and item-level price context from processed invoices",
+          "Cost signals surfaced for review",
+          "A benchmark lens for food-cost optimization opportunity (used as a benchmark, not a guaranteed outcome)",
+        ],
+      },
+      {
+        title: "Workflow",
+        body: "How cost signals reach your team:",
+        bullets: [
+          "1. Invoices are processed and normalized by vendor and item",
+          "2. Neumas tracks price movement over time per line item",
+          "3. Cost signals are surfaced for finance and operations review",
+          "4. Teams use signals to inform purchasing and menu-cost decisions",
+        ],
+      },
+      {
+        title: "Operational outcomes",
+        body: "What teams can reasonably expect, without guaranteed figures:",
+        bullets: [
+          "Earlier visibility into supplier price changes",
+          "A clearer line-item basis for food-cost conversations",
+          "Waste and cost context discussed as a projected, qualified opportunity — not a guaranteed result (see the food-cost benchmark research)",
+        ],
+      },
+      {
+        title: "Who this is for",
+        body: "Built for the people accountable for margin:",
+        bullets: ["F&B finance teams", "Executive chefs", "Restaurant groups", "Multi-location F&B groups"],
+      },
+    ],
+    faq: [
+      {
+        question: "Does Neumas guarantee a specific food-cost reduction?",
+        answer:
+          "No. Neumas presents food-cost and waste-reduction opportunity as a qualified, projected benchmark, not a guaranteed outcome for every operation.",
+      },
+      {
+        question: "How does Neumas detect a supplier price change?",
+        answer:
+          "Price signals are derived from processed invoice line items over time, comparing what the same item and vendor billed previously.",
+      },
+      {
+        question: "Is this a replacement for my accounting or menu-costing system?",
+        answer:
+          "No. Neumas provides supplier price and cost signals from operating documents; it does not replace accounting, POS, or menu-engineering tools.",
+      },
+    ],
+    ctaTitle: "Bring supplier price visibility into your workflow",
+    ctaBody: "Read the food-cost benchmark research, or contact Neumas to discuss your current cost-review process.",
+    relatedLinks: [
+      { href: "/features/vendor-intelligence", label: "Vendor intelligence" },
+      { href: "/research/food-cost-benchmark", label: "Food-cost optimization benchmark" },
+      { href: "/solutions/procurement-intelligence", label: "Procurement intelligence" },
+      { href: "/guides/restaurant-food-cost-control", label: "Guide: Restaurant food cost control" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/solutions/procurement-intelligence",
+    title: "F&B Procurement Software for Multi-location Operators",
+    description:
+      "F&B procurement software and restaurant purchasing software that gives multi-location operators shared vendor visibility and purchasing intelligence.",
+    h1: "Procurement intelligence for multi-location F&B operators.",
+    eyebrow: "Solution",
+    intro:
+      "Procurement teams and multi-location F&B groups often buy the same items at different prices across outlets, with no shared view of vendor performance. Neumas gives purchasing decisions a common base of vendor and cost data.",
+    keywords: ["F&B procurement software", "restaurant purchasing software", "multi-location restaurant operations"],
+    sections: [
+      {
+        title: "The problem",
+        body:
+          "When each outlet manages its own supplier relationships and purchasing history, procurement and operations teams lack a group-level view. That makes it hard to compare vendor pricing, standardize purchasing, or roll up spend across a multi-outlet group.",
+      },
+      {
+        title: "How Neumas addresses it",
+        body:
+          "Neumas consolidates vendor and cost signals from processed invoices across outlets, and pairs that with multi-location visibility so procurement teams can see purchasing patterns at the group level, not just per outlet.",
+      },
+      {
+        title: "Capabilities",
+        body: "Core procurement and multi-location capabilities available today:",
+        bullets: [
+          "Vendor and cost context from processed invoices",
+          "Outlet-level visibility rolled up to group-level view",
+          "Reorder recommendations for approval, not autonomous ordering",
+        ],
+      },
+      {
+        title: "Workflow",
+        body: "How procurement intelligence is assembled:",
+        bullets: [
+          "1. Invoices are processed per outlet and normalized by vendor",
+          "2. Vendor and cost signals are consolidated across outlets",
+          "3. Operations and procurement teams review group-level purchasing context",
+          "4. Reorder recommendations route through an approval workflow",
+        ],
+      },
+      {
+        title: "Operational outcomes",
+        body: "What teams can reasonably expect, without guaranteed figures:",
+        bullets: [
+          "A shared, group-level view of vendor and purchasing activity",
+          "More consistent purchasing context across outlets",
+          "Purchasing decisions grounded in processed invoice history rather than memory or spreadsheets",
+        ],
+      },
+      {
+        title: "Who this is for",
+        body: "Built for the people who plan and approve purchasing:",
+        bullets: ["Procurement teams", "Operations managers", "Restaurant groups", "Multi-location F&B groups"],
+      },
+    ],
+    faq: [
+      {
+        question: "Does Neumas place orders with suppliers automatically?",
+        answer:
+          "No. Neumas produces reorder recommendations for human approval. It does not place autonomous supplier orders.",
+      },
+      {
+        question: "Can procurement teams see purchasing across all outlets in one place?",
+        answer:
+          "Yes. Multi-location groups get outlet-level detail alongside a group-level roll-up of vendor and purchasing activity.",
+      },
+      {
+        question: "Does Neumas integrate with our existing suppliers directly?",
+        answer:
+          "Neumas works from the invoices, receipts, and vendor records your outlets already process. Public pages do not claim direct supplier system integrations beyond what is documented on the integrations page.",
+      },
+    ],
+    ctaTitle: "Bring group-level purchasing visibility to your team",
+    ctaBody: "See how multi-location operations and vendor intelligence work together, or contact Neumas about your outlet count.",
+    relatedLinks: [
+      { href: "/features/vendor-intelligence", label: "Vendor intelligence" },
+      { href: "/features/multi-location-operations", label: "Multi-location operations" },
+      { href: "/solutions/predictive-reordering", label: "Predictive reordering" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/solutions/predictive-reordering",
+    title: "Predictive Reordering & Stockout Prediction for Restaurants",
+    description:
+      "Predictive ordering software for restaurants: forecast-informed reorder recommendations and stockout prediction, with human approval before anything is ordered.",
+    h1: "Predictive reordering, with a human in the approval loop.",
+    eyebrow: "Solution",
+    intro:
+      "Operations managers and executive chefs are often stuck choosing between running out of key items or tying up cash in excess stock. Neumas turns consumption history into forecast-informed reorder recommendations for review, not autonomous ordering.",
+    keywords: ["predictive ordering", "stockout prediction", "restaurant waste reduction"],
+    sections: [
+      {
+        title: "The problem",
+        body:
+          "Reactive, manual reordering tends to swing between stockouts that disrupt service and over-ordering that ties up cash and increases waste risk. Getting the timing and quantity right by memory is hard, especially across multiple outlets with different demand patterns.",
+      },
+      {
+        title: "How Neumas addresses it",
+        body:
+          "Neumas uses consumption history and current stock context to forecast shortage and over-order risk, then generates reorder recommendations that a person approves before anything is ordered.",
+      },
+      {
+        title: "Capabilities",
+        body: "Core forecasting and reorder capabilities available today:",
+        bullets: [
+          "Forecast-informed reorder planning from consumption history",
+          "Stockout and over-order risk surfaced for review",
+          "Approval workflow before any reorder is finalized",
+        ],
+      },
+      {
+        title: "Workflow",
+        body: "How a reorder recommendation is produced:",
+        bullets: [
+          "1. Consumption and stock movement history accumulates from processed documents",
+          "2. Neumas forecasts shortage and over-order risk per item and outlet",
+          "3. A reorder recommendation is generated for review",
+          "4. An operator approves, adjusts, or rejects before ordering",
+        ],
+      },
+      {
+        title: "Operational outcomes",
+        body: "What teams can reasonably expect, without guaranteed figures:",
+        bullets: [
+          "Reorder timing grounded in consumption history rather than guesswork",
+          "Fewer reactive, last-minute orders",
+          "Waste reduction discussed as a projected, qualified opportunity — not a guaranteed result",
+        ],
+      },
+      {
+        title: "Who this is for",
+        body: "Built for the people who decide what and when to reorder:",
+        bullets: ["Operations managers", "Executive chefs", "Restaurant operators", "Multi-location F&B groups"],
+      },
+    ],
+    faq: [
+      {
+        question: "Does Neumas automatically place orders with suppliers?",
+        answer:
+          "No. Neumas generates reorder recommendations for human approval. It does not place autonomous supplier orders.",
+      },
+      {
+        question: "How does Neumas generate a forecast?",
+        answer:
+          "Forecasts are based on recorded consumption history and current stock context for each item and outlet.",
+      },
+      {
+        question: "What happens if a forecast turns out to be wrong?",
+        answer:
+          "Recommendations are reviewed and approved by an operator before ordering, so forecast error does not translate directly into a placed order.",
+      },
+    ],
+    ctaTitle: "Put a human-approved forecast in front of your team",
+    ctaBody: "Review the forecasts and reorder planning feature, or contact Neumas about your current reordering process.",
+    relatedLinks: [
+      { href: "/features/reorder-planning", label: "Forecasts and reorder planning" },
+      { href: "/solutions/restaurant-inventory-management", label: "Restaurant inventory management" },
+      { href: "/solutions/procurement-intelligence", label: "Procurement intelligence" },
+      { href: "/use-cases/cloud-kitchens", label: "Cloud kitchens" },
       ...defaultRelatedLinks,
     ],
   },
@@ -718,6 +1172,7 @@ const b2bPublicPages: PublicPageContent[] = [
     relatedLinks: [
       { href: "/security", label: "Security" },
       { href: "/contact", label: "Contact" },
+      { href: "/terms", label: "Terms" },
       ...defaultRelatedLinks,
     ],
   },
@@ -773,7 +1228,7 @@ const b2bPublicPages: PublicPageContent[] = [
     ctaTitle: "Book a demo",
     ctaBody: "Tell us about your F&B operation, outlet count, and current inventory or ordering workflow.",
     relatedLinks: [
-      { href: "mailto:info@neumas.ai", label: "Email info@neumas.ai" },
+      { href: "mailto:team@neumas.cc", label: "Email team@neumas.cc" },
       { href: "/integrations", label: "Integrations" },
       ...defaultRelatedLinks,
     ],
@@ -866,7 +1321,26 @@ const b2bPublicPages: PublicPageContent[] = [
   },
 ];
 
-export const publicPages: PublicPageContent[] = b2bPublicPages;
+function getPublicPageCategory(path: string): string {
+  const [segment = "Company"] = path.split("/").filter(Boolean);
+  return segment.replace(/-/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function createPublicPageContent(page: PublicPageDefinition): PublicPageContent {
+  const slug = page.path === "/" ? "home" : page.path.split("/").filter(Boolean).at(-1) ?? "page";
+  return validateIndexableContent({
+    ...page,
+    slug,
+    summary: page.intro,
+    publishedAt: "2026-09-20",
+    updatedAt: "2026-09-20",
+    category: getPublicPageCategory(page.path),
+    author: siteConfig.companyName,
+    canonicalUrl: buildAbsoluteUrl(page.path),
+  });
+}
+
+export const publicPages: PublicPageContent[] = b2bPublicPages.map(createPublicPageContent);
 
 export function getPublicPage(path: string): PublicPageContent | undefined {
   return publicPages.find((page) => page.path === path);
@@ -878,44 +1352,12 @@ export function buildAbsoluteUrl(path: string): string {
 }
 
 export function buildPublicMetadata(page: PublicPageContent): Metadata {
-  const canonical = buildAbsoluteUrl(page.path);
-  return {
-    title: page.title,
-    description: page.description,
-    keywords: page.keywords,
-    alternates: {
-      canonical,
-    },
-    openGraph: {
-      type: "website",
-      title: page.title,
-      description: page.description,
-      url: canonical,
-      siteName: siteConfig.name,
-      images: [
-        {
-          url: siteConfig.ogImagePath,
-          width: 1200,
-          height: 630,
-          alt: `${page.title} — ${siteConfig.name}`,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: page.title,
-      description: page.description,
-      images: [siteConfig.ogImagePath],
-    },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-      },
-    },
-  };
+  return buildContentMetadata(page, {
+    siteName: siteConfig.name,
+    ogImagePath: siteConfig.ogImagePath,
+    organizationId: entityIds.organization,
+    websiteId: entityIds.website,
+  });
 }
 
 export function makeBreadcrumbs(path: string): { name: string; item: string }[] {
@@ -944,21 +1386,17 @@ export const publicRouteIndex: PublicLink[] = publicPages.map((page) => ({
   label: page.title,
 }));
 
-export function buildOrganizationSchema(): JsonLd {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: siteConfig.companyName,
-    url: siteConfig.url,
-    email: siteConfig.contactEmail,
-    description: siteConfig.description,
-    areaServed: siteConfig.region,
-  };
-}
+// Stable @id anchors so Organization/WebSite/SoftwareApplication merge into one
+// consistent knowledge-graph entity instead of duplicating disconnected nodes.
+export const entityIds = {
+  organization: `${siteConfig.url}/#organization`,
+  website: `${siteConfig.url}/#website`,
+  software: `${siteConfig.url}/#software`,
+};
 
-export function buildContactPointSchema(): JsonLd {
+/** Nested contact node (no @context — only used embedded inside Organization). */
+function buildContactPointNode(): JsonLd {
   return {
-    "@context": "https://schema.org",
     "@type": "ContactPoint",
     contactType: "customer support",
     email: siteConfig.contactEmail,
@@ -967,14 +1405,30 @@ export function buildContactPointSchema(): JsonLd {
   };
 }
 
+export function buildOrganizationSchema(): JsonLd {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": entityIds.organization,
+    name: siteConfig.companyName,
+    url: siteConfig.url,
+    email: siteConfig.contactEmail,
+    description: siteConfig.description,
+    areaServed: siteConfig.region,
+    contactPoint: buildContactPointNode(),
+  };
+}
+
 export function buildWebSiteSchema(): JsonLd {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": entityIds.website,
     name: siteConfig.name,
     url: siteConfig.url,
     description: siteConfig.description,
     inLanguage: "en",
+    publisher: { "@id": entityIds.organization },
   };
 }
 
@@ -982,48 +1436,45 @@ export function buildSoftwareApplicationSchema(): JsonLd {
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
+    "@id": entityIds.software,
     name: siteConfig.name,
     applicationCategory: "BusinessApplication",
+    applicationSubCategory: "Restaurant / F&B Operations Intelligence",
     operatingSystem: "Web",
     description: siteConfig.description,
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-      availability: "https://schema.org/InStock",
-    },
-    creator: {
-      "@type": "Organization",
-      name: siteConfig.companyName,
-      url: siteConfig.url,
-    },
+    url: siteConfig.url,
+    featureList: [
+      "Supplier invoice intelligence",
+      "Invoice OCR and line-item normalization",
+      "Inventory management",
+      "Food-cost visibility",
+      "Supplier price-change monitoring",
+      "Procurement intelligence",
+      "Stockout prediction",
+      "Waste reduction",
+      "Predictive reordering",
+      "Multi-location operations",
+    ],
+    publisher: { "@id": entityIds.organization },
+    creator: { "@id": entityIds.organization },
   };
 }
 
-export function buildProductSchema(): JsonLd {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: siteConfig.name,
-    brand: siteConfig.name,
-    description: siteConfig.description,
-    category: "AI operations software for F&B teams",
-    url: siteConfig.url,
-  };
+function buildFragmentId(path: string, fragment: string): string {
+  const canonical = buildAbsoluteUrl(path);
+  return `${canonical.endsWith("/") ? canonical : `${canonical}/`}#${fragment}`;
 }
 
 export function buildWebPageSchema(page: Pick<PublicPageContent, "path" | "title" | "description">): JsonLd {
   return {
     "@context": "https://schema.org",
     "@type": "WebPage",
+    "@id": buildFragmentId(page.path, "webpage"),
     name: page.title,
     description: page.description,
     url: buildAbsoluteUrl(page.path),
-    isPartOf: {
-      "@type": "WebSite",
-      name: siteConfig.name,
-      url: siteConfig.url,
-    },
+    isPartOf: { "@id": entityIds.website },
+    about: { "@id": entityIds.organization },
   };
 }
 
@@ -1059,18 +1510,13 @@ export function buildArticleSchema(page: Pick<PublicPageContent, "path" | "title
   return {
     "@context": "https://schema.org",
     "@type": "Article",
+    "@id": buildFragmentId(page.path, "article"),
     headline: page.title,
     description: page.description,
     articleBody: page.intro,
-    author: {
-      "@type": "Organization",
-      name: siteConfig.companyName,
-    },
-    publisher: {
-      "@type": "Organization",
-      name: siteConfig.companyName,
-    },
-    mainEntityOfPage: buildAbsoluteUrl(page.path),
+    author: { "@id": entityIds.organization },
+    publisher: { "@id": entityIds.organization },
+    mainEntityOfPage: { "@id": buildFragmentId(page.path, "webpage") },
   };
 }
 
@@ -1079,7 +1525,6 @@ export function getHomepageSchemas(): JsonLd[] {
     buildOrganizationSchema(),
     buildWebSiteSchema(),
     buildSoftwareApplicationSchema(),
-    buildProductSchema(),
     buildWebPageSchema({
       path: "/",
       title: "Neumas — AI Operations for F&B",
@@ -1110,10 +1555,6 @@ export function getPublicPageSchemas(page: PublicPageContent): JsonLd[] {
     schemas.push(buildArticleSchema(page));
   }
 
-  if (page.path.startsWith("/features/")) {
-    schemas.push(buildProductSchema());
-  }
-
   if (page.path.startsWith("/glossary/")) {
     schemas.push({
       "@context": "https://schema.org",
@@ -1126,7 +1567,7 @@ export function getPublicPageSchemas(page: PublicPageContent): JsonLd[] {
   }
 
   if (trustPaths.has(page.path)) {
-    schemas.push(buildOrganizationSchema(), buildContactPointSchema());
+    schemas.push(buildOrganizationSchema());
   }
 
   return schemas;

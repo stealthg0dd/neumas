@@ -1,5 +1,7 @@
 const DEFAULT_APP_URL = "https://www.neumas.cc";
-const LEGACY_APP_HOSTS = new Set(["neumasfinal.vercel.app"]);
+// Non-canonical hosts that get 308-redirected to DEFAULT_APP_URL by middleware (see proxy.ts) —
+// includes the bare apex domain so only https://www.neumas.cc/ ever resolves as 200.
+const LEGACY_APP_HOSTS = new Set(["neumasfinal.vercel.app", "neumas.cc"]);
 
 function normalizeAbsoluteUrl(value?: string | null): string | null {
   const trimmed = value?.trim();

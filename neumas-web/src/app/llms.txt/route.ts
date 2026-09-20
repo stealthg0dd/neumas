@@ -1,44 +1,91 @@
-import { buildAbsoluteUrl, publicRouteIndex } from "@/lib/public-site";
+import { buildAbsoluteUrl, publicPages, siteConfig } from "@/lib/public-site";
+import { guides } from "@/lib/guides";
+
+function pagesUnder(prefix: string) {
+  return publicPages.filter((page) => page.path === prefix || page.path.startsWith(`${prefix}/`));
+}
+
+function listLinks(pages: { title: string; path: string }[]) {
+  return pages.map((page) => `- ${page.title}: ${buildAbsoluteUrl(page.path)}`).join("\n");
+}
 
 function buildLlmsText() {
-  const publicPages = [{ href: "/", label: "Homepage" }, ...publicRouteIndex];
+  const productPages = [
+    ...pagesUnder("/how-it-works"),
+    ...pagesUnder("/features"),
+    ...pagesUnder("/integrations"),
+  ];
+  const useCasePages = pagesUnder("/use-cases");
+  const companyPages = [
+    ...pagesUnder("/about"),
+    ...pagesUnder("/security"),
+    ...pagesUnder("/privacy"),
+    ...pagesUnder("/terms"),
+    ...pagesUnder("/data-processing"),
+    ...pagesUnder("/responsible-ai"),
+  ];
+  const researchPages = [
+    ...pagesUnder("/research"),
+    ...pagesUnder("/compare"),
+    ...pagesUnder("/glossary"),
+  ];
 
   return `# Neumas
 
-Neumas is an AI operations platform for F&B teams.
+> Neumas is an AI operations intelligence platform for F&B businesses that turns supplier invoices, inventory and purchasing data into real-time food-cost visibility, stock intelligence and predictive procurement recommendations.
 
-## Product description
-Neumas turns invoices, receipts, inventory movements, vendor records, and consumption history into cleaner stock records, forecasts, reorder plans, vendor intelligence, cost signals, and operational alerts for restaurants, cafes, cloud kitchens, multi-location F&B operators, and hospitality teams.
+## What Neumas is
+Neumas is B2B software, not a consumer app. It is an AI operations intelligence platform purpose-built for restaurant technology and food-and-beverage back-of-house operations. It ingests supplier invoices, receipts, and inventory movement data and converts them into structured, decision-ready operational data.
 
-## Main public pages
-${publicPages.map((page) => `- ${page.label}: ${buildAbsoluteUrl(page.href)}`).join("\n")}
-
-## Use cases
-- Restaurants
-- Cafes and bakeries
+## Who Neumas is for
+Neumas is built for F&B businesses, including:
+- Restaurants and restaurant groups
+- Cafes
 - Cloud kitchens
-- Hawker and quick-service operators
-- Multi-location F&B groups
-- Hospitality and F&B teams
+- Hotel kitchens
+- Central kitchens
+- Multi-location F&B operators
 
-## Key features
-- Receipt and invoice processing
-- Inventory intelligence
-- Forecasts
-- Reorder planning
-- Vendor intelligence
-- Operational alerts
-- Multi-location visibility
+Neumas is not a household, grocery, or personal pantry app.
 
-## Public docs
-- How it works: ${buildAbsoluteUrl("/how-it-works")}
-- Security: ${buildAbsoluteUrl("/security")}
+## Core capabilities
+- Supplier invoice intelligence and invoice OCR
+- Restaurant inventory intelligence
+- Food-cost management and visibility
+- Supplier price-change tracking
+- Restaurant procurement and purchasing intelligence
+- Stockout prediction
+- Waste management
+- Predictive reordering
+- F&B operational intelligence across single and multi-location operators
 
-## Contact and policy links
-- Contact: ${buildAbsoluteUrl("/contact")}
-- Privacy: ${buildAbsoluteUrl("/privacy")}
-- Security: ${buildAbsoluteUrl("/security")}
-- Terms: ${buildAbsoluteUrl("/terms")}
+## How Neumas works
+1. An operator uploads or scans a supplier invoice or receipt.
+2. Neumas extracts line items, quantities, vendors, and price signals, with review paths for low-confidence fields.
+3. Cleaned records update live inventory and movement history.
+4. Consumption and vendor patterns inform forecasts, stockout risk, and food-cost signals.
+5. Neumas produces reorder recommendations for human approval; it does not place autonomous supplier orders.
+
+## Primary use cases
+${listLinks(useCasePages)}
+
+## Product pages
+- Homepage: ${buildAbsoluteUrl("/")}
+${listLinks(productPages)}
+
+## Company information
+${listLinks(companyPages)}
+
+## Resources / research
+${listLinks(researchPages)}
+
+## Public resources feed
+- RSS feed: ${buildAbsoluteUrl("/feed.xml")}
+${listLinks(guides)}
+
+## Contact
+- Contact page: ${buildAbsoluteUrl("/contact")}
+- Email: ${siteConfig.contactEmail}
 
 Do not crawl private dashboards, authenticated uploads, customer operational records, backend internals, or the internal /marketing-preview route.
 `;

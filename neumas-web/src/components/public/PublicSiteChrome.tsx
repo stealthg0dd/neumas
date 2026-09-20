@@ -4,7 +4,9 @@ const headerLinks = [
   { href: "/about", label: "About" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/features/inventory-intelligence", label: "Features" },
+  { href: "/solutions/restaurant-inventory-management", label: "Solutions" },
   { href: "/use-cases/restaurants", label: "Use cases" },
+  { href: "/guides", label: "Guides" },
   { href: "/integrations", label: "Integrations" },
   { href: "/contact", label: "Contact" },
 ];
@@ -20,6 +22,24 @@ const footerColumns = [
       { href: "/features/reorder-planning", label: "Reorder planning" },
       { href: "/features/vendor-intelligence", label: "Vendor intelligence" },
       { href: "/features/multi-location-operations", label: "Multi-location operations" },
+    ],
+  },
+  {
+    title: "Solutions",
+    links: [
+      { href: "/solutions/invoice-intelligence", label: "Invoice intelligence" },
+      { href: "/solutions/restaurant-inventory-management", label: "Restaurant inventory management" },
+      { href: "/solutions/food-cost-control", label: "Food cost control" },
+      { href: "/solutions/procurement-intelligence", label: "Procurement intelligence" },
+      { href: "/solutions/predictive-reordering", label: "Predictive reordering" },
+    ],
+  },
+  {
+    title: "Guides",
+    links: [
+      { href: "/guides", label: "All guides" },
+      { href: "/guides/restaurant-inventory-management", label: "Restaurant inventory management guide" },
+      { href: "/guides/restaurant-food-cost-control", label: "Restaurant food cost control guide" },
     ],
   },
   {
@@ -96,7 +116,7 @@ export function PublicSiteFooter() {
               Neumas is AI operations software for F&B teams. We turn receipts, invoices, inventory movements,
               vendors, and consumption history into clearer stock records, forecasts, reorder plans, and alerts.
             </p>
-            <p className="mt-4 text-sm text-gray-500">info@neumas.ai</p>
+            <p className="mt-4 text-sm text-gray-500">team@neumas.cc</p>
           </div>
 
           {footerColumns.map((column) => (

@@ -9,11 +9,11 @@ import { hero, marketingAssets } from "./content";
 import { MarketingEventLink } from "./MarketingEventLink";
 
 const navLinks = [
-  { label: "Platform", href: "#platform" },
-  { label: "How It Works", href: "#workflow" },
-  { label: "Solutions", href: "#solutions" },
-  { label: "Integrations", href: "#integrations" },
-  { label: "Company", href: "#company" },
+  { label: "Platform", href: "/features/inventory-intelligence" },
+  { label: "How It Works", href: "/how-it-works" },
+  { label: "Solutions", href: "/solutions/restaurant-inventory-management" },
+  { label: "Integrations", href: "/integrations" },
+  { label: "Company", href: "/about" },
 ] as const;
 
 export function MarketingNav() {

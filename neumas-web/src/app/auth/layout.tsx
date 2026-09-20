@@ -1,17 +1,10 @@
 import type { Metadata } from "next";
 
-/**
- * Auth layout — full viewport, no sidebar.
- * Wraps /login and /signup.
- */
+// Authentication gate: keep out of search, but let crawlers follow its internal links (e.g. /signup).
 export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen w-full overflow-hidden bg-background">
-      {children}
-    </div>
-  );
+  return children;
 }

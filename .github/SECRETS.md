@@ -19,6 +19,7 @@ All secrets are set at **repository level** in Settings → Secrets and variable
 | `VERCEL_TOKEN`             | Vercel personal access token       | vercel.com → Account Settings → Tokens → Create           |
 | `VERCEL_ORG_ID`            | Vercel team/org ID                 | `vercel env ls` output or Vercel team settings URL        |
 | `VERCEL_PROJECT_ID_NEUMAS` | Vercel project ID for `neumas-web` | `cat neumas-web/.vercel/project.json` after `vercel link` |
+| `INDEXNOW_KEY` | Random IndexNow verification and submission key | Generate with `openssl rand -hex 32`; set in GitHub Actions and the Vercel production environment |
 
 
 ### Why Vercel might not update when you push
@@ -69,7 +70,7 @@ Each webhook is an **Incoming Webhook** URL tied to a specific channel. Create t
 | Workflow            | Secrets required                                                                                                                                                                                                              |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ci.yml`            | `SLACK_WEBHOOK_NEUMAS_DEV`                                                                                                                                                                                                    |
-| `deploy-web.yml`    | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_NEUMAS`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT_NEUMAS_WEB`, `AGENT_OS_URL`, `AGENT_OS_API_KEY`, `SLACK_WEBHOOK_NEUMAS_ALERTS`, `SLACK_WEBHOOK_CTECH_COMMAND` |
+| `deploy-web.yml`    | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_NEUMAS`, `INDEXNOW_KEY`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT_NEUMAS_WEB`, `AGENT_OS_URL`, `AGENT_OS_API_KEY`, `SLACK_WEBHOOK_NEUMAS_ALERTS`, `SLACK_WEBHOOK_CTECH_COMMAND` |
 | `deploy-worker.yml` | `RAILWAY_TOKEN_NEUMAS`, `RAILWAY_API_URL`, `AGENT_OS_URL`, `AGENT_OS_API_KEY`, `SLACK_WEBHOOK_NEUMAS_ALERTS`, `SLACK_WEBHOOK_CTECH_COMMAND`                                                                                   |
 | `security-scan.yml` | `SLACK_WEBHOOK_NEUMAS_DEV`                                                                                                                                                                                                    |
 
