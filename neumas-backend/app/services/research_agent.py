@@ -1,5 +1,5 @@
 """
-Neumas Research Agent — generates grocery intelligence blog posts
+Neumas Research Agent — generates F&B operations intelligence blog posts
 by combining public trend data with anonymized platform insights.
 """
 
@@ -18,12 +18,12 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 RESEARCH_TOPICS = [
-    "grocery inflation trends in Southeast Asia {month} {year}",
-    "food waste reduction strategies for households",
-    "AI-powered pantry management benefits",
-    "grocery shopping habits in Singapore",
-    "household food budgeting strategies APAC",
-    "stockout prediction and smart home pantry",
+    "food cost inflation trends for restaurants in Southeast Asia {month} {year}",
+    "waste reduction strategies for restaurant and cloud kitchens",
+    "AI-powered inventory intelligence benefits for F&B operators",
+    "supplier price volatility trends for restaurants in Singapore",
+    "multi-location restaurant procurement budgeting strategies APAC",
+    "stockout prediction for commercial kitchens",
 ]
 
 
@@ -47,16 +47,16 @@ async def generate_research_post(topic_template: str | None = None) -> dict[str,
 
     client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    prompt = f"""You are a food economics researcher writing for Neumas,
-an AI-powered grocery intelligence platform.
+    prompt = f"""You are a restaurant operations researcher writing for Neumas,
+an AI operations intelligence platform for F&B businesses.
 
 Write a research article about: {topic}
 
 The article should be:
 - 600-800 words
 - Data-driven with specific statistics (use realistic estimates if exact data unavailable, cite as "estimated")
-- Focused on actionable insights for households in SEA/APAC markets
-- Connected to how AI and smart pantry management can help
+- Focused on actionable insights for restaurants, cafes, cloud kitchens, and multi-location F&B operators in SEA/APAC markets
+- Connected to how AI-driven inventory, purchasing, and food-cost intelligence can help
 - Written in clear, accessible English (not academic jargon)
 
 Return ONLY valid JSON with these fields:
@@ -64,7 +64,7 @@ Return ONLY valid JSON with these fields:
   "title": "compelling headline under 70 chars",
   "summary": "2-sentence summary under 160 chars",
   "content": "full article in markdown",
-  "category": "one of: grocery-trends|food-waste|ai-intelligence|budgeting|sustainability",
+  "category": "one of: operations|food-waste|ai-intelligence|vendor-intelligence|sustainability",
   "tags": ["tag1", "tag2", "tag3"]
 }}"""
 

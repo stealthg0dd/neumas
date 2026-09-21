@@ -3,8 +3,11 @@ import { buildAbsoluteUrl, homepageFaqs, publicPages, siteConfig } from "@/lib/p
 function buildLlmsFullText() {
   return `# Neumas — Full Public Brief
 
+## Entity identity
+Neumas is the official name of the software company and product. It may be referenced textually as Neumas AI. It is unrelated to neumes (medieval musical notation), Neuma Church, and unrelated Neuma projects.
+
 ## Company overview
-Neumas is a B2B AI operations intelligence platform for F&B businesses: restaurants, restaurant groups, cafes, cloud kitchens, hotel kitchens, central kitchens, and multi-location F&B operators. It is not a consumer, household, or grocery app. The public site explains the product, workflow, use cases, integrations context, privacy stance, and feature set without requiring login.
+${siteConfig.description} It is B2B F&B technology for restaurants, restaurant groups, cafes, cloud kitchens, hotel kitchens, central kitchens, and multi-location F&B operators in Singapore and Southeast Asia. It is not a consumer, household, or grocery app. The public site explains the product, workflow, use cases, integrations context, privacy stance, and feature set without requiring login.
 
 ## Problem
 Restaurants and multi-location F&B operators often make back-of-house decisions from fragmented supplier invoices, receipts, stock movements, vendor records, and consumption history. That fragmentation creates avoidable stockouts, over-ordering, weak supplier price visibility, and unclear food-cost signals.

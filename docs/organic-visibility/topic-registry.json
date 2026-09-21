@@ -1,0 +1,203 @@
+{
+  "publishingPolicy": {
+    "maximumArticlesPerWeek": 1,
+    "humanApprovalRequired": true,
+    "automaticPublishing": false,
+    "automaticLinkedInPosting": false
+  },
+  "topics": [
+    {
+      "id": "restaurant-inventory-management",
+      "tier": 1,
+      "targetQuery": "restaurant inventory management",
+      "intent": "educational implementation guidance",
+      "status": "covered",
+      "url": "https://www.neumas.cc/guides/restaurant-inventory-management",
+      "intentCheck": {
+        "completedAt": "2026-09-20",
+        "checkedUrls": [
+          "https://www.neumas.cc/guides/restaurant-inventory-management",
+          "https://www.neumas.cc/solutions/restaurant-inventory-management"
+        ],
+        "gapRationale": "Existing guide satisfies the educational intent; no new article is planned."
+      }
+    },
+    {
+      "id": "restaurant-food-cost",
+      "tier": 1,
+      "targetQuery": "restaurant food cost",
+      "intent": "educational food-cost control guidance",
+      "status": "covered",
+      "url": "https://www.neumas.cc/guides/restaurant-food-cost-control",
+      "intentCheck": {
+        "completedAt": "2026-09-20",
+        "checkedUrls": [
+          "https://www.neumas.cc/guides/restaurant-food-cost-control",
+          "https://www.neumas.cc/solutions/food-cost-control"
+        ],
+        "gapRationale": "Existing guide satisfies the educational intent; no new article is planned."
+      }
+    },
+    {
+      "id": "food-cost-software",
+      "tier": 1,
+      "targetQuery": "food cost software",
+      "intent": "commercial product evaluation",
+      "status": "covered",
+      "url": "https://www.neumas.cc/solutions/food-cost-control",
+      "intentCheck": {
+        "completedAt": "2026-09-20",
+        "checkedUrls": [
+          "https://www.neumas.cc/solutions/food-cost-control"
+        ],
+        "gapRationale": "The existing solution page satisfies commercial evaluation intent; no new article is planned."
+      }
+    },
+    {
+      "id": "restaurant-invoice-automation",
+      "tier": 2,
+      "targetQuery": "restaurant invoice automation",
+      "intent": "commercial product evaluation",
+      "status": "covered",
+      "url": "https://www.neumas.cc/solutions/invoice-intelligence",
+      "intentCheck": {
+        "completedAt": "2026-09-20",
+        "checkedUrls": [
+          "https://www.neumas.cc/solutions/invoice-intelligence"
+        ],
+        "gapRationale": "The existing solution page satisfies commercial evaluation intent; no new article is planned."
+      }
+    },
+    {
+      "id": "restaurant-procurement-software",
+      "tier": 2,
+      "targetQuery": "restaurant procurement software",
+      "intent": "commercial product evaluation",
+      "status": "covered",
+      "url": "https://www.neumas.cc/solutions/procurement-intelligence",
+      "intentCheck": {
+        "completedAt": "2026-09-20",
+        "checkedUrls": [
+          "https://www.neumas.cc/solutions/procurement-intelligence"
+        ],
+        "gapRationale": "The existing solution page satisfies commercial evaluation intent; no new article is planned."
+      }
+    },
+    {
+      "id": "predictive-restaurant-ordering",
+      "tier": 2,
+      "targetQuery": "predictive restaurant ordering",
+      "intent": "commercial product evaluation",
+      "status": "covered",
+      "url": "https://www.neumas.cc/solutions/predictive-reordering",
+      "intentCheck": {
+        "completedAt": "2026-09-20",
+        "checkedUrls": [
+          "https://www.neumas.cc/solutions/predictive-reordering"
+        ],
+        "gapRationale": "The existing solution page satisfies commercial evaluation intent; no new article is planned."
+      }
+    },
+    {
+      "id": "supplier-price-tracking-restaurants",
+      "tier": 2,
+      "targetQuery": "supplier price tracking restaurants",
+      "intent": "commercial product evaluation",
+      "status": "covered",
+      "url": "https://www.neumas.cc/features/vendor-intelligence",
+      "intentCheck": {
+        "completedAt": "2026-09-20",
+        "checkedUrls": [
+          "https://www.neumas.cc/features/vendor-intelligence"
+        ],
+        "gapRationale": "The existing feature page satisfies commercial evaluation intent; no new article is planned."
+      }
+    }
+  ],
+  "visibility": [
+    {
+      "url": "https://www.neumas.cc/guides/restaurant-inventory-management",
+      "targetQuery": "restaurant inventory management",
+      "intent": "educational implementation guidance",
+      "publishedDate": "2026-09-20",
+      "lastUpdated": "2026-09-20",
+      "indexStatus": null,
+      "impressions": null,
+      "clicks": null,
+      "averagePosition": null,
+      "externalBacklinks": null
+    },
+    {
+      "url": "https://www.neumas.cc/guides/restaurant-food-cost-control",
+      "targetQuery": "restaurant food cost",
+      "intent": "educational food-cost control guidance",
+      "publishedDate": "2026-09-20",
+      "lastUpdated": "2026-09-20",
+      "indexStatus": null,
+      "impressions": null,
+      "clicks": null,
+      "averagePosition": null,
+      "externalBacklinks": null
+    },
+    {
+      "url": "https://www.neumas.cc/solutions/food-cost-control",
+      "targetQuery": "food cost software",
+      "intent": "commercial product evaluation",
+      "publishedDate": null,
+      "lastUpdated": null,
+      "indexStatus": null,
+      "impressions": null,
+      "clicks": null,
+      "averagePosition": null,
+      "externalBacklinks": null
+    },
+    {
+      "url": "https://www.neumas.cc/solutions/invoice-intelligence",
+      "targetQuery": "restaurant invoice automation",
+      "intent": "commercial product evaluation",
+      "publishedDate": null,
+      "lastUpdated": null,
+      "indexStatus": null,
+      "impressions": null,
+      "clicks": null,
+      "averagePosition": null,
+      "externalBacklinks": null
+    },
+    {
+      "url": "https://www.neumas.cc/solutions/procurement-intelligence",
+      "targetQuery": "restaurant procurement software",
+      "intent": "commercial product evaluation",
+      "publishedDate": null,
+      "lastUpdated": null,
+      "indexStatus": null,
+      "impressions": null,
+      "clicks": null,
+      "averagePosition": null,
+      "externalBacklinks": null
+    },
+    {
+      "url": "https://www.neumas.cc/solutions/predictive-reordering",
+      "targetQuery": "predictive restaurant ordering",
+      "intent": "commercial product evaluation",
+      "publishedDate": null,
+      "lastUpdated": null,
+      "indexStatus": null,
+      "impressions": null,
+      "clicks": null,
+      "averagePosition": null,
+      "externalBacklinks": null
+    },
+    {
+      "url": "https://www.neumas.cc/features/vendor-intelligence",
+      "targetQuery": "supplier price tracking restaurants",
+      "intent": "commercial product evaluation",
+      "publishedDate": null,
+      "lastUpdated": null,
+      "indexStatus": null,
+      "impressions": null,
+      "clicks": null,
+      "averagePosition": null,
+      "externalBacklinks": null
+    }
+  ]
+}

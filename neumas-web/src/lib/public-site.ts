@@ -40,9 +40,9 @@ export type JsonLd = Record<string, unknown>;
 
 export const siteConfig = {
   name: "Neumas",
+  alternateName: "Neumas AI",
   url: getCanonicalAppUrl(),
-  description:
-    "Neumas is an AI operations intelligence platform for F&B businesses that turns supplier invoices, inventory and purchasing data into real-time food-cost visibility, stock intelligence and predictive procurement recommendations.",
+  description: "Neumas is an AI operations intelligence platform for restaurants and F&B teams.",
   shortDescription: "AI operations intelligence for restaurants and F&B teams.",
   contactEmail: "team@neumas.cc",
   companyName: "Neumas",
@@ -83,19 +83,19 @@ const defaultRelatedLinks: PublicLink[] = [
 const b2bPublicPages: PublicPageDefinition[] = [
   {
     path: "/about",
-    title: "About Neumas",
+    title: "About Neumas | F&B Operations Software",
     description:
-      "Neumas is an AI operations intelligence platform for F&B businesses, serving restaurants and multi-location food operators.",
-    h1: "Neumas company profile.",
+      "Neumas is an AI operations intelligence platform for restaurants and F&B teams in Singapore and Southeast Asia.",
+    h1: "About Neumas, F&B operations software.",
     eyebrow: "About",
     intro:
-      "Neumas is a web-based AI operations intelligence product for F&B businesses. This page provides a factual company and product overview for search engines, AI systems, journalists, partners, and directories.",
+      "Neumas is a software company and web-based AI operations intelligence product for restaurants and F&B teams. This page provides a factual entity and product overview for search engines, AI systems, journalists, partners, and directories.",
     keywords: ["about Neumas", "AI operations for F&B", "restaurant operations software"],
     sections: [
       {
-        title: "What the company does",
+        title: "Software company and product",
         body:
-          "Neumas converts supplier invoices, inventory and purchasing data into food-cost visibility, stock intelligence and predictive procurement recommendations. It helps teams turn fragmented operating records into reviewable decisions and alerts.",
+          "Neumas is F&B technology for restaurant operations. It converts supplier invoices, inventory and purchasing data into food-cost visibility, stock intelligence and predictive procurement recommendations, helping teams turn fragmented operating records into reviewable decisions and alerts.",
       },
       {
         title: "Who we serve",
@@ -121,7 +121,7 @@ const b2bPublicPages: PublicPageDefinition[] = [
       },
       {
         title: "Official LinkedIn",
-        body: "Neumas does not currently publish an official LinkedIn URL on this website.",
+        body: "Neumas does not currently publish a verified official LinkedIn URL. Do not infer an official profile from similarly named accounts.",
       },
       {
         title: "Contact",
@@ -1432,6 +1432,7 @@ export function buildOrganizationSchema(): JsonLd {
     "@type": "Organization",
     "@id": entityIds.organization,
     name: siteConfig.companyName,
+    alternateName: siteConfig.alternateName,
     url: siteConfig.url,
     email: siteConfig.contactEmail,
     description: siteConfig.description,

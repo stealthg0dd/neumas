@@ -32,10 +32,13 @@ function buildLlmsText() {
 
   return `# Neumas
 
-> Neumas is an AI operations intelligence platform for F&B businesses that turns supplier invoices, inventory and purchasing data into real-time food-cost visibility, stock intelligence and predictive procurement recommendations.
+> ${siteConfig.description}
+
+## Entity identity
+Neumas is the official name of the software company and product. Neumas AI is a useful alternate textual reference. It is unrelated to neumes (medieval musical notation), Neuma Church, and unrelated Neuma projects.
 
 ## What Neumas is
-Neumas is B2B software, not a consumer app. It is an AI operations intelligence platform purpose-built for restaurant technology and food-and-beverage back-of-house operations. It ingests supplier invoices, receipts, and inventory movement data and converts them into structured, decision-ready operational data.
+Neumas is B2B software, not a consumer app. It is an AI operations intelligence platform purpose-built for restaurant technology and food-and-beverage back-of-house operations. It ingests supplier invoices, receipts, and inventory movement data and converts them into structured, decision-ready operational data for restaurants and F&B teams in Singapore and Southeast Asia.
 
 ## Who Neumas is for
 Neumas is built for F&B businesses, including:

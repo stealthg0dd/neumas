@@ -56,7 +56,7 @@ async def test_list_connections_returns_catalog_when_no_integrations(monkeypatch
         "storehub",
         "qashier",
         "email-receipt-import",
-        "grocery-partner-connections",
+        "supplier-commerce-connections",
     }
     assert all(entry.organization_id == tenant.org_id for entry in connections)
     assert all(entry.status == "not_connected" for entry in connections)

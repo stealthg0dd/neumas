@@ -34,8 +34,8 @@ def integration_catalog() -> list[IntegrationConnectionResponse]:
         ),
         IntegrationConnectionResponse(
             adapter_type="commerce",
-            provider_slug="grocery-partner-connections",
-            display_name="Grocery partner connections",
+            provider_slug="supplier-commerce-connections",
+            display_name="Supplier ordering connections",
             status="not_connected",
             health_status="unknown",
             implemented=False,

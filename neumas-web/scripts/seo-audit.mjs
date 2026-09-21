@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 const port = process.env.SEO_AUDIT_PORT || "3105";
 const baseUrl = `http://127.0.0.1:${port}`;
 const canonicalHost = "https://www.neumas.cc";
+const organizationDescription = "Neumas is an AI operations intelligence platform for restaurants and F&B teams.";
 const bannedConsumerTerms = [
   "grocery autopilot",
   "household autopilot",
@@ -68,6 +69,29 @@ function getStructuredDataErrors(html) {
       return [`invalid JSON-LD: ${error instanceof Error ? error.message : String(error)}`];
     }
   });
+}
+
+function getHomepageEntityErrors(html) {
+  const scripts = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  const nodes = [];
+  for (const script of scripts) {
+    try {
+      const parsed = JSON.parse(script[1]);
+      nodes.push(...(Array.isArray(parsed) ? parsed : [parsed]));
+    } catch {
+      return [];
+    }
+  }
+
+  const organization = nodes.find((node) => node?.["@type"] === "Organization");
+  const errors = [];
+  if (!organization) return ["homepage is missing Organization JSON-LD"];
+  if (organization.name !== "Neumas") errors.push("homepage Organization name is not Neumas");
+  if (organization.alternateName !== "Neumas AI") errors.push("homepage Organization alternateName is not Neumas AI");
+  if (organization.url !== canonicalHost) errors.push("homepage Organization URL is not canonical");
+  if (organization.description !== organizationDescription) errors.push("homepage Organization description is not canonical");
+  if (nodes.some((node) => node?.["@type"] === "SoftwareApplication")) errors.push("homepage includes unsupported SoftwareApplication JSON-LD");
+  return errors;
 }
 
 function getExpectedConcepts(path) {
@@ -168,6 +192,9 @@ async function main() {
       if ((html.match(/<h1\b/gi) ?? []).length !== 1) errors.push(`${url}: expected exactly one H1`);
       if (getMetadata(html, "robots")?.toLowerCase().includes("noindex")) errors.push(`${url}: accidental noindex`);
       if (getStructuredDataErrors(html).length) errors.push(`${url}: ${getStructuredDataErrors(html).join(", ")}`);
+      if (path === "/" && getHomepageEntityErrors(html).length) {
+        errors.push(`${url}: ${getHomepageEntityErrors(html).join(", ")}`);
+      }
 
       for (const term of bannedConsumerTerms) {
         if (html.toLowerCase().includes(term) && !consumerTermWhitelist.get(path)?.includes(term)) {
@@ -210,8 +237,14 @@ async function main() {
     }
 
     const llms = await (await fetch(`${baseUrl}/llms.txt`)).text();
+    const llmsFull = await (await fetch(`${baseUrl}/llms-full.txt`)).text();
     if (!/B2B software/i.test(llms) || /grocery autopilot|household autopilot|smart shopping list/i.test(llms)) {
       errors.push("llms.txt is not B2B-accurate");
+    }
+    for (const [label, document] of [["llms.txt", llms], ["llms-full.txt", llmsFull]]) {
+      if (!document.includes(organizationDescription) || !document.includes("Neumas AI") || !/unrelated to neumes/i.test(document)) {
+        errors.push(`${label} is missing Neumas entity-disambiguation context`);
+      }
     }
     const feed = await (await fetch(`${baseUrl}/feed.xml`)).text();
     if (!feed.includes("<rss") || !feed.includes("/guides/")) errors.push("RSS feed is unavailable or missing public guides");

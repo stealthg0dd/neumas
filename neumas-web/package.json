@@ -11,6 +11,8 @@
     "test": "vitest run",
     "seo:audit": "node scripts/seo-audit.mjs",
     "sitemap:health": "node scripts/production-sitemap-health.mjs",
+    "visibility:draft": "node scripts/visibility-workflow.mjs draft",
+    "visibility:log-deployment": "node scripts/visibility-workflow.mjs log-deployment",
     "vercel-build": "next build"
   },
   "dependencies": {
