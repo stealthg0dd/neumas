@@ -20,11 +20,13 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - Wave 1 Control Center dashboard added with KPI row, operating views, action/exception tables, evidence drawer, and honest empty/N/A states.
 - Wave 1 shell routes added for Margin, Demand, Procurement, Invoices, Recipes, Waste, Exceptions, Agent Center, Decisions, and Integrations.
 - Wave 2 Food Graph domain model, deterministic costing service, CSV import preview/commit API, and recipe UI added.
+- Wave 3 canonical demand model, universal CSV import layer, deterministic demand forecasting service, evaluation helpers, and demand UI added.
 
 ## Migrations Added
 
 - None yet.
 - `neumas-backend/supabase/migrations/202609250001_food_graph.sql`
+- `neumas-backend/supabase/migrations/202609250002_demand_intelligence.sql`
 
 ## Endpoints Added
 
@@ -36,6 +38,9 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `GET /api/food-graph/recipes/{recipe_id}/cost`
 - `GET /api/food-graph/food-cost-drivers`
 - `POST /api/food-graph/imports`
+- `POST /api/demand/imports`
+- `POST /api/demand/forecasts`
+- `GET /api/demand/summary`
 
 ## UI Routes Added
 
@@ -63,6 +68,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-web/src/__tests__/control-center-dashboard.test.tsx`
 - Updated `neumas-web/src/__tests__/navigation.test.ts`
 - `neumas-backend/tests/test_food_graph.py`
+- `neumas-backend/tests/test_demand.py`
 
 ## Remaining Blockers
 

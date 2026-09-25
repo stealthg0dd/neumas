@@ -98,6 +98,7 @@ from app.api.routes import (
     analytics,
     auth,
     control_center,
+    demand,
     documents,
     food_graph,
     insights,
@@ -601,6 +602,12 @@ app.include_router(
     food_graph.router,
     prefix="/api/food-graph",
     tags=["Food Graph"],
+)
+
+app.include_router(
+    demand.router,
+    prefix="/api/demand",
+    tags=["Demand"],
 )
 
 

@@ -84,6 +84,7 @@ import type {
   BurnRateRecomputeResponse,
   ControlCenterSummary,
   DecisionCenterResponse,
+  DemandDashboardSummary,
   DigestPreferencesResponse,
   DigestPreferencesUpdateRequest,
   LoginRequest,
@@ -592,6 +593,11 @@ export async function getRecipeDetail(recipeId: string): Promise<RecipeDetail> {
 /** GET /api/food-graph/food-cost-drivers */
 export async function getFoodCostDrivers(): Promise<FoodCostDriversResponse> {
   return get<FoodCostDriversResponse>("/api/food-graph/food-cost-drivers");
+}
+
+/** GET /api/demand/summary */
+export async function getDemandSummary(): Promise<DemandDashboardSummary> {
+  return get<DemandDashboardSummary>("/api/demand/summary");
 }
 
 /** GET /api/alerts/{alertId} */

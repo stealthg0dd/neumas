@@ -1003,3 +1003,30 @@ export interface FoodCostDriversResponse {
   recipes: RecipeSummary[];
   top_ingredients: IngredientContribution[];
 }
+
+// ============================================================================
+// Demand Intelligence
+// ============================================================================
+
+export interface DemandForecastItem {
+  item_type: string;
+  item_id: string | null;
+  item_name: string;
+  current_stock: number | null;
+  forecast_demand: number;
+  projected_stock: number | null;
+  required_quantity: number | null;
+  recommended_order_date: string | null;
+  confidence: number;
+  risk: string;
+  evidence: Record<string, unknown>;
+}
+
+export interface DemandDashboardSummary {
+  generated_at: string;
+  forecast_confidence: number | null;
+  items: DemandForecastItem[];
+  chart: Array<{ date: string; demand: number }>;
+  critical_changes: DemandForecastItem[];
+  evidence: string[];
+}
