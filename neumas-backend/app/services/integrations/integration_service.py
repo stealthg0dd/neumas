@@ -11,9 +11,11 @@ from app.db.supabase_client import get_async_supabase_admin
 from app.schemas.integrations import (
     ExternalDomainEvent,
     IntegrationConnectionResponse,
+    ProviderWebhookIngestResponse,
 )
 from app.services.integrations.catalog import integration_catalog
 from app.services.integrations.interfaces import ExternalDomainEventHandler
+from app.services.integrations.square import SquareAdapter
 
 logger = get_logger(__name__)
 
@@ -60,6 +62,15 @@ class IntegrationService:
                     enabled=bool(row.get("enabled") or False),
                     implemented=bool(base.implemented) if base else False,
                     coming_soon=bool(base.coming_soon) if base else False,
+                    availability="connected" if row.get("status") == "connected" else (base.availability if base else "coming_soon"),
+                    permissions=base.permissions if base else [],
+                    credential_reference=row.get("credential_reference") or (base.credential_reference if base else None),
+                    oauth_state=row.get("oauth_state"),
+                    token_expires_at=row.get("token_expires_at"),
+                    webhook_subscriptions=row.get("webhook_subscriptions") or [],
+                    last_successful_sync_at=row.get("last_successful_sync_at") or row.get("last_synced_at"),
+                    last_error_at=row.get("last_error_at"),
+                    records_synced=int(row.get("records_synced") or 0),
                     config=row.get("config") or {},
                     connection_metadata=row.get("connection_metadata") or {},
                     sync_cursor=row.get("sync_cursor") or {},
@@ -86,6 +97,16 @@ class IntegrationService:
 
         merged.sort(key=lambda item: (item.adapter_type, item.display_name.lower()))
         return merged
+
+    async def connection_status(self, tenant: TenantContext) -> dict[str, Any]:
+        connections = await self.list_connections(tenant)
+        return {
+            "connected": sum(1 for item in connections if item.availability == "connected"),
+            "available": sum(1 for item in connections if item.availability == "available"),
+            "requires_partner_access": sum(1 for item in connections if item.availability == "requires_partner_access"),
+            "coming_soon": sum(1 for item in connections if item.availability == "coming_soon"),
+            "connections": connections,
+        }
 
     async def get_connection(
         self,
@@ -201,3 +222,101 @@ class IntegrationService:
             result_summary=result,
         )
         return result
+
+    async def ingest_square_webhook(
+        self,
+        tenant: TenantContext,
+        *,
+        body: bytes,
+        payload: dict[str, Any],
+        signature_header: str | None,
+        notification_url: str,
+    ) -> ProviderWebhookIngestResponse:
+        square = SquareAdapter()
+        if not square.enabled or not square.webhook_enabled:
+            return ProviderWebhookIngestResponse(status="disabled", canonical_result={"reason": "square_credentials_unavailable"})
+        if not square.verify_webhook_signature(notification_url=notification_url, body=body, signature_header=signature_header):
+            return ProviderWebhookIngestResponse(status="invalid_signature")
+
+        connection = await self.get_connection(tenant, "pos", "square")
+        if connection is None:
+            return ProviderWebhookIngestResponse(status="not_connected")
+
+        external_event_id = str(payload.get("event_id") or payload.get("merchant_id") or payload.get("created_at") or "")
+        if not external_event_id:
+            return ProviderWebhookIngestResponse(status="invalid_payload", canonical_result={"reason": "missing_event_id"})
+        raw = await self.record_raw_event(
+            tenant,
+            connection,
+            provider_slug="square",
+            event_type=str(payload.get("type") or "square.webhook"),
+            external_event_id=external_event_id,
+            idempotency_key=f"square:{external_event_id}",
+            payload=payload,
+            headers={"x-square-signature": "present"},
+        )
+        if raw.get("duplicate"):
+            return ProviderWebhookIngestResponse(status="duplicate", duplicate=True, raw_event_id=raw.get("id"))
+        orders = square.map_webhook_payload_to_orders(payload)
+        canonical_rows = [row for order in orders for row in square.map_order_to_sales_rows(order)]
+        result = {"sales_rows": len(canonical_rows), "mapping": "square_order_to_canonical_sales"}
+        await self.mark_raw_event_mapped(raw.get("id"), result)
+        return ProviderWebhookIngestResponse(status="processed", raw_event_id=raw.get("id"), canonical_result=result)
+
+    async def record_raw_event(
+        self,
+        tenant: TenantContext,
+        connection: IntegrationConnectionResponse,
+        *,
+        provider_slug: str,
+        event_type: str,
+        external_event_id: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+        headers: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        client = await get_async_supabase_admin()
+        if client is None or connection.id is None:
+            return {"status": "skipped", "duplicate": False}
+        existing = await (
+            client.table("raw_provider_events")
+            .select("id,external_event_id,mapping_status")
+            .eq("integration_connection_id", str(connection.id))
+            .eq("external_event_id", external_event_id)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            row = existing.data[0]
+            row["duplicate"] = True
+            return row
+        event = {
+            "integration_connection_id": str(connection.id),
+            "organization_id": str(tenant.org_id),
+            "property_id": str(tenant.property_id) if tenant.property_id else None,
+            "provider_slug": provider_slug,
+            "adapter_type": connection.adapter_type,
+            "external_event_id": external_event_id,
+            "event_type": event_type,
+            "idempotency_key": idempotency_key,
+            "payload": payload,
+            "headers": headers or {},
+            "mapping_status": "received",
+        }
+        resp = await client.table("raw_provider_events").insert(event).execute()
+        row = resp.data[0] if resp.data else event
+        row["duplicate"] = False
+        return row
+
+    async def mark_raw_event_mapped(self, raw_event_id: UUID | str | None, canonical_result: dict[str, Any]) -> None:
+        if raw_event_id is None:
+            return
+        client = await get_async_supabase_admin()
+        if client is None:
+            return
+        await (
+            client.table("raw_provider_events")
+            .update({"mapping_status": "mapped", "canonical_result": canonical_result})
+            .eq("id", str(raw_event_id))
+            .execute()
+        )

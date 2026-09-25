@@ -103,6 +103,7 @@ from app.api.routes import (
     documents,
     food_graph,
     insights,
+    integrations,
     inventory,
     margin,
     predictions,
@@ -636,6 +637,12 @@ app.include_router(
     margin.router,
     prefix="/api/margin",
     tags=["Margin"],
+)
+
+app.include_router(
+    integrations.router,
+    prefix="/api/integrations",
+    tags=["Integrations"],
 )
 
 

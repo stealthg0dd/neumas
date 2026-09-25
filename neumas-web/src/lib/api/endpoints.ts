@@ -962,7 +962,12 @@ export type IntegrationAdapterType =
   | "supplier"
   | "accounting"
   | "commerce"
-  | "receipt_source";
+  | "receipt_source"
+  | "catalog"
+  | "inventory"
+  | "reservation"
+  | "pms"
+  | "demand_signal";
 
 export type IntegrationConnectionStatus =
   | "connected"
@@ -974,6 +979,12 @@ export type IntegrationHealthStatus =
   | "degraded"
   | "offline"
   | "unknown";
+
+export type IntegrationAvailability =
+  | "connected"
+  | "available"
+  | "requires_partner_access"
+  | "coming_soon";
 
 export interface IntegrationConnection {
   id?: string | null;
@@ -987,6 +998,15 @@ export interface IntegrationConnection {
   enabled: boolean;
   implemented: boolean;
   coming_soon: boolean;
+  availability?: IntegrationAvailability;
+  permissions?: string[];
+  credential_reference?: string | null;
+  oauth_state?: string | null;
+  token_expires_at?: string | null;
+  webhook_subscriptions?: Array<Record<string, unknown>>;
+  last_successful_sync_at?: string | null;
+  last_error_at?: string | null;
+  records_synced?: number;
   config: Record<string, unknown>;
   connection_metadata: Record<string, unknown>;
   sync_cursor: Record<string, unknown>;
@@ -1071,6 +1091,11 @@ export async function listFeatureFlags(): Promise<Record<string, boolean>> {
 /** GET /api/admin/integrations */
 export async function listAdminIntegrations(): Promise<IntegrationConnection[]> {
   return get<IntegrationConnection[]>("/api/admin/integrations");
+}
+
+/** GET /api/integrations/connections */
+export async function listIntegrations(): Promise<IntegrationConnection[]> {
+  return get<IntegrationConnection[]>("/api/integrations/connections");
 }
 
 export async function listPilotLeads(): Promise<PilotLead[]> {

@@ -25,6 +25,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - Wave 5 durable policy, decision, approval, action, attempt, verification, outcome architecture plus internal action gateway and Agent Center/Decision Ledger UI added.
 - Wave 6 purchase orders, supplier acknowledgements, goods receipts, supplier invoices, and deterministic three-way reconciliation added.
 - Wave 7 margin snapshots/calculations, leakage attribution, waste events, outcome learning calculations, and Margin/Waste UI added.
+- Wave 8 connector gateway contracts, raw provider events, secure credential references, Square adapter, Xero OAuth scaffold, and integrations UI added.
 
 ## Migrations Added
 
@@ -34,6 +35,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/supabase/migrations/202609250004_autonomy_decision_action.sql`
 - `neumas-backend/supabase/migrations/202609250005_purchasing_lifecycle_reconciliation.sql`
 - `neumas-backend/supabase/migrations/202609250006_margin_waste_outcomes.sql`
+- `neumas-backend/supabase/migrations/202609250007_connector_gateway_square_xero.sql`
 
 ## Endpoints Added
 
@@ -62,6 +64,9 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `POST /api/purchasing/invoices`
 - `GET /api/margin/summary`
 - `POST /api/margin/waste-events`
+- `GET /api/integrations/connections`
+- `GET /api/integrations/status`
+- `POST /api/integrations/webhooks/square`
 
 ## UI Routes Added
 
@@ -95,10 +100,12 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/tests/test_autonomy.py`
 - `neumas-backend/tests/test_purchasing.py`
 - `neumas-backend/tests/test_margin.py`
+- `neumas-backend/tests/test_connector_gateway.py`
 
 ## Remaining Blockers
 
 - Production database/schema parity not verified and should not be inferred from local migrations.
-- External supplier execution must remain non-fake until real adapters, credentials, contract tests, acknowledgement handling, and reconciliation records exist.
+- External supplier execution must remain non-fake until real supplier adapters, credentials, contract tests, acknowledgement handling, and reconciliation records exist.
+- Square and Xero adapters remain disabled unless the expected environment credentials are present.
 - Verified supplier OTIF outcomes and external action providers remain unavailable because real provider contracts/outcome records do not exist yet.
 - External action providers remain intentionally unimplemented; the Wave 5 gateway only supports internal/manual provider abstractions until real provider contracts exist.

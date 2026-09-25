@@ -12,10 +12,16 @@ AdapterType = Literal[
     "accounting",
     "commerce",
     "receipt_source",
+    "catalog",
+    "inventory",
+    "reservation",
+    "pms",
+    "demand_signal",
 ]
 
 ConnectionStatus = Literal["connected", "needs_attention", "not_connected"]
 HealthStatus = Literal["healthy", "degraded", "offline", "unknown"]
+AvailabilityStatus = Literal["connected", "available", "requires_partner_access", "coming_soon"]
 
 
 class IntegrationConnectionResponse(BaseModel):
@@ -30,6 +36,15 @@ class IntegrationConnectionResponse(BaseModel):
     enabled: bool = False
     implemented: bool = False
     coming_soon: bool = True
+    availability: AvailabilityStatus = "coming_soon"
+    permissions: list[str] = Field(default_factory=list)
+    credential_reference: str | None = None
+    oauth_state: str | None = None
+    token_expires_at: datetime | None = None
+    webhook_subscriptions: list[dict[str, Any]] = Field(default_factory=list)
+    last_successful_sync_at: datetime | None = None
+    last_error_at: datetime | None = None
+    records_synced: int = 0
     config: dict[str, Any] = Field(default_factory=dict)
     connection_metadata: dict[str, Any] = Field(default_factory=dict)
     sync_cursor: dict[str, Any] = Field(default_factory=dict)
@@ -67,3 +82,36 @@ class IntegrationEventReceipt(BaseModel):
     result_summary: dict[str, Any] = Field(default_factory=dict)
     received_at: datetime | None = None
     processed_at: datetime | None = None
+
+
+class RawProviderEvent(BaseModel):
+    id: UUID | None = None
+    integration_connection_id: UUID | None = None
+    organization_id: UUID
+    property_id: UUID | None = None
+    provider_slug: str
+    adapter_type: AdapterType
+    external_event_id: str
+    event_type: str
+    idempotency_key: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    headers: dict[str, Any] = Field(default_factory=dict)
+    mapping_status: str = "received"
+    canonical_result: dict[str, Any] = Field(default_factory=dict)
+    occurred_at: datetime | None = None
+    received_at: datetime | None = None
+
+
+class ProviderWebhookIngestRequest(BaseModel):
+    provider_slug: str
+    event_type: str
+    external_event_id: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    headers: dict[str, str] = Field(default_factory=dict)
+
+
+class ProviderWebhookIngestResponse(BaseModel):
+    status: str
+    duplicate: bool = False
+    raw_event_id: UUID | None = None
+    canonical_result: dict[str, Any] = Field(default_factory=dict)

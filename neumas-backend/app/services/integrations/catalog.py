@@ -1,10 +1,40 @@
 from __future__ import annotations
 
 from app.schemas.integrations import IntegrationConnectionResponse
+from app.services.integrations.square import SquareAdapter
+from app.services.integrations.xero import XeroAdapter
 
 
 def integration_catalog() -> list[IntegrationConnectionResponse]:
+    square = SquareAdapter()
+    xero = XeroAdapter()
     return [
+        IntegrationConnectionResponse(
+            adapter_type="pos",
+            provider_slug="square",
+            display_name="Square",
+            status="not_connected",
+            health_status="unknown",
+            implemented=True,
+            coming_soon=False,
+            availability="available" if square.enabled else "requires_partner_access",
+            enabled=square.enabled,
+            credential_reference="env:SQUARE_ACCESS_TOKEN" if square.enabled else None,
+            permissions=["locations.read", "catalog.read", "orders.read", "inventory.read", "webhooks"],
+        ),
+        IntegrationConnectionResponse(
+            adapter_type="accounting",
+            provider_slug="xero",
+            display_name="Xero",
+            status="not_connected",
+            health_status="unknown",
+            implemented=True,
+            coming_soon=False,
+            availability="available" if xero.enabled else "requires_partner_access",
+            enabled=xero.enabled,
+            credential_reference="env:XERO_CLIENT_SECRET" if xero.enabled else None,
+            permissions=["contacts.read", "invoices.read", "bills.read", "accounting.references.read"],
+        ),
         IntegrationConnectionResponse(
             adapter_type="pos",
             provider_slug="storehub",
@@ -12,7 +42,8 @@ def integration_catalog() -> list[IntegrationConnectionResponse]:
             status="not_connected",
             health_status="unknown",
             implemented=False,
-            coming_soon=True,
+            coming_soon=False,
+            availability="requires_partner_access",
         ),
         IntegrationConnectionResponse(
             adapter_type="pos",
@@ -21,7 +52,48 @@ def integration_catalog() -> list[IntegrationConnectionResponse]:
             status="not_connected",
             health_status="unknown",
             implemented=False,
-            coming_soon=True,
+            coming_soon=False,
+            availability="requires_partner_access",
+        ),
+        IntegrationConnectionResponse(
+            adapter_type="pos",
+            provider_slug="toast",
+            display_name="Toast",
+            status="not_connected",
+            health_status="unknown",
+            implemented=False,
+            coming_soon=False,
+            availability="requires_partner_access",
+        ),
+        IntegrationConnectionResponse(
+            adapter_type="pos",
+            provider_slug="lightspeed",
+            display_name="Lightspeed",
+            status="not_connected",
+            health_status="unknown",
+            implemented=False,
+            coming_soon=False,
+            availability="requires_partner_access",
+        ),
+        IntegrationConnectionResponse(
+            adapter_type="pos",
+            provider_slug="eats365",
+            display_name="Eats365",
+            status="not_connected",
+            health_status="unknown",
+            implemented=False,
+            coming_soon=False,
+            availability="requires_partner_access",
+        ),
+        IntegrationConnectionResponse(
+            adapter_type="pos",
+            provider_slug="oracle-micros",
+            display_name="Oracle MICROS",
+            status="not_connected",
+            health_status="unknown",
+            implemented=False,
+            coming_soon=False,
+            availability="requires_partner_access",
         ),
         IntegrationConnectionResponse(
             adapter_type="receipt_source",
@@ -31,6 +103,7 @@ def integration_catalog() -> list[IntegrationConnectionResponse]:
             health_status="unknown",
             implemented=False,
             coming_soon=True,
+            availability="coming_soon",
         ),
         IntegrationConnectionResponse(
             adapter_type="commerce",
@@ -40,5 +113,36 @@ def integration_catalog() -> list[IntegrationConnectionResponse]:
             health_status="unknown",
             implemented=False,
             coming_soon=True,
+            availability="coming_soon",
+        ),
+        IntegrationConnectionResponse(
+            adapter_type="pms",
+            provider_slug="pms",
+            display_name="PMS",
+            status="not_connected",
+            health_status="unknown",
+            implemented=False,
+            coming_soon=True,
+            availability="coming_soon",
+        ),
+        IntegrationConnectionResponse(
+            adapter_type="reservation",
+            provider_slug="reservations",
+            display_name="Reservations",
+            status="not_connected",
+            health_status="unknown",
+            implemented=False,
+            coming_soon=True,
+            availability="coming_soon",
+        ),
+        IntegrationConnectionResponse(
+            adapter_type="demand_signal",
+            provider_slug="weather",
+            display_name="Weather",
+            status="not_connected",
+            health_status="unknown",
+            implemented=False,
+            coming_soon=True,
+            availability="coming_soon",
         ),
     ]

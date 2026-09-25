@@ -150,6 +150,17 @@ class Settings(BaseSettings):
     FROM_EMAIL: str = Field(default="", description="Verified sender email for Neumas reports")
     FROM_NAME: str = Field(default="Neumas Reports", description="Friendly sender name for digest emails")
 
+    # Provider integrations. Secrets are read from env/secret storage and should
+    # only be referenced from persisted connection metadata.
+    SQUARE_APPLICATION_ID: str = Field(default="", description="Square application id")
+    SQUARE_ACCESS_TOKEN: str = Field(default="", description="Square access token")
+    SQUARE_LOCATION_ID: str = Field(default="", description="Square location id")
+    SQUARE_WEBHOOK_SIGNATURE_KEY: str = Field(default="", description="Square webhook signature key")
+    SQUARE_ENVIRONMENT: Literal["sandbox", "production"] = Field(default="sandbox", description="Square API environment")
+    XERO_CLIENT_ID: str = Field(default="", description="Xero OAuth client id")
+    XERO_CLIENT_SECRET: str = Field(default="", description="Xero OAuth client secret")
+    XERO_REDIRECT_URI: str = Field(default="", description="Xero OAuth redirect URI")
+
     # JWT Settings
     JWT_ALGORITHM: str = Field(default="HS256", description="JWT algorithm")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
