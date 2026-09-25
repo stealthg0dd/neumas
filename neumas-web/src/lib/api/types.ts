@@ -1081,3 +1081,36 @@ export interface ProcurementSummary {
   price_intelligence: PriceIntelligenceItem[];
   suppliers: Array<Record<string, unknown>>;
 }
+
+// ============================================================================
+// Autonomy
+// ============================================================================
+
+export interface DecisionRecord {
+  id: string;
+  title: string;
+  decision_type: string;
+  proposed_action: Record<string, unknown>;
+  confidence: number;
+  policy_result: string;
+  status: string;
+  created_by_agent: string | null;
+  created_at: string | null;
+  evidence: Array<Record<string, unknown>>;
+  approvals: Array<Record<string, unknown>>;
+  actions: Array<Record<string, unknown>>;
+}
+
+export interface AgentCenterSummary {
+  active_agents: number;
+  tasks_executed: number;
+  policy_compliance: number | null;
+  time_saved_hours: number | null;
+  actions_executed: number;
+  savings_captured: number | null;
+  tasks: Array<Record<string, unknown>>;
+  activity_feed: Array<Record<string, unknown>>;
+  policy_boundaries: Array<Record<string, unknown>>;
+  autonomy_level: string;
+  exception_watchlist: Array<Record<string, unknown>>;
+}

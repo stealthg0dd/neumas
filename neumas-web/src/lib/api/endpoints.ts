@@ -80,10 +80,12 @@ function normalizeInventoryListPayload(
   return data as InventoryListResponse;
 }
 import type {
+  AgentCenterSummary,
   BurnRateRecomputeRequest,
   BurnRateRecomputeResponse,
   ControlCenterSummary,
   DecisionCenterResponse,
+  DecisionRecord,
   DemandDashboardSummary,
   DigestPreferencesResponse,
   DigestPreferencesUpdateRequest,
@@ -604,6 +606,16 @@ export async function getDemandSummary(): Promise<DemandDashboardSummary> {
 /** GET /api/procurement/summary */
 export async function getProcurementSummary(): Promise<ProcurementSummary> {
   return get<ProcurementSummary>("/api/procurement/summary");
+}
+
+/** GET /api/autonomy/agents/summary */
+export async function getAgentCenterSummary(): Promise<AgentCenterSummary> {
+  return get<AgentCenterSummary>("/api/autonomy/agents/summary");
+}
+
+/** GET /api/autonomy/decisions */
+export async function listAutonomyDecisions(): Promise<DecisionRecord[]> {
+  return get<DecisionRecord[]>("/api/autonomy/decisions");
 }
 
 /** GET /api/alerts/{alertId} */

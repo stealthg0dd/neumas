@@ -22,6 +22,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - Wave 2 Food Graph domain model, deterministic costing service, CSV import preview/commit API, and recipe UI added.
 - Wave 3 canonical demand model, universal CSV import layer, deterministic demand forecasting service, evaluation helpers, and demand UI added.
 - Wave 4 supplier commercial terms, supplier performance metrics, deterministic procurement optimizer, price intelligence, and procurement UI added.
+- Wave 5 durable policy, decision, approval, action, attempt, verification, outcome architecture plus internal action gateway and Agent Center/Decision Ledger UI added.
 
 ## Migrations Added
 
@@ -29,6 +30,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/supabase/migrations/202609250001_food_graph.sql`
 - `neumas-backend/supabase/migrations/202609250002_demand_intelligence.sql`
 - `neumas-backend/supabase/migrations/202609250003_supplier_intelligence_procurement.sql`
+- `neumas-backend/supabase/migrations/202609250004_autonomy_decision_action.sql`
 
 ## Endpoints Added
 
@@ -44,6 +46,11 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `POST /api/demand/forecasts`
 - `GET /api/demand/summary`
 - `GET /api/procurement/summary`
+- `GET /api/autonomy/agents/summary`
+- `GET /api/autonomy/decisions`
+- `POST /api/autonomy/decisions`
+- `POST /api/autonomy/actions`
+- `POST /api/autonomy/actions/{action_id}/retry`
 
 ## UI Routes Added
 
@@ -73,9 +80,11 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/tests/test_food_graph.py`
 - `neumas-backend/tests/test_demand.py`
 - `neumas-backend/tests/test_procurement_optimizer.py`
+- `neumas-backend/tests/test_autonomy.py`
 
 ## Remaining Blockers
 
 - Production database/schema parity not verified and should not be inferred from local migrations.
 - External supplier execution must remain non-fake until real adapters, credentials, contract tests, acknowledgement handling, and reconciliation records exist.
-- Purchase orders, recipe/BOM costing, waste ledger, supplier OTIF, decision ledger, and external action gateway remain unavailable because durable backend entities/adapters do not exist yet.
+- Purchase order entities, waste ledger, verified supplier OTIF outcomes, and external action providers remain unavailable because real provider contracts/outcome records do not exist yet.
+- External action providers remain intentionally unimplemented; the Wave 5 gateway only supports internal/manual provider abstractions until real provider contracts exist.

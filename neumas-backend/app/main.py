@@ -97,6 +97,7 @@ from app.api.routes import (
     alerts,
     analytics,
     auth,
+    autonomy,
     control_center,
     demand,
     documents,
@@ -615,6 +616,12 @@ app.include_router(
     procurement.router,
     prefix="/api/procurement",
     tags=["Procurement"],
+)
+
+app.include_router(
+    autonomy.router,
+    prefix="/api/autonomy",
+    tags=["Autonomy"],
 )
 
 
