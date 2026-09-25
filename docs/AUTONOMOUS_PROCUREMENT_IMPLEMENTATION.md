@@ -24,15 +24,16 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - Wave 4 supplier commercial terms, supplier performance metrics, deterministic procurement optimizer, price intelligence, and procurement UI added.
 - Wave 5 durable policy, decision, approval, action, attempt, verification, outcome architecture plus internal action gateway and Agent Center/Decision Ledger UI added.
 - Wave 6 purchase orders, supplier acknowledgements, goods receipts, supplier invoices, and deterministic three-way reconciliation added.
+- Wave 7 margin snapshots/calculations, leakage attribution, waste events, outcome learning calculations, and Margin/Waste UI added.
 
 ## Migrations Added
 
-- None yet.
 - `neumas-backend/supabase/migrations/202609250001_food_graph.sql`
 - `neumas-backend/supabase/migrations/202609250002_demand_intelligence.sql`
 - `neumas-backend/supabase/migrations/202609250003_supplier_intelligence_procurement.sql`
 - `neumas-backend/supabase/migrations/202609250004_autonomy_decision_action.sql`
 - `neumas-backend/supabase/migrations/202609250005_purchasing_lifecycle_reconciliation.sql`
+- `neumas-backend/supabase/migrations/202609250006_margin_waste_outcomes.sql`
 
 ## Endpoints Added
 
@@ -59,6 +60,8 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `POST /api/purchasing/acknowledgements`
 - `POST /api/purchasing/goods-receipts`
 - `POST /api/purchasing/invoices`
+- `GET /api/margin/summary`
+- `POST /api/margin/waste-events`
 
 ## UI Routes Added
 
@@ -91,10 +94,11 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/tests/test_procurement_optimizer.py`
 - `neumas-backend/tests/test_autonomy.py`
 - `neumas-backend/tests/test_purchasing.py`
+- `neumas-backend/tests/test_margin.py`
 
 ## Remaining Blockers
 
 - Production database/schema parity not verified and should not be inferred from local migrations.
 - External supplier execution must remain non-fake until real adapters, credentials, contract tests, acknowledgement handling, and reconciliation records exist.
-- Waste ledger, verified supplier OTIF outcomes, and external action providers remain unavailable because real provider contracts/outcome records do not exist yet.
+- Verified supplier OTIF outcomes and external action providers remain unavailable because real provider contracts/outcome records do not exist yet.
 - External action providers remain intentionally unimplemented; the Wave 5 gateway only supports internal/manual provider abstractions until real provider contracts exist.

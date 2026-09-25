@@ -1142,3 +1142,28 @@ export interface PurchasingSummary {
   invoices: Array<Record<string, unknown>>;
   exceptions: Array<Record<string, unknown>>;
 }
+
+// ============================================================================
+// Margin Control
+// ============================================================================
+
+export interface MarginDashboardSummary {
+  generated_at: string;
+  top_metrics: {
+    food_cost_pct: number | null;
+    food_cost_vs_target: number | null;
+    margin_at_risk: number | null;
+    savings_captured: number | null;
+    supplier_leakage: number | null;
+    waste_cost: number | null;
+    invoice_recovery: number | null;
+    procurement_efficiency: number | null;
+  };
+  leakage_waterfall: Array<Record<string, unknown>>;
+  cost_trend: Array<Record<string, unknown>>;
+  supplier_impact: Array<Record<string, unknown>>;
+  category_impact: Array<Record<string, unknown>>;
+  top_opportunities: Array<Record<string, unknown>>;
+  savings_realized_vs_projected: Array<Record<string, unknown>>;
+  waste_events: Array<Record<string, unknown>>;
+}

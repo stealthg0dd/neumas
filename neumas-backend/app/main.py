@@ -104,6 +104,7 @@ from app.api.routes import (
     food_graph,
     insights,
     inventory,
+    margin,
     predictions,
     procurement,
     purchasing,
@@ -629,6 +630,12 @@ app.include_router(
     purchasing.router,
     prefix="/api/purchasing",
     tags=["Purchasing"],
+)
+
+app.include_router(
+    margin.router,
+    prefix="/api/margin",
+    tags=["Margin"],
 )
 
 

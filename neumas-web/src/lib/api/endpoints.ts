@@ -91,6 +91,7 @@ import type {
   DigestPreferencesUpdateRequest,
   LoginRequest,
   LoginResponse,
+  MarginDashboardSummary,
   OnboardingStateResponse,
   OnboardingStateUpdateRequest,
   SignupRequest,
@@ -622,6 +623,11 @@ export async function listAutonomyDecisions(): Promise<DecisionRecord[]> {
 /** GET /api/purchasing/summary */
 export async function getPurchasingSummary(): Promise<PurchasingSummary> {
   return get<PurchasingSummary>("/api/purchasing/summary");
+}
+
+/** GET /api/margin/summary */
+export async function getMarginSummary(): Promise<MarginDashboardSummary> {
+  return get<MarginDashboardSummary>("/api/margin/summary");
 }
 
 /** GET /api/alerts/{alertId} */
