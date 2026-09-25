@@ -2,19 +2,21 @@ import {
   AlertTriangle,
   BarChart3,
   Bell,
-  Camera,
   Clock3,
   Cog,
+  FileText,
   History,
   Home,
+  LineChart,
   Package,
   Receipt,
   Settings,
   Shield,
   ShoppingCart,
   Sparkles,
-  TrendingUp,
+  Truck,
   Wallet,
+  Workflow,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -48,19 +50,25 @@ function routeMatchesPrefix(pathname: string, prefix: string): boolean {
 }
 
 const FNB_PRIMARY: WorkspaceNavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: Home, match: (p) => p === "/dashboard" || p === "/dashboard/" },
+  { href: "/dashboard", label: "Overview", icon: Home, match: (p) => p === "/dashboard" || p === "/dashboard/" },
+  { href: "/dashboard/margin", label: "Margin", icon: Wallet, match: (p) => startsWith(p, "/dashboard/margin") },
+  { href: "/dashboard/demand", label: "Demand", icon: LineChart, match: (p) => startsWith(p, "/dashboard/demand") || startsWith(p, "/dashboard/predictions") },
   { href: "/dashboard/inventory", label: "Inventory", icon: Package, match: (p) => startsWith(p, "/dashboard/inventory") },
-  { href: "/dashboard/scans", label: "Scans", icon: Camera, match: (p) => startsWith(p, "/dashboard/scans") },
-  { href: "/dashboard/predictions", label: "Predictions", icon: TrendingUp, match: (p) => startsWith(p, "/dashboard/predictions") },
-  { href: "/dashboard/shopping", label: "Shopping", icon: ShoppingCart, match: (p) => startsWith(p, "/dashboard/shopping") || startsWith(p, "/dashboard/restock") },
-  { href: "/dashboard/analytics", label: "Insights", icon: BarChart3, match: (p) => startsWith(p, "/dashboard/analytics") || startsWith(p, "/dashboard/reports") },
-  { href: "/dashboard/alerts", label: "Alerts", icon: Bell, match: (p) => startsWith(p, "/dashboard/alerts") },
+  { href: "/dashboard/procurement/recommendations", label: "Procurement", icon: ShoppingCart, match: (p) => startsWith(p, "/dashboard/procurement") || startsWith(p, "/dashboard/shopping") || startsWith(p, "/dashboard/restock") || startsWith(p, "/dashboard/vendors") },
+  { href: "/dashboard/invoices", label: "Invoices", icon: Receipt, match: (p) => startsWith(p, "/dashboard/invoices") || startsWith(p, "/dashboard/documents") || startsWith(p, "/dashboard/scans") },
+  { href: "/dashboard/recipes", label: "Recipes", icon: FileText, match: (p) => startsWith(p, "/dashboard/recipes") },
+  { href: "/dashboard/waste", label: "Waste", icon: AlertTriangle, match: (p) => startsWith(p, "/dashboard/waste") },
+  { href: "/dashboard/exceptions", label: "Exceptions", icon: Bell, match: (p) => startsWith(p, "/dashboard/exceptions") || startsWith(p, "/dashboard/alerts") },
+  { href: "/dashboard/agent-center", label: "Agent Center", icon: Sparkles, match: (p) => startsWith(p, "/dashboard/agent-center") },
+  { href: "/dashboard/decisions", label: "Decisions", icon: Workflow, match: (p) => startsWith(p, "/dashboard/decisions") },
+  { href: "/dashboard/integrations", label: "Integrations", icon: Truck, match: (p) => startsWith(p, "/dashboard/integrations") },
+  { href: "/dashboard/reports", label: "Reports", icon: BarChart3, match: (p) => startsWith(p, "/dashboard/reports") || startsWith(p, "/dashboard/analytics") },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, match: (p) => startsWith(p, "/dashboard/settings") },
 ];
 
 const FNB_ADMIN: WorkspaceNavItem[] = [
   { href: "/dashboard/admin", label: "Admin", icon: Shield, match: (p) => startsWith(p, "/dashboard/admin") },
-  { href: "/dashboard/vendors", label: "Vendors", icon: Cog, match: (p) => startsWith(p, "/dashboard/vendors") },
+  { href: "/dashboard/procurement/suppliers", label: "Suppliers", icon: Cog, match: (p) => startsWith(p, "/dashboard/procurement/suppliers") || startsWith(p, "/dashboard/vendors") },
 ];
 
 const HOUSEHOLD_PRIMARY: WorkspaceNavItem[] = [
@@ -82,10 +90,20 @@ const HOUSEHOLD_SECONDARY: WorkspaceNavItem[] = [
 const FNB_ALLOWED_PREFIXES = [
   "/dashboard",
   "/dashboard/inventory",
+  "/dashboard/margin",
+  "/dashboard/demand",
   "/dashboard/scans",
   "/dashboard/predictions",
   "/dashboard/shopping",
+  "/dashboard/procurement",
   "/dashboard/alerts",
+  "/dashboard/exceptions",
+  "/dashboard/invoices",
+  "/dashboard/recipes",
+  "/dashboard/waste",
+  "/dashboard/agent-center",
+  "/dashboard/decisions",
+  "/dashboard/integrations",
   "/dashboard/analytics",
   "/dashboard/reports",
   "/dashboard/settings",

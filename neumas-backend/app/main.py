@@ -97,6 +97,7 @@ from app.api.routes import (
     alerts,
     analytics,
     auth,
+    control_center,
     documents,
     insights,
     inventory,
@@ -539,6 +540,12 @@ app.include_router(
     analytics.router,
     prefix="/api/analytics",
     tags=["Analytics"],
+)
+
+app.include_router(
+    control_center.router,
+    prefix="/api/control-center",
+    tags=["Control Center"],
 )
 
 app.include_router(

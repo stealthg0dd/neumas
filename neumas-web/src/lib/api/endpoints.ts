@@ -82,6 +82,7 @@ function normalizeInventoryListPayload(
 import type {
   BurnRateRecomputeRequest,
   BurnRateRecomputeResponse,
+  ControlCenterSummary,
   DecisionCenterResponse,
   DigestPreferencesResponse,
   DigestPreferencesUpdateRequest,
@@ -568,6 +569,11 @@ export async function getDecisionCenter(
   return get<DecisionCenterResponse>("/api/insights/decision-center", workspaceExperience
     ? { workspace_experience: workspaceExperience }
     : undefined);
+}
+
+/** GET /api/control-center/summary */
+export async function getControlCenterSummary(): Promise<ControlCenterSummary> {
+  return get<ControlCenterSummary>("/api/control-center/summary");
 }
 
 /** GET /api/alerts/{alertId} */

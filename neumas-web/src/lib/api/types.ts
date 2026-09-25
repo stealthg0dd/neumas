@@ -880,3 +880,73 @@ export interface AnalyticsSummary {
     planned_spend: number;
   };
 }
+
+// ============================================================================
+// Control Center
+// ============================================================================
+
+export type ControlCenterStatus = "good" | "watch" | "risk" | "neutral" | "unknown";
+export type ControlCenterPriority = "P0" | "P1" | "P2";
+
+export interface ControlCenterKPI {
+  key: string;
+  label: string;
+  value: number | string | null;
+  unit: string | null;
+  status: ControlCenterStatus;
+  evidence: string[];
+}
+
+export interface ControlCenterAction {
+  id: string;
+  title: string;
+  category: string;
+  priority: ControlCenterPriority;
+  what_changed: string;
+  impact: string | null;
+  evidence: string[];
+  recommended_action: string;
+  approval_required: boolean;
+  status: string;
+  href: string | null;
+  confidence: number | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface ControlCenterDemandSummary {
+  forecast_confidence: number | null;
+  stock_risk_count: number;
+  next_7_day_purchase_need: number | null;
+  history_days_observed: number;
+  learning_state: string | null;
+  evidence: string[];
+}
+
+export interface ControlCenterMarginSummary {
+  food_cost_pct: number | null;
+  margin_at_risk: number | null;
+  savings_captured: number | null;
+  evidence: string[];
+}
+
+export interface ControlCenterSupplierSummary {
+  supplier_otif: number | null;
+  supplier_count: number;
+  price_alert_count: number;
+  evidence: string[];
+}
+
+export interface ControlCenterSummary {
+  generated_at: string;
+  organization_id: string;
+  property_id: string;
+  kpis: ControlCenterKPI[];
+  risks: ControlCenterAction[];
+  recommendations: ControlCenterAction[];
+  open_approvals: ControlCenterAction[];
+  exceptions: ControlCenterAction[];
+  demand_summary: ControlCenterDemandSummary;
+  margin_summary: ControlCenterMarginSummary;
+  supplier_summary: ControlCenterSupplierSummary;
+  recent_actions: ControlCenterAction[];
+}
