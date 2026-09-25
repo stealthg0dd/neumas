@@ -107,6 +107,7 @@ import type {
   ScanStatusResponse,
   Prediction,
   PredictionOutcomeSummary,
+  ProcurementSummary,
   ForecastEligibilityResponse,
   ForecastQueuedResponse,
   FoodCostDriversResponse,
@@ -598,6 +599,11 @@ export async function getFoodCostDrivers(): Promise<FoodCostDriversResponse> {
 /** GET /api/demand/summary */
 export async function getDemandSummary(): Promise<DemandDashboardSummary> {
   return get<DemandDashboardSummary>("/api/demand/summary");
+}
+
+/** GET /api/procurement/summary */
+export async function getProcurementSummary(): Promise<ProcurementSummary> {
+  return get<ProcurementSummary>("/api/procurement/summary");
 }
 
 /** GET /api/alerts/{alertId} */

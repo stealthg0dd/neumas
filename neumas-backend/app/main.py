@@ -104,6 +104,7 @@ from app.api.routes import (
     insights,
     inventory,
     predictions,
+    procurement,
     public,
     reports,
     scans,
@@ -608,6 +609,12 @@ app.include_router(
     demand.router,
     prefix="/api/demand",
     tags=["Demand"],
+)
+
+app.include_router(
+    procurement.router,
+    prefix="/api/procurement",
+    tags=["Procurement"],
 )
 
 

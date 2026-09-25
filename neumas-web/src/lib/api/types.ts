@@ -1030,3 +1030,54 @@ export interface DemandDashboardSummary {
   critical_changes: DemandForecastItem[];
   evidence: string[];
 }
+
+// ============================================================================
+// Procurement Optimization
+// ============================================================================
+
+export interface ProcurementAllocation {
+  supplier_offer_id: string;
+  vendor_id: string;
+  vendor_name: string;
+  quantity: number;
+  packs: number;
+  unit_price: number;
+  total_cost: number;
+  lead_time_days: number;
+  score: number;
+}
+
+export interface ProcurementRecommendation {
+  id: string | null;
+  canonical_ingredient_id: string;
+  ingredient_name: string;
+  required_quantity: number;
+  selected_allocations: ProcurementAllocation[];
+  current_supplier_id: string | null;
+  expected_cost: number;
+  baseline_cost: number | null;
+  expected_savings: number | null;
+  tradeoffs: string[];
+  evidence: Record<string, unknown>;
+  confidence: number;
+  risk: string;
+  status: string;
+  created_at: string | null;
+}
+
+export interface PriceIntelligenceItem {
+  canonical_ingredient_id: string;
+  ingredient_name: string;
+  latest_price: number | null;
+  historical_price: number | null;
+  contract_variance: number | null;
+  supplier_count: number;
+  price_volatility: number | null;
+  potential_switch_savings: number | null;
+}
+
+export interface ProcurementSummary {
+  recommendations: ProcurementRecommendation[];
+  price_intelligence: PriceIntelligenceItem[];
+  suppliers: Array<Record<string, unknown>>;
+}
