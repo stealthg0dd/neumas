@@ -1114,3 +1114,31 @@ export interface AgentCenterSummary {
   autonomy_level: string;
   exception_watchlist: Array<Record<string, unknown>>;
 }
+
+// ============================================================================
+// Purchasing
+// ============================================================================
+
+export interface PurchaseOrder {
+  id: string;
+  vendor_id: string;
+  state: string;
+  currency: string;
+  expected_delivery_date: string | null;
+  decision_id: string | null;
+  approval_id: string | null;
+  external_reference: string | null;
+  subtotal: number;
+  delivery_fee: number;
+  tax: number;
+  total: number;
+  items: Array<Record<string, unknown>>;
+  created_at: string | null;
+}
+
+export interface PurchasingSummary {
+  purchase_orders: PurchaseOrder[];
+  goods_receipts: Array<Record<string, unknown>>;
+  invoices: Array<Record<string, unknown>>;
+  exceptions: Array<Record<string, unknown>>;
+}

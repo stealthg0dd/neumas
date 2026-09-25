@@ -110,6 +110,7 @@ import type {
   Prediction,
   PredictionOutcomeSummary,
   ProcurementSummary,
+  PurchasingSummary,
   ForecastEligibilityResponse,
   ForecastQueuedResponse,
   FoodCostDriversResponse,
@@ -616,6 +617,11 @@ export async function getAgentCenterSummary(): Promise<AgentCenterSummary> {
 /** GET /api/autonomy/decisions */
 export async function listAutonomyDecisions(): Promise<DecisionRecord[]> {
   return get<DecisionRecord[]>("/api/autonomy/decisions");
+}
+
+/** GET /api/purchasing/summary */
+export async function getPurchasingSummary(): Promise<PurchasingSummary> {
+  return get<PurchasingSummary>("/api/purchasing/summary");
 }
 
 /** GET /api/alerts/{alertId} */

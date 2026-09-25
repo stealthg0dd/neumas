@@ -106,6 +106,7 @@ from app.api.routes import (
     inventory,
     predictions,
     procurement,
+    purchasing,
     public,
     reports,
     scans,
@@ -622,6 +623,12 @@ app.include_router(
     autonomy.router,
     prefix="/api/autonomy",
     tags=["Autonomy"],
+)
+
+app.include_router(
+    purchasing.router,
+    prefix="/api/purchasing",
+    tags=["Purchasing"],
 )
 
 
