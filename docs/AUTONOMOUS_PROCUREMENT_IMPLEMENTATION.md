@@ -26,6 +26,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - Wave 6 purchase orders, supplier acknowledgements, goods receipts, supplier invoices, and deterministic three-way reconciliation added.
 - Wave 7 margin snapshots/calculations, leakage attribution, waste events, outcome learning calculations, and Margin/Waste UI added.
 - Wave 8 connector gateway contracts, raw provider events, secure credential references, Square adapter, Xero OAuth scaffold, and integrations UI added.
+- Wave 9 public-site positioning updated to autonomous procurement and margin control for F&B, with new indexable discovery pages and LLM-readable summaries.
 
 ## Migrations Added
 
@@ -88,6 +89,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `/dashboard/agent-center`
 - `/dashboard/decisions`
 - `/dashboard/integrations`
+- Public marketing/discovery routes added or upgraded: `/autonomous-procurement`, `/restaurant-procurement-software`, `/food-cost-management`, `/restaurant-inventory-management`, `/supplier-management`, `/purchase-order-automation`, `/invoice-reconciliation`, `/restaurant-demand-forecasting`, `/recipe-costing`, `/food-waste-management`, `/multi-location-restaurants`, `/hotel-food-procurement`, `/integrations`.
 
 ## Tests Added
 
@@ -101,6 +103,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/tests/test_purchasing.py`
 - `neumas-backend/tests/test_margin.py`
 - `neumas-backend/tests/test_connector_gateway.py`
+- `neumas-web/src/lib/public-site-wave9.test.ts`
 
 ## Remaining Blockers
 

@@ -91,8 +91,8 @@ function HeroSection({ section }: { section?: MarketingCmsContent["sections"][st
                   <Sparkles className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div>
-                  <p className="text-sm font-bold text-[#0b1736]">Projected waste-reduction potential up to 30%</p>
-                  <p className="text-xs font-medium text-slate-500">Qualified public benchmark, not a historical guarantee.</p>
+                  <p className="text-sm font-bold text-[#0b1736]">Forecast → Buy → Receive → Reconcile → Protect Margin</p>
+                  <p className="text-xs font-medium text-slate-500">Policy-controlled automation with evidence and approval paths.</p>
                 </div>
               </div>
             </div>
@@ -162,16 +162,16 @@ function WorkflowSection() {
       <div className={sectionShell}>
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Receipt To Reorder</p>
-            <h2 className="mt-4 max-w-2xl text-4xl font-bold tracking-normal text-[#0b1736]">From receipt to reorder.</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">How Neumas Works</p>
+            <h2 className="mt-4 max-w-2xl text-4xl font-bold tracking-normal text-[#0b1736]">Forecast, buy, receive, reconcile, protect margin.</h2>
           </div>
           <p className="max-w-md text-base leading-7 text-slate-600">
-            A controlled workflow that keeps people in the approval loop while the system cleans records, detects risk, and recommends action.
+            A controlled operating loop that keeps policy and approvals in the path while the system predicts demand, optimizes buying, verifies outcomes, and learns.
           </p>
         </div>
 
         <div className="mt-12 overflow-x-auto pb-3 lg:overflow-visible">
-          <div className="grid min-w-[980px] grid-cols-8 gap-3 lg:min-w-0">
+          <div className="grid min-w-[760px] grid-cols-5 gap-3 lg:min-w-0">
             {receiptWorkflow.map((step, index) => {
               const Icon = step.icon;
               return (

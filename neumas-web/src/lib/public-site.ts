@@ -42,8 +42,9 @@ export const siteConfig = {
   name: "Neumas",
   alternateName: "Neumas AI",
   url: getCanonicalAppUrl(),
-  description: "Neumas is an AI operations intelligence platform for restaurants and F&B teams.",
-  shortDescription: "AI operations intelligence for restaurants and F&B teams.",
+  description:
+    "Neumas is an autonomous procurement and margin-control platform for food and beverage operators. It connects demand, inventory, recipes, suppliers, purchasing, deliveries and invoices to reduce food cost, waste and purchasing leakage.",
+  shortDescription: "Autonomous procurement and margin control for F&B operators.",
   contactEmail: "team@neumas.cc",
   companyName: "Neumas",
   region: "Singapore and Southeast Asia",
@@ -54,7 +55,7 @@ export const homepageFaqs: PublicFaq[] = [
   {
     question: "What is Neumas?",
     answer:
-      "Neumas is an AI operations platform for F&B teams. It turns invoices, receipts, inventory movements, vendors, and consumption history into inventory intelligence, forecasts, reorder plans, cost signals, and operational alerts.",
+      "Neumas is an autonomous procurement and margin-control platform for food and beverage operators. It connects demand, inventory, recipes, suppliers, purchasing, deliveries, and invoices to reduce food cost, waste, and purchasing leakage.",
   },
   {
     question: "Who is Neumas built for?",
@@ -64,7 +65,7 @@ export const homepageFaqs: PublicFaq[] = [
   {
     question: "Does Neumas automatically place supplier orders?",
     answer:
-      "No. Neumas supports reorder recommendations and approval workflows. Public materials should not describe the product as universal autonomous purchasing.",
+      "Neumas supports policy-controlled decisions, approvals, purchase-order workflows, and an internal action gateway. External supplier writes are not claimed unless a real provider adapter and credentials are configured.",
   },
   {
     question: "Are private dashboards and operational records public?",
@@ -443,29 +444,38 @@ const b2bPublicPages: PublicPageDefinition[] = [
   },
   {
     path: "/integrations",
-    title: "F&B Ecosystem Integrations",
+    title: "F&B Integrations and Connector Gateway | Neumas",
     description:
-      "Neumas integration context for F&B operations, including StoreHub and Qashier where appropriate.",
-    h1: "Connect your F&B stack.",
+      "Neumas integrations use a connector gateway: provider payloads become raw events, canonical mappings, and domain-service records for procurement and margin control.",
+    h1: "Integrations for the F&B operating stack.",
     eyebrow: "Integrations",
     intro:
-      "Neumas presents StoreHub and Qashier only in an integration context. Public materials should not label them as customers, proof logos, pilots, or endorsements unless separate evidence supports that claim.",
-    keywords: ["StoreHub integration", "Qashier integration", "F&B integrations"],
+      "Neumas uses a connector framework so POS, accounting, supplier, reservation, PMS, and demand-signal data can enter through raw events, canonical mapping, and domain services without provider-specific fields leaking into procurement logic.",
+    keywords: ["F&B integrations", "Square integration", "Xero integration", "restaurant POS integration"],
     sections: [
       {
-        title: "Integration context",
+        title: "Connector gateway",
         body:
-          "F&B teams often operate across POS, receipts, invoices, vendor records, and inventory workflows. Neumas positions integrations as operating context, not as unsupported customer proof.",
-        bullets: ["StoreHub", "Qashier"],
+          "Provider payloads enter as raw events, pass through canonical mapping, and then reach domain services such as demand, inventory, purchasing, invoices, and margin control.",
+        bullets: ["Provider payload", "Raw event", "Canonical mapping", "Domain service"],
       },
       {
-        title: "Scope discipline",
+        title: "Implemented adapters",
         body:
-          "Public pages should not invent unsupported POS, accounting, or supplier connectors. New integration claims should be added only when the product and go-to-market evidence support them.",
+          "Square and Xero adapters are implemented at the framework level. Square supports contract-shaped sales mapping and webhook signature verification when credentials are configured. Xero supports OAuth setup and read-oriented accounting references. Real writes require explicit action-gateway support.",
+        bullets: ["Square", "Xero"],
+      },
+      {
+        title: "Requires partner access and coming soon",
+        body:
+          "Toast, Lightspeed, StoreHub, Qashier, Eats365, Oracle MICROS, PMS, Reservations, and Weather are represented as modular placeholders or partner-access opportunities, not live implemented integrations.",
       },
     ],
+    faq: homepageFaqs,
     relatedLinks: [
-      { href: "/features/vendor-intelligence", label: "Vendor intelligence" },
+      { href: "/autonomous-procurement", label: "Autonomous procurement" },
+      { href: "/restaurant-demand-forecasting", label: "Demand forecasting" },
+      { href: "/invoice-reconciliation", label: "Invoice reconciliation" },
       { href: "/contact", label: "Contact" },
       ...defaultRelatedLinks,
     ],
@@ -1363,7 +1373,449 @@ function createPublicPageContent(page: PublicPageDefinition): PublicPageContent 
   });
 }
 
-export const publicPages: PublicPageContent[] = b2bPublicPages.map(createPublicPageContent);
+const autonomousProcurementFaq: PublicFaq[] = [
+  {
+    question: "What does autonomous procurement mean in Neumas?",
+    answer:
+      "It means Neumas observes demand and inventory evidence, recommends purchasing actions, evaluates policy, routes approvals, creates traceable actions, and verifies outcomes. External supplier execution is only enabled through real provider adapters.",
+  },
+  {
+    question: "How is Neumas different from inventory software?",
+    answer:
+      "Inventory software tracks stock. Neumas connects stock to recipes, demand forecasts, supplier offers, purchase orders, receiving, invoices, policy, and margin outcomes.",
+  },
+  {
+    question: "How does Neumas control food cost?",
+    answer:
+      "Neumas calculates theoretical food cost, tracks supplier and invoice variance, records waste, reconciles purchases, and attributes margin leakage only where evidence exists.",
+  },
+];
+
+const wave9PublicPages: PublicPageDefinition[] = [
+  {
+    path: "/autonomous-procurement",
+    title: "Autonomous Procurement for F&B | Neumas",
+    description:
+      "Neumas connects forecasts, inventory, recipes, suppliers, purchase orders, receiving, invoices, approvals, and margin outcomes for F&B procurement.",
+    h1: "Autonomous procurement and margin control for F&B.",
+    eyebrow: "Platform",
+    intro:
+      "Neumas predicts what each location will need, finds the best way to buy it, controls purchasing within policy, reconciles deliveries and invoices, and surfaces margin leakage before it reaches the P&L.",
+    keywords: ["autonomous procurement", "F&B procurement platform", "restaurant procurement automation"],
+    sections: [
+      {
+        title: "Forecast to policy-controlled action",
+        body:
+          "Neumas follows an operating loop: observe demand and inventory, understand recipe and supplier context, predict requirements, recommend purchases, evaluate policy, route approvals, act through durable records, verify outcomes, and learn from actual results.",
+      },
+      {
+        title: "Procurement without provider leakage",
+        body:
+          "Provider payloads enter through raw events and canonical mapping before they reach domain services. Procurement logic works from canonical demand, inventory, recipe, supplier, PO, receipt, invoice, and margin records.",
+      },
+      {
+        title: "Operator control",
+        body:
+          "Autonomy modes support recommend-only, approval-required, and auto-execute policy states. External writes are not presented as live unless a real connector, credentials, and action gateway path exist.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/purchase-order-automation", label: "Purchase order automation" },
+      { href: "/restaurant-demand-forecasting", label: "Demand forecasting" },
+      { href: "/invoice-reconciliation", label: "Invoice reconciliation" },
+      { href: "/integrations", label: "Integrations" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/restaurant-procurement-software",
+    title: "Restaurant Procurement Software | Neumas",
+    description:
+      "Restaurant procurement software for demand-aware purchasing, supplier comparison, purchase orders, receiving, invoice matching, and margin control.",
+    h1: "Restaurant procurement software that protects margin.",
+    eyebrow: "Procurement",
+    intro:
+      "Neumas helps restaurant teams turn demand forecasts, stock records, supplier terms, and policy into reviewable procurement recommendations and purchase-order workflows.",
+    keywords: ["restaurant procurement software", "restaurant purchasing software", "F&B purchasing platform"],
+    sections: [
+      {
+        title: "Demand-aware requirements",
+        body:
+          "Ingredient requirements combine forecast demand, safety stock, current inventory, on-order quantity, expected waste, lead time, MOQ, and pack rounding.",
+      },
+      {
+        title: "Supplier-aware recommendations",
+        body:
+          "The optimizer compares item cost, delivery cost, waste and stockout penalties, working capital, supplier reliability, contract compliance, approved suppliers, delivery days, and availability.",
+      },
+      {
+        title: "Traceable purchasing",
+        body:
+          "Recommendations can become durable decisions, approvals, purchase orders, acknowledgements, goods receipts, invoices, and three-way reconciliation cases.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/supplier-management", label: "Supplier management" },
+      { href: "/purchase-order-automation", label: "Purchase order automation" },
+      { href: "/multi-location-restaurants", label: "Multi-location restaurants" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/food-cost-management",
+    title: "Food Cost Management Software | Neumas",
+    description:
+      "Food cost management software for recipe costing, supplier variance, invoice variance, waste cost, and margin leakage attribution.",
+    h1: "Food cost management grounded in operating evidence.",
+    eyebrow: "Margin Control",
+    intro:
+      "Neumas connects recipe theory, supplier prices, purchasing, receiving, invoices, consumption, and waste so F&B teams can see where food margin is leaking.",
+    keywords: ["food cost management", "restaurant food cost software", "margin control F&B"],
+    sections: [
+      {
+        title: "Theoretical and actual cost",
+        body:
+          "The food graph calculates theoretical recipe cost and cost per serving from canonical ingredients and supplier prices. Margin snapshots compare theoretical, forecast, purchased, received, invoiced, consumption, and waste costs.",
+      },
+      {
+        title: "Leakage attribution",
+        body:
+          "Neumas attributes leakage to supplier price increases, supplier allocation, over-ordering, emergency buys, waste, recipe variance, invoice discrepancy, delivery discrepancy, substitution, unplanned purchasing, or UNKNOWN when evidence is insufficient.",
+      },
+      {
+        title: "Outcome learning",
+        body:
+          "Completed decisions compare expected cost, savings, quantity, service level, received quantity, waste impact, and variance without self-modifying policies automatically.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/recipe-costing", label: "Recipe costing" },
+      { href: "/food-waste-management", label: "Food waste management" },
+      { href: "/invoice-reconciliation", label: "Invoice reconciliation" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/restaurant-inventory-management",
+    title: "Restaurant Inventory Management | Neumas",
+    description:
+      "Restaurant inventory management connected to demand forecasts, recipes, waste, purchasing requirements, receiving, and margin control.",
+    h1: "Inventory management connected to procurement decisions.",
+    eyebrow: "Inventory",
+    intro:
+      "Neumas keeps inventory part of a larger operating system: stock levels inform forecasts, purchasing requirements, supplier decisions, waste attribution, and margin outcomes.",
+    keywords: ["restaurant inventory management", "F&B inventory management", "restaurant stock control"],
+    sections: [
+      {
+        title: "Current stock in context",
+        body:
+          "Inventory records feed demand forecasts and procurement requirements so teams can understand projected stock, required quantity, recommended order date, confidence, and risk.",
+      },
+      {
+        title: "Ledger discipline",
+        body:
+          "Goods receipts and waste events update inventory through the ledger instead of bypassing movement history.",
+      },
+      {
+        title: "From stock to action",
+        body:
+          "Stock risk becomes evidence for recommendations, approvals, purchase orders, exceptions, and margin attribution rather than a standalone alert.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/restaurant-demand-forecasting", label: "Demand forecasting" },
+      { href: "/food-waste-management", label: "Food waste management" },
+      { href: "/purchase-order-automation", label: "Purchase order automation" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/supplier-management",
+    title: "Supplier Management for F&B | Neumas",
+    description:
+      "Supplier management for F&B operators, including supplier-item offers, commercial terms, performance metrics, price intelligence, and approved-supplier controls.",
+    h1: "Supplier management with price and performance context.",
+    eyebrow: "Supplier Intelligence",
+    intro:
+      "Neumas extends supplier records with commercial terms, supplier-item offers, performance metrics, and price intelligence so procurement decisions can compare more than unit price.",
+    keywords: ["supplier management", "F&B supplier software", "restaurant supplier performance"],
+    sections: [
+      {
+        title: "Commercial terms",
+        body:
+          "Supplier offers can capture SKU, pack size, normalized quantity, unit price, contract price, MOQ, minimum order value, delivery fee, free-delivery threshold, lead time, cutoff, delivery weekdays, availability, and approved flags.",
+      },
+      {
+        title: "Performance metrics",
+        body:
+          "Supplier performance can track fill rate, OTIF, price variance, rejection rate, invoice discrepancy rate, average lead time, and acknowledgement time.",
+      },
+      {
+        title: "Price intelligence",
+        body:
+          "Neumas compares latest versus historical price, contract variance, supplier alternatives, price volatility, and potential switch savings where data supports it.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/restaurant-procurement-software", label: "Restaurant procurement software" },
+      { href: "/purchase-order-automation", label: "Purchase order automation" },
+      { href: "/integrations", label: "Integrations" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/purchase-order-automation",
+    title: "Purchase Order Automation for Restaurants | Neumas",
+    description:
+      "Purchase order automation for restaurants with decisions, approvals, immutable commercial snapshots, acknowledgements, receiving, and reconciliation.",
+    h1: "Purchase order automation with approval and evidence.",
+    eyebrow: "Purchasing",
+    intro:
+      "Neumas turns approved procurement recommendations into durable purchase-order lifecycle records while preserving policy, approval, supplier, pricing, and delivery evidence.",
+    keywords: ["purchase order automation", "restaurant PO software", "F&B purchasing workflow"],
+    sections: [
+      {
+        title: "Lifecycle states",
+        body:
+          "Purchase orders can move through draft, pending approval, approved, dispatch queued, sent, acknowledged, confirmed, received, cancelled, or failed states.",
+      },
+      {
+        title: "Commercial snapshot",
+        body:
+          "POs preserve supplier, location, currency, pricing snapshot, expected delivery, decision reference, approval reference, external reference, and immutable commercial details.",
+      },
+      {
+        title: "Acknowledgements and changes",
+        body:
+          "Supplier acknowledgements can record accepted, rejected, quantity changed, price changed, delivery changed, or substitution outcomes. Changes outside policy become exceptions or approvals.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/supplier-management", label: "Supplier management" },
+      { href: "/invoice-reconciliation", label: "Invoice reconciliation" },
+      { href: "/autonomous-procurement", label: "Autonomous procurement" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/invoice-reconciliation",
+    title: "Invoice Reconciliation for F&B | Neumas",
+    description:
+      "Invoice reconciliation for F&B operators using deterministic three-way matching across purchase orders, goods receipts, and supplier invoices.",
+    h1: "Invoice reconciliation connected to purchasing and receiving.",
+    eyebrow: "Reconciliation",
+    intro:
+      "Neumas preserves scanned documents and OCR while evolving supplier invoices into reconciliation objects linked to suppliers, purchase orders, and goods receipts.",
+    keywords: ["invoice reconciliation", "three-way match", "restaurant invoice matching"],
+    sections: [
+      {
+        title: "Three-way match",
+        body:
+          "Reconciliation compares purchase orders, goods receipts, and invoices to detect price mismatch, quantity mismatch, missing items, unexpected items, short delivery, duplicate invoice, delivery fee variance, tax discrepancy, and contract price violations.",
+      },
+      {
+        title: "Review outcomes",
+        body:
+          "Cases can resolve as MATCHED, WITHIN_TOLERANCE, REVIEW, or DISPUTE, giving operators a clear action path rather than a hidden accounting variance.",
+      },
+      {
+        title: "Margin recovery",
+        body:
+          "Invoice discrepancies feed margin control, supplier performance, exception workflows, and outcome learning when evidence is present.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/purchase-order-automation", label: "Purchase order automation" },
+      { href: "/food-cost-management", label: "Food cost management" },
+      { href: "/supplier-management", label: "Supplier management" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/restaurant-demand-forecasting",
+    title: "Restaurant Demand Forecasting | Neumas",
+    description:
+      "Restaurant demand forecasting using sales history, day-of-week seasonality, trend, explicit events, confidence, and recipe-to-ingredient explosion.",
+    h1: "Restaurant demand forecasting that turns into ingredient requirements.",
+    eyebrow: "Demand Intelligence",
+    intro:
+      "Neumas uses a canonical demand model for restaurants, hotels, and catering, then translates menu-item demand through active recipe versions into ingredient requirements.",
+    keywords: ["restaurant demand forecasting", "F&B forecasting", "ingredient demand planning"],
+    sections: [
+      {
+        title: "Explainable baseline",
+        body:
+          "Forecasts start with recent moving average, day-of-week seasonality, weighted historical demand, trend, and explicit event or promotion uplift where signals exist.",
+      },
+      {
+        title: "Confidence",
+        body:
+          "Confidence is calculated from history depth, recent forecast error, signal quality, data freshness, and variance, with evidence persisted for operator review.",
+      },
+      {
+        title: "Evaluation loop",
+        body:
+          "Forecasts can be compared against actual sales or usage after the period, persisting MAE, MAPE where safe, bias, and confidence calibration.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/recipe-costing", label: "Recipe costing" },
+      { href: "/restaurant-inventory-management", label: "Inventory management" },
+      { href: "/autonomous-procurement", label: "Autonomous procurement" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/recipe-costing",
+    title: "Recipe Costing for Restaurants | Neumas",
+    description:
+      "Recipe costing for restaurants using canonical ingredients, UOM conversion, recipe versions, supplier prices, and food-cost drivers.",
+    h1: "Recipe costing connected to supplier prices.",
+    eyebrow: "Food Graph",
+    intro:
+      "Neumas creates a canonical food graph linking menu items, recipe versions, recipe ingredients, canonical ingredients, supplier items, and supplier prices.",
+    keywords: ["recipe costing", "restaurant recipe costing", "food graph"],
+    sections: [
+      {
+        title: "Versioned recipes",
+        body:
+          "Recipes support yield, serving count, portion quantity, preparation loss, waste allowance, effective dates, active versions, ingredients, UOM conversion, and substitute groups.",
+      },
+      {
+        title: "Deterministic costing",
+        body:
+          "The costing service calculates latest theoretical cost, cost per serving, ingredient contribution, change versus previous supplier price, target food-cost percentage if selling price is known, and theoretical gross margin.",
+      },
+      {
+        title: "Food cost drivers",
+        body:
+          "Operators can review which ingredients and supplier prices are driving recipe cost changes instead of relying on end-of-month estimates.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/food-cost-management", label: "Food cost management" },
+      { href: "/restaurant-demand-forecasting", label: "Demand forecasting" },
+      { href: "/supplier-management", label: "Supplier management" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/food-waste-management",
+    title: "Food Waste Management for F&B | Neumas",
+    description:
+      "Food waste management for F&B operators with waste events, cost attribution, procurement requirement updates, and margin leakage tracking.",
+    h1: "Food waste management tied to purchasing and margin.",
+    eyebrow: "Waste",
+    intro:
+      "Neumas records spoilage, prep, overproduction, damage, expiry, quality rejection, and unknown waste events so waste can affect procurement requirements and margin attribution.",
+    keywords: ["food waste management", "restaurant waste tracking", "F&B waste cost"],
+    sections: [
+      {
+        title: "Waste events",
+        body:
+          "Waste events can capture ingredient or item, quantity, cost, reason, location, source, and date. When linked to inventory, waste updates stock through the ledger.",
+      },
+      {
+        title: "Requirement impact",
+        body:
+          "Expected waste feeds procurement requirements rather than living as a disconnected sustainability metric.",
+      },
+      {
+        title: "Attribution discipline",
+        body:
+          "Neumas does not fabricate causes. If evidence is insufficient, leakage remains UNKNOWN or UNATTRIBUTED until better records exist.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/food-cost-management", label: "Food cost management" },
+      { href: "/restaurant-inventory-management", label: "Inventory management" },
+      { href: "/autonomous-procurement", label: "Autonomous procurement" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/multi-location-restaurants",
+    title: "Multi-location Restaurant Procurement | Neumas",
+    description:
+      "Multi-location restaurant procurement and margin control across properties, locations, categories, ingredients, recipes, suppliers, and invoices.",
+    h1: "One procurement and margin layer for every location.",
+    eyebrow: "Multi-location",
+    intro:
+      "Neumas is built for restaurants and F&B groups that need local operating detail and group-level control across inventory, demand, suppliers, purchasing, invoices, exceptions, and margin.",
+    keywords: ["multi-location restaurants", "restaurant group procurement", "multi-outlet F&B software"],
+    sections: [
+      {
+        title: "Location-level operations",
+        body:
+          "Forecasts, inventory, procurement requirements, purchase orders, receiving, waste, and exceptions can operate with property or location context.",
+      },
+      {
+        title: "Group-level visibility",
+        body:
+          "Central teams can compare supplier impact, category impact, margin leakage, price intelligence, and procurement actions across the operating estate.",
+      },
+      {
+        title: "Policy boundaries",
+        body:
+          "Policies can express location restrictions, category restrictions, approved suppliers, max PO amount, confidence thresholds, supplier switching limits, and blackout windows.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/hotel-food-procurement", label: "Hotel food procurement" },
+      { href: "/restaurant-procurement-software", label: "Restaurant procurement software" },
+      { href: "/food-cost-management", label: "Food cost management" },
+      ...defaultRelatedLinks,
+    ],
+  },
+  {
+    path: "/hotel-food-procurement",
+    title: "Hotel Food Procurement Software | Neumas",
+    description:
+      "Hotel food procurement software for demand signals, banquets, occupancy, recipes, suppliers, purchase orders, receiving, invoices, and margin control.",
+    h1: "Food procurement for hotels and hospitality F&B.",
+    eyebrow: "Hospitality",
+    intro:
+      "Neumas uses the same canonical demand and procurement graph for restaurants, hotels, and catering so occupancy, banquets, events, reservations, and manual overrides can inform purchasing.",
+    keywords: ["hotel food procurement", "hospitality F&B procurement", "hotel kitchen inventory"],
+    sections: [
+      {
+        title: "Hospitality demand signals",
+        body:
+          "The demand model supports POS sales, reservations, occupancy, banquets, events, promotions, weather, holidays, and manual overrides.",
+      },
+      {
+        title: "Ingredient requirements",
+        body:
+          "Forecast demand can flow through menu items, recipe versions, recipe ingredients, canonical ingredients, supplier items, and supplier prices.",
+      },
+      {
+        title: "Controls and reconciliation",
+        body:
+          "Hotel F&B teams can use policy-controlled purchasing, supplier acknowledgements, goods receipts, invoice reconciliation, exceptions, and margin attribution.",
+      },
+    ],
+    faq: autonomousProcurementFaq,
+    relatedLinks: [
+      { href: "/restaurant-demand-forecasting", label: "Demand forecasting" },
+      { href: "/purchase-order-automation", label: "Purchase order automation" },
+      { href: "/integrations", label: "Integrations" },
+      ...defaultRelatedLinks,
+    ],
+  },
+];
+
+export const publicPages: PublicPageContent[] = [...b2bPublicPages, ...wave9PublicPages].map(createPublicPageContent);
 
 export function getPublicPage(path: string): PublicPageContent | undefined {
   return publicPages.find((page) => page.path === path);
@@ -1520,7 +1972,7 @@ export function getHomepageSchemas(): JsonLd[] {
     buildWebSiteSchema(),
     buildWebPageSchema({
       path: "/",
-      title: "Neumas — AI Operations for F&B",
+      title: "Neumas — Autonomous Procurement & Margin Control for F&B",
       description: siteConfig.description,
     }),
     buildBreadcrumbSchema("/"),

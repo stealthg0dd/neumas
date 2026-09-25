@@ -13,24 +13,23 @@ ${siteConfig.description} It is B2B F&B technology for restaurants, restaurant g
 Restaurants and multi-location F&B operators often make back-of-house decisions from fragmented supplier invoices, receipts, stock movements, vendor records, and consumption history. That fragmentation creates avoidable stockouts, over-ordering, weak supplier price visibility, and unclear food-cost signals.
 
 ## Product workflow
-1. An operator scans or uploads a supplier invoice or receipt.
-2. Neumas extracts line items, quantities, vendors, and price signals using OCR and normalization.
-3. Teams review low-confidence fields where needed.
-4. Live inventory and movement records are updated.
-5. Consumption and vendor patterns inform forecasts, stockout prediction, and food-cost signals.
-6. Neumas generates reorder recommendations for human approval — it does not place autonomous supplier orders.
-7. Supplier price-change tracking and procurement intelligence support purchasing decisions across locations.
+1. Neumas observes demand, inventory, recipes, suppliers, purchasing, deliveries, invoices, waste, and outcomes.
+2. Neumas maps provider payloads and imports into canonical demand, food graph, supplier, procurement, purchasing, and margin records.
+3. Forecasts estimate menu-item and ingredient demand with confidence and evidence.
+4. Procurement optimization recommends supplier allocations, order quantities, and tradeoffs.
+5. Policy determines recommend-only, approval-required, blocked, or controlled execution states.
+6. Purchase orders, acknowledgements, goods receipts, invoices, and three-way reconciliation verify what happened.
+7. Margin snapshots attribute leakage to supported causes or UNKNOWN where evidence is insufficient.
 
 ## Core capabilities
-- Supplier invoice intelligence and invoice OCR
-- Restaurant inventory intelligence
-- Food-cost management and visibility
-- Supplier price-change tracking
-- Restaurant procurement and purchasing intelligence
-- Stockout prediction
-- Waste management
-- Predictive reordering
-- F&B operational intelligence across single and multi-location operators
+- Demand intelligence and canonical demand forecasting
+- Food graph, recipe costing, and supplier price contribution
+- Inventory requirements, waste events, and ledger-backed movement
+- Supplier intelligence, supplier offers, performance, and price intelligence
+- Procurement optimization, policy, decisions, approvals, and action gateway
+- Purchase orders, acknowledgements, goods receipts, supplier invoices, and three-way match
+- Margin snapshots, leakage attribution, invoice variance, waste cost, and outcome learning
+- Connector gateway with Square and Xero adapter scaffolding where credentials are configured
 
 ## Who it's for
 - Restaurants and restaurant groups

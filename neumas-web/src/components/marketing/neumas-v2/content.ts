@@ -101,12 +101,12 @@ export const marketingAssets = {
 } satisfies Record<string, MarketingAsset>;
 
 export const hero = {
-  eyebrow: "AI OPERATIONS FOR F&B",
-  headline: "Run a smarter back of house.",
+  eyebrow: "AUTONOMOUS PROCUREMENT & MARGIN CONTROL FOR F&B",
+  headline: "Protect every point of food margin. Automatically.",
   body:
-    "Neumas turns invoices, receipts, inventory movements and consumption history into cleaner stock records, forecasts, reorder plans and operational intelligence for F&B teams.",
-  primaryCta: { label: "Book a Demo", href: "/pilot" },
-  secondaryCta: { label: "See how Neumas works", href: "#workflow" },
+    "Neumas predicts what every location will need, finds the best way to buy it, controls purchasing within policy, reconciles deliveries and invoices, and catches margin leakage before it reaches the P&L.",
+  primaryCta: { label: "See Neumas in Action", href: "/pilot" },
+  secondaryCta: { label: "Explore the Platform", href: "#platform" },
 };
 
 export const metrics: Metric[] = [
@@ -170,52 +170,34 @@ export const platformOutputs: PlatformFlowItem[] = [
 
 export const receiptWorkflow: ReceiptWorkflowStep[] = [
   {
-    title: "Scan invoice or receipt",
-    body: "Capture supplier paperwork at the outlet without manual spreadsheet entry.",
-    microcopy: "Receipt OCR",
-    icon: FileScan,
-  },
-  {
-    title: "Review extracted line items",
-    body: "Check item names, quantities, prices, and vendor matches before records update.",
-    microcopy: "AI extracted 32 lines",
-    icon: ClipboardCheck,
-  },
-  {
-    title: "Update live inventory",
-    body: "Push confirmed purchases into stock levels, values, and movement history.",
-    microcopy: "SGD 4,250 on hand",
-    icon: Boxes,
-  },
-  {
-    title: "Detect usage patterns",
-    body: "Learn how ingredients move by outlet, category, and operating cadence.",
-    microcopy: "Produce usage rising",
-    icon: BarChart3,
-  },
-  {
-    title: "Forecast shortage and over-order risk",
-    body: "Surface likely stock-outs, excess buying, and expiry pressure before service is affected.",
-    microcopy: "Low stock in 2 days",
-    icon: TriangleAlert,
-  },
-  {
-    title: "Generate reorder recommendation",
-    body: "Suggest supplier-linked quantities based on par levels, usage, and recent purchasing.",
-    microcopy: "Recommended reorder",
+    title: "Forecast demand",
+    body: "Predict what each location will need from sales, events, recipes, stock, and explicit demand signals.",
+    microcopy: "Forecast",
     icon: LineChart,
   },
   {
-    title: "Approve the plan",
-    body: "Keep managers in control with approval before supplier or staff action.",
-    microcopy: "Approve & send",
+    title: "Buy within policy",
+    body: "Compare supplier offers, commercial terms, pack sizes, lead times, and approval rules.",
+    microcopy: "Buy",
     icon: ShoppingCart,
   },
   {
-    title: "Track outcomes",
-    body: "Measure stock-outs avoided, waste risk, and ordering accuracy over time.",
-    microcopy: "92% measured ordering accuracy",
+    title: "Receive goods",
+    body: "Track acknowledgements, substitutions, shorts, over-delivery, rejection, lots, and expiry when provided.",
+    microcopy: "Receive",
     icon: PackageCheck,
+  },
+  {
+    title: "Reconcile invoices",
+    body: "Match purchase orders, goods receipts, and invoices to catch price, quantity, fee, tax, and contract issues.",
+    microcopy: "Reconcile",
+    icon: ReceiptText,
+  },
+  {
+    title: "Protect margin",
+    body: "Attribute leakage to supplier price, waste, invoice discrepancies, delivery issues, substitutions, or unknown causes when evidence is incomplete.",
+    microcopy: "Protect Margin",
+    icon: ShieldCheck,
   },
 ];
 

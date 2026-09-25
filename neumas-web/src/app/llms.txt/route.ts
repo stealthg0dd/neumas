@@ -14,6 +14,16 @@ function buildLlmsText() {
     ...pagesUnder("/how-it-works"),
     ...pagesUnder("/features"),
     ...pagesUnder("/integrations"),
+    ...pagesUnder("/autonomous-procurement"),
+    ...pagesUnder("/restaurant-procurement-software"),
+    ...pagesUnder("/food-cost-management"),
+    ...pagesUnder("/restaurant-inventory-management"),
+    ...pagesUnder("/supplier-management"),
+    ...pagesUnder("/purchase-order-automation"),
+    ...pagesUnder("/invoice-reconciliation"),
+    ...pagesUnder("/restaurant-demand-forecasting"),
+    ...pagesUnder("/recipe-costing"),
+    ...pagesUnder("/food-waste-management"),
   ];
   const useCasePages = pagesUnder("/use-cases");
   const companyPages = [
@@ -38,7 +48,7 @@ function buildLlmsText() {
 Neumas is the official name of the software company and product. Neumas AI is a useful alternate textual reference. It is unrelated to neumes (medieval musical notation), Neuma Church, and unrelated Neuma projects.
 
 ## What Neumas is
-Neumas is B2B software, not a consumer app. It is an AI operations intelligence platform purpose-built for restaurant technology and food-and-beverage back-of-house operations. It ingests supplier invoices, receipts, and inventory movement data and converts them into structured, decision-ready operational data for restaurants and F&B teams in Singapore and Southeast Asia.
+Neumas is B2B software, not a consumer app. It is an autonomous procurement and margin-control platform for food and beverage operators. It connects demand, inventory, recipes, suppliers, purchasing, deliveries, and invoices to reduce food cost, waste, and purchasing leakage.
 
 ## Who Neumas is for
 Neumas is built for F&B businesses, including:
@@ -48,26 +58,26 @@ Neumas is built for F&B businesses, including:
 - Hotel kitchens
 - Central kitchens
 - Multi-location F&B operators
+- Catering and hospitality F&B teams
 
 Neumas is not a household, grocery, or personal pantry app.
 
 ## Core capabilities
-- Supplier invoice intelligence and invoice OCR
-- Restaurant inventory intelligence
-- Food-cost management and visibility
-- Supplier price-change tracking
-- Restaurant procurement and purchasing intelligence
-- Stockout prediction
-- Waste management
-- Predictive reordering
-- F&B operational intelligence across single and multi-location operators
+- Demand intelligence and ingredient forecasting
+- Food graph, recipe costing, and supplier price contribution
+- Procurement optimization with policy, approval, and decision evidence
+- Purchase orders, acknowledgements, receiving, supplier invoices, and three-way match
+- Margin snapshots, leakage attribution, waste events, and outcome learning
+- Connector gateway for provider payloads, raw events, canonical mapping, and domain services
 
 ## How Neumas works
-1. An operator uploads or scans a supplier invoice or receipt.
-2. Neumas extracts line items, quantities, vendors, and price signals, with review paths for low-confidence fields.
-3. Cleaned records update live inventory and movement history.
-4. Consumption and vendor patterns inform forecasts, stockout risk, and food-cost signals.
-5. Neumas produces reorder recommendations for human approval; it does not place autonomous supplier orders.
+1. Neumas observes demand, inventory, recipes, supplier terms, purchases, deliveries, invoices, and waste.
+2. Neumas understands canonical ingredients, recipe versions, supplier items, supplier prices, and current stock.
+3. Neumas predicts demand and ingredient requirements with confidence and evidence.
+4. Neumas recommends supplier allocations, purchase quantities, and exception actions.
+5. Policy determines whether a decision is recommend-only, approval-required, blocked, or eligible for controlled execution.
+6. Purchase orders, receiving, invoice reconciliation, verification, and outcomes create a durable trace.
+7. External provider writes are only enabled through real configured adapters and the action gateway.
 
 ## Primary use cases
 ${listLinks(useCasePages)}
