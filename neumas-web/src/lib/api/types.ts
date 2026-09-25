@@ -950,3 +950,56 @@ export interface ControlCenterSummary {
   supplier_summary: ControlCenterSupplierSummary;
   recent_actions: ControlCenterAction[];
 }
+
+// ============================================================================
+// Food Graph
+// ============================================================================
+
+export interface IngredientContribution {
+  canonical_ingredient_id: string;
+  name: string;
+  quantity: number;
+  base_quantity: number;
+  unit_cost: number | null;
+  total_cost: number;
+  contribution_pct: number | null;
+  change_vs_previous_price: number | null;
+}
+
+export interface RecipeCostResponse {
+  recipe_id: string;
+  recipe_version_id: string;
+  latest_theoretical_cost: number;
+  cost_per_serving: number | null;
+  target_food_cost_pct: number | null;
+  theoretical_gross_margin: number | null;
+  ingredient_contributions: IngredientContribution[];
+  evidence: string[];
+}
+
+export interface RecipeSummary {
+  id: string;
+  name: string;
+  category: string | null;
+  menu_price: number | null;
+  currency: string;
+  active_version_id: string | null;
+  is_active: boolean;
+  latest_theoretical_cost: number | null;
+  cost_per_serving: number | null;
+  target_food_cost_pct: number | null;
+  theoretical_gross_margin: number | null;
+}
+
+export interface RecipeDetail {
+  recipe: RecipeSummary;
+  active_cost: RecipeCostResponse | null;
+  versions: Record<string, unknown>[];
+  ingredients: Record<string, unknown>[];
+}
+
+export interface FoodCostDriversResponse {
+  generated_at: string;
+  recipes: RecipeSummary[];
+  top_ingredients: IngredientContribution[];
+}

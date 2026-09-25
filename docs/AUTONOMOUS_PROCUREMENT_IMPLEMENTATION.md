@@ -19,14 +19,23 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - Wave 1 authenticated F&B operator navigation updated to Control Center taxonomy while preserving legacy routes.
 - Wave 1 Control Center dashboard added with KPI row, operating views, action/exception tables, evidence drawer, and honest empty/N/A states.
 - Wave 1 shell routes added for Margin, Demand, Procurement, Invoices, Recipes, Waste, Exceptions, Agent Center, Decisions, and Integrations.
+- Wave 2 Food Graph domain model, deterministic costing service, CSV import preview/commit API, and recipe UI added.
 
 ## Migrations Added
 
 - None yet.
+- `neumas-backend/supabase/migrations/202609250001_food_graph.sql`
 
 ## Endpoints Added
 
 - `GET /api/control-center/summary`
+- `GET /api/food-graph/recipes`
+- `POST /api/food-graph/recipes`
+- `GET /api/food-graph/recipes/{recipe_id}`
+- `POST /api/food-graph/recipes/{recipe_id}/versions`
+- `GET /api/food-graph/recipes/{recipe_id}/cost`
+- `GET /api/food-graph/food-cost-drivers`
+- `POST /api/food-graph/imports`
 
 ## UI Routes Added
 
@@ -41,6 +50,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `/dashboard/procurement/price-intelligence`
 - `/dashboard/invoices`
 - `/dashboard/recipes`
+- `/dashboard/recipes/[id]`
 - `/dashboard/waste`
 - `/dashboard/exceptions`
 - `/dashboard/agent-center`
@@ -52,6 +62,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/tests/test_control_center.py`
 - `neumas-web/src/__tests__/control-center-dashboard.test.tsx`
 - Updated `neumas-web/src/__tests__/navigation.test.ts`
+- `neumas-backend/tests/test_food_graph.py`
 
 ## Remaining Blockers
 

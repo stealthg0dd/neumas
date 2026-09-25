@@ -108,6 +108,9 @@ import type {
   PredictionOutcomeSummary,
   ForecastEligibilityResponse,
   ForecastQueuedResponse,
+  FoodCostDriversResponse,
+  RecipeDetail,
+  RecipeSummary,
   ShoppingList,
   ShoppingListDetail,
   GenerateListRequest,
@@ -574,6 +577,21 @@ export async function getDecisionCenter(
 /** GET /api/control-center/summary */
 export async function getControlCenterSummary(): Promise<ControlCenterSummary> {
   return get<ControlCenterSummary>("/api/control-center/summary");
+}
+
+/** GET /api/food-graph/recipes */
+export async function listRecipes(): Promise<RecipeSummary[]> {
+  return get<RecipeSummary[]>("/api/food-graph/recipes");
+}
+
+/** GET /api/food-graph/recipes/{id} */
+export async function getRecipeDetail(recipeId: string): Promise<RecipeDetail> {
+  return get<RecipeDetail>(`/api/food-graph/recipes/${recipeId}`);
+}
+
+/** GET /api/food-graph/food-cost-drivers */
+export async function getFoodCostDrivers(): Promise<FoodCostDriversResponse> {
+  return get<FoodCostDriversResponse>("/api/food-graph/food-cost-drivers");
 }
 
 /** GET /api/alerts/{alertId} */
