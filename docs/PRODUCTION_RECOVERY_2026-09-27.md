@@ -155,6 +155,7 @@ Relevant commits now on `main`:
   - `getDataReadiness()`
   - `/dashboard/setup` readiness-driven setup hub
   - downloadable CSV templates for inventory, sales, suppliers, supplier prices, recipes, recipe ingredients, and invoices
+  - `/dashboard` now reads readiness and shows setup-required cards for missing/partial capabilities
   - `/dashboard/reports` checks readiness before showing no-data setup state
   - `SpendSummary` has no-data CTAs and real error display
 - Tests:
@@ -180,6 +181,8 @@ Relevant commits now on `main`:
   - `pnpm exec tsc --noEmit` passed after setup hub addition
   - `pnpm exec vitest run src/__tests__/setup-hub.test.tsx` passed, 1 test
   - `pnpm exec vitest run src/__tests__/navigation.test.ts src/__tests__/setup-hub.test.tsx` passed, 7 tests
+  - `pnpm exec vitest run src/__tests__/control-center-dashboard.test.tsx src/__tests__/setup-hub.test.tsx src/__tests__/navigation.test.ts` passed, 9 tests
+  - `pnpm lint` and `pnpm exec tsc --noEmit` passed after Control Center readiness repair
 
 ## Not Yet Verified
 

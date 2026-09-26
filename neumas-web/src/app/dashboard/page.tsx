@@ -9,8 +9,8 @@ import { EmptyState } from "@/components/control-center/EmptyState";
 import { EvidenceDrawer } from "@/components/control-center/EvidenceDrawer";
 import { MetricCard } from "@/components/control-center/MetricCard";
 import { OperationalTable } from "@/components/control-center/OperationalTable";
-import { getControlCenterSummary } from "@/lib/api/endpoints";
-import type { ControlCenterAction, ControlCenterSummary } from "@/lib/api/types";
+import { getControlCenterSummary, getDataReadiness } from "@/lib/api/endpoints";
+import type { ControlCenterAction, ControlCenterSummary, DataReadinessResponse } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/currency";
 
@@ -63,6 +63,7 @@ function percentOrNA(value: number | null | undefined) {
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<ControlCenterSummary | null>(null);
+  const [readiness, setReadiness] = useState<DataReadinessResponse | null>(null);
   const [selectedEvidence, setSelectedEvidence] = useState<ControlCenterAction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +72,12 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      setSummary(await getControlCenterSummary());
+      const [summaryPayload, readinessPayload] = await Promise.all([
+        getControlCenterSummary(),
+        getDataReadiness().catch(() => null),
+      ]);
+      setSummary(summaryPayload);
+      setReadiness(readinessPayload);
     } catch (err) {
       captureUIError("control_center_summary_load", err);
       setError(err instanceof Error ? err.message : "Control Center unavailable.");
@@ -88,6 +94,38 @@ export default function DashboardPage() {
     if (!summary) return [];
     return [...summary.open_approvals, ...summary.recommendations, ...summary.risks].slice(0, 12);
   }, [summary]);
+
+  const capabilitySetup = useMemo(() => {
+    if (!readiness) return [];
+    const messages: Record<string, { title: string; body: string }> = {
+      inventory: {
+        title: "Inventory setup required",
+        body: "Upload inventory or invoices to activate current stock, movements, and stock risk.",
+      },
+      demand: {
+        title: "Demand setup required",
+        body: "Import sales history to activate demand forecasting.",
+      },
+      procurement: {
+        title: "Procurement setup required",
+        body: "Add supplier pricing and demand evidence to compare purchasing options.",
+      },
+      margin: {
+        title: "Margin setup required",
+        body: "Add recipes and supplier costs to calculate food margin.",
+      },
+    };
+    return Object.entries(readiness.capability_readiness)
+      .filter(([, status]) => status !== "READY")
+      .map(([key, status]) => ({
+        key,
+        status,
+        ...(messages[key] ?? {
+          title: `${key} setup required`,
+          body: "Complete setup to activate this capability.",
+        }),
+      }));
+  }, [readiness]);
 
   if (loading) {
     return (
@@ -150,6 +188,40 @@ export default function DashboardPage() {
             </Link>
           </div>
         </header>
+
+        {readiness && readiness.overall_readiness !== "READY" && (
+          <section className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Data readiness</p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-950">
+                  {readiness.overall_readiness} · {readiness.readiness_tier ?? "No active tier"}
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Control Center is showing available real data only. Complete setup to activate missing operating views.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/setup"
+                className="inline-flex items-center gap-2 rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800"
+              >
+                Open setup
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            {capabilitySetup.length > 0 && (
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {capabilitySetup.map((capability) => (
+                  <div key={capability.key} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{capability.status}</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-950">{capability.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{capability.body}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {summary.kpis.map((kpi) => (

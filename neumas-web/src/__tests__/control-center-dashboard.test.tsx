@@ -3,8 +3,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
-import { getControlCenterSummary } from "@/lib/api/endpoints";
-import type { ControlCenterSummary } from "@/lib/api/types";
+import { getControlCenterSummary, getDataReadiness } from "@/lib/api/endpoints";
+import type { ControlCenterSummary, DataReadinessItem, DataReadinessResponse } from "@/lib/api/types";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -20,6 +20,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/lib/api/endpoints", () => ({
   getControlCenterSummary: vi.fn(),
+  getDataReadiness: vi.fn(),
 }));
 
 vi.mock("@/lib/analytics", () => ({
@@ -27,6 +28,42 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 const mockGetControlCenterSummary = vi.mocked(getControlCenterSummary);
+const mockGetDataReadiness = vi.mocked(getDataReadiness);
+
+function readinessItem(status: "READY" | "PARTIAL" | "MISSING", count = 0): DataReadinessItem {
+  return {
+    status,
+    record_count: count,
+    last_updated: null,
+    required_action: status === "READY" ? "No action required" : "Add data",
+  };
+}
+
+function partialReadiness(): DataReadinessResponse {
+  return {
+    organization_id: "org-1",
+    property_id: "prop-1",
+    overall_readiness: "PARTIAL",
+    readiness_tier: "TIER_1",
+    capability_readiness: {
+      inventory: "READY",
+      demand: "MISSING",
+      procurement: "MISSING",
+      margin: "MISSING",
+    },
+    sales_data: readinessItem("MISSING"),
+    inventory_data: readinessItem("READY", 4),
+    supplier_data: readinessItem("MISSING"),
+    recipe_data: readinessItem("MISSING"),
+    invoice_data: readinessItem("MISSING"),
+    purchase_order_data: readinessItem("MISSING"),
+    demand_history: readinessItem("MISSING"),
+    forecast_ready: readinessItem("MISSING"),
+    procurement_ready: readinessItem("MISSING"),
+    margin_ready: readinessItem("MISSING"),
+    blockers: [],
+  };
+}
 
 function emptySummary(): ControlCenterSummary {
   return {
@@ -74,6 +111,7 @@ function emptySummary(): ControlCenterSummary {
 describe("Control Center dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetDataReadiness.mockResolvedValue(partialReadiness());
   });
 
   afterEach(() => {
@@ -103,8 +141,10 @@ describe("Control Center dashboard", () => {
     render(<DashboardPage />);
 
     expect(await screen.findByText("Autonomous Procurement & Margin Control")).toBeTruthy();
+    expect(screen.getByText("Demand setup required")).toBeTruthy();
     expect(screen.getByText("Approve dairy reorder")).toBeTruthy();
     expect(mockGetControlCenterSummary).toHaveBeenCalledTimes(1);
+    expect(mockGetDataReadiness).toHaveBeenCalledTimes(1);
   });
 
   it("shows empty and N/A states instead of fake fallback metrics", async () => {
