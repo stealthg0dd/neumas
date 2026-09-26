@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { listDocuments, type Document } from "@/lib/api/endpoints";
 
 export default function SpendSummary() {
@@ -13,8 +14,8 @@ export default function SpendSummary() {
       try {
         const resp = await listDocuments({ page_size: 100 });
         setDocs(resp.documents);
-      } catch {
-        setError("Failed to load documents");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to load document spend.");
       } finally {
         setLoading(false);
       }
@@ -34,6 +35,7 @@ export default function SpendSummary() {
       spendByCategory[cat] = (spendByCategory[cat] || 0) + (li.raw_total || 0);
     });
   });
+  const hasSpend = Object.keys(spendByVendor).length > 0 || Object.keys(spendByCategory).length > 0;
 
   return (
     <div className="mt-8 grid md:grid-cols-2 gap-8">
@@ -43,6 +45,18 @@ export default function SpendSummary() {
           <div className="text-gray-400 text-sm">Loading…</div>
         ) : error ? (
           <div className="text-red-600 text-sm">{error}</div>
+        ) : error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        ) : !hasSpend ? (
+          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+            <p className="font-medium text-gray-900">No supplier invoices yet.</p>
+            <p className="mt-1">Upload an invoice or connect Xero to build vendor spend.</p>
+            <Link href="/dashboard/scans/new" className="mt-3 inline-flex text-sm font-semibold text-[#0071a3]">
+              Upload invoice
+            </Link>
+          </div>
         ) : (
           <ul className="space-y-1">
             {Object.entries(spendByVendor)
@@ -61,7 +75,17 @@ export default function SpendSummary() {
         {loading ? (
           <div className="text-gray-400 text-sm">Loading…</div>
         ) : error ? (
-          <div className="text-red-600 text-sm">{error}</div>
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        ) : !hasSpend ? (
+          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+            <p className="font-medium text-gray-900">No category spend yet.</p>
+            <p className="mt-1">Approved invoice line items are needed for category spend.</p>
+            <Link href="/dashboard/documents" className="mt-3 inline-flex text-sm font-semibold text-[#0071a3]">
+              Review documents
+            </Link>
+          </div>
         ) : (
           <ul className="space-y-1">
             {Object.entries(spendByCategory)

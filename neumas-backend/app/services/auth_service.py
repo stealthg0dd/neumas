@@ -290,6 +290,73 @@ class AuthService:
         )
         return next_settings
 
+    async def _sync_organization_onboarding(
+        self,
+        *,
+        organization_id: UUID,
+        property_id: UUID | str | None,
+        stage: str,
+        completed_steps: list[str],
+        missing_requirements: list[str],
+        operating_profile: dict[str, Any] | None = None,
+        completed_at: str | None = None,
+    ) -> None:
+        """Best-effort write to the durable onboarding state-machine table."""
+        admin_client = await get_async_supabase_admin()
+        payload: dict[str, Any] = {
+            "organization_id": str(organization_id),
+            "property_id": str(property_id) if property_id else None,
+            "stage": stage,
+            "completed_steps": completed_steps,
+            "missing_requirements": missing_requirements,
+            "operating_profile": operating_profile or {},
+        }
+        if completed_at is not None:
+            payload["completed_at"] = completed_at
+
+        try:
+            await (
+                admin_client.table("organization_onboarding")
+                .upsert(payload, on_conflict="organization_id")
+                .execute()
+            )
+        except Exception as exc:
+            logger.warning(
+                "Organization onboarding state sync skipped",
+                organization_id=str(organization_id),
+                stage=stage,
+                error=str(exc),
+            )
+
+    @staticmethod
+    def _onboarding_profile_payload(
+        *,
+        org_type: str | None = None,
+        business_type: str | None = None,
+        country: str | None = None,
+        currency: str | None = None,
+        outlet_count: int | None = None,
+        property_name: str | None = None,
+        property_type: str | None = None,
+        address: str | None = None,
+        data_start_choice: str | None = None,
+    ) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in {
+                "org_type": _normalize_org_type(org_type),
+                "business_type": _normalize_business_type(business_type),
+                "country": country,
+                "currency": currency,
+                "outlet_count": outlet_count,
+                "property_name": property_name,
+                "property_type": property_type,
+                "address": address,
+                "data_start_choice": data_start_choice,
+            }.items()
+            if value is not None
+        }
+
     async def _list_properties_for_org(self, organization_id: UUID) -> list[dict[str, Any]]:
         admin_client = await get_async_supabase_admin()
         try:
@@ -973,6 +1040,24 @@ class AuthService:
             is_invited_user=_is_invited_user(request.role),
         )
 
+        await self._sync_organization_onboarding(
+            organization_id=org_id,
+            property_id=property_id,
+            stage="LOCATION_CREATED",
+            completed_steps=["ACCOUNT_CREATED", "ORGANIZATION_CREATED", "LOCATION_CREATED"],
+            missing_requirements=[
+                "Set operating profile",
+                "Select data source",
+                "Connect or import baseline data",
+            ],
+            operating_profile=self._onboarding_profile_payload(
+                org_type=normalized_org_type,
+                property_name=request.property_name,
+                property_type=normalized_org_type,
+                address=request.property_address,
+            ),
+        )
+
         logger.info("Signup completed successfully", user_id=str(user_id), org_id=str(org_id))
 
         # Explicitly map all three session fields so the frontend always
@@ -1325,6 +1410,22 @@ class AuthService:
                     "default_property_id": str(prop["id"]),
                 }).eq("id", str(user["id"])).execute()
 
+            await self._sync_organization_onboarding(
+                organization_id=org_id,
+                property_id=prop.get("id"),
+                stage="LOCATION_CREATED",
+                completed_steps=["ACCOUNT_CREATED", "ORGANIZATION_CREATED", "LOCATION_CREATED"],
+                missing_requirements=[
+                    "Set operating profile",
+                    "Select data source",
+                    "Connect or import baseline data",
+                ],
+                operating_profile=self._onboarding_profile_payload(
+                    org_type=fetched_org_type,
+                    property_name=prop.get("name"),
+                ),
+            )
+
             return ProfileResponse(
                 user_id=user_id,
                 email=user["email"],
@@ -1437,6 +1538,23 @@ class AuthService:
                         error=str(cleanup_exc),
                     )
             raise
+
+        await self._sync_organization_onboarding(
+            organization_id=org_id,
+            property_id=property_id,
+            stage="LOCATION_CREATED",
+            completed_steps=["ACCOUNT_CREATED", "ORGANIZATION_CREATED", "LOCATION_CREATED"],
+            missing_requirements=[
+                "Set operating profile",
+                "Select data source",
+                "Connect or import baseline data",
+            ],
+            operating_profile=self._onboarding_profile_payload(
+                org_type=normalized_org_type,
+                property_name=property_name,
+                property_type=normalized_property_type,
+            ),
+        )
 
         return ProfileResponse(
             user_id=user_id,
@@ -1732,7 +1850,39 @@ class AuthService:
             property_type=property_type,
             address=address,
         )
-        return await self.get_onboarding_state(user)
+        next_state = await self.get_onboarding_state(user)
+        completed_steps = ["ACCOUNT_CREATED", "ORGANIZATION_CREATED"]
+        if next_state.has_properties:
+            completed_steps.append("LOCATION_CREATED")
+        stage = "LOCATION_CREATED" if next_state.has_properties else "ORGANIZATION_CREATED"
+        if business_type or currency or property_type or property_name:
+            stage = "OPERATING_PROFILE_SET"
+            completed_steps.append("OPERATING_PROFILE_SET")
+        if data_start_choice:
+            stage = "DATA_SOURCE_SELECTED"
+            completed_steps.append("DATA_SOURCE_SELECTED")
+        await self._sync_organization_onboarding(
+            organization_id=user.organization_id,
+            property_id=next_state.property_id,
+            stage=stage,
+            completed_steps=completed_steps,
+            missing_requirements=[
+                "Connect or import baseline data",
+                "Complete baseline processing",
+            ],
+            operating_profile=self._onboarding_profile_payload(
+                org_type=org_type or next_state.org_type,
+                business_type=business_type or next_state.business_type,
+                country=country or next_state.country,
+                currency=currency or next_state.currency,
+                outlet_count=outlet_count or next_state.target_outlet_count,
+                property_name=property_name,
+                property_type=property_type or next_state.property_type,
+                address=address or next_state.address,
+                data_start_choice=data_start_choice,
+            ),
+        )
+        return next_state
 
     async def mark_onboarding_activated(
         self,
@@ -1806,7 +1956,33 @@ class AuthService:
             property_type=property_type,
             address=address,
         )
-        return await self.get_onboarding_state(user)
+        next_state = await self.get_onboarding_state(user)
+        await self._sync_organization_onboarding(
+            organization_id=user.organization_id,
+            property_id=next_state.property_id,
+            stage="READY",
+            completed_steps=[
+                "ACCOUNT_CREATED",
+                "ORGANIZATION_CREATED",
+                "LOCATION_CREATED",
+                "OPERATING_PROFILE_SET",
+                "DATA_SOURCE_SELECTED",
+            ],
+            missing_requirements=["Connect or import baseline data"] if not (next_state.has_scans or next_state.has_inventory_activity) else [],
+            operating_profile=self._onboarding_profile_payload(
+                org_type=org_type or next_state.org_type,
+                business_type=business_type or next_state.business_type,
+                country=country or next_state.country,
+                currency=currency or next_state.currency,
+                outlet_count=outlet_count or next_state.target_outlet_count,
+                property_name=property_name,
+                property_type=property_type or next_state.property_type,
+                address=address or next_state.address,
+                data_start_choice=data_start_choice,
+            ),
+            completed_at=_utcnow(),
+        )
+        return next_state
 
     async def mark_onboarding_skipped(
         self,
@@ -1880,7 +2056,31 @@ class AuthService:
             property_type=property_type,
             address=address,
         )
-        return await self.get_onboarding_state(user)
+        next_state = await self.get_onboarding_state(user)
+        await self._sync_organization_onboarding(
+            organization_id=user.organization_id,
+            property_id=next_state.property_id,
+            stage="DATA_SOURCE_SELECTED" if data_start_choice else "OPERATING_PROFILE_SET",
+            completed_steps=[
+                "ACCOUNT_CREATED",
+                "ORGANIZATION_CREATED",
+                "LOCATION_CREATED",
+                "OPERATING_PROFILE_SET",
+            ] + (["DATA_SOURCE_SELECTED"] if data_start_choice else []),
+            missing_requirements=["Connect or import baseline data"],
+            operating_profile=self._onboarding_profile_payload(
+                org_type=org_type or next_state.org_type,
+                business_type=business_type or next_state.business_type,
+                country=country or next_state.country,
+                currency=currency or next_state.currency,
+                outlet_count=outlet_count or next_state.target_outlet_count,
+                property_name=property_name,
+                property_type=property_type or next_state.property_type,
+                address=address or next_state.address,
+                data_start_choice=data_start_choice,
+            ),
+        )
+        return next_state
 
     async def _update_activation_settings(
         self,

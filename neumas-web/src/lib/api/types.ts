@@ -163,6 +163,31 @@ export interface OnboardingStateResponse {
   requires_onboarding: boolean;
 }
 
+export type DataReadinessStatus = "READY" | "PARTIAL" | "MISSING";
+
+export interface DataReadinessItem {
+  status: DataReadinessStatus;
+  record_count: number;
+  last_updated: string | null;
+  required_action: string;
+}
+
+export interface DataReadinessResponse {
+  organization_id: string;
+  property_id: string | null;
+  sales_data: DataReadinessItem;
+  inventory_data: DataReadinessItem;
+  supplier_data: DataReadinessItem;
+  recipe_data: DataReadinessItem;
+  invoice_data: DataReadinessItem;
+  purchase_order_data: DataReadinessItem;
+  demand_history: DataReadinessItem;
+  forecast_ready: DataReadinessItem;
+  procurement_ready: DataReadinessItem;
+  margin_ready: DataReadinessItem;
+  blockers: string[];
+}
+
 export interface OnboardingStateUpdateRequest {
   onboarding_status?: OnboardingStatus;
   onboarding_source?: string;

@@ -99,6 +99,7 @@ from app.api.routes import (
     auth,
     autonomy,
     control_center,
+    data_readiness,
     demand,
     documents,
     food_graph,
@@ -601,6 +602,12 @@ app.include_router(
     reports.router,
     prefix="/api/reports",
     tags=["Reports"],
+)
+
+app.include_router(
+    data_readiness.router,
+    prefix="/api/data-readiness",
+    tags=["Data Readiness"],
 )
 
 app.include_router(

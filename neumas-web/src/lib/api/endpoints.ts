@@ -86,6 +86,7 @@ import type {
   ControlCenterSummary,
   DecisionCenterResponse,
   DecisionRecord,
+  DataReadinessResponse,
   DemandDashboardSummary,
   DigestPreferencesResponse,
   DigestPreferencesUpdateRequest,
@@ -204,6 +205,11 @@ export async function updateOnboardingState(
   payload: OnboardingStateUpdateRequest
 ): Promise<OnboardingStateResponse> {
   return patch<OnboardingStateResponse>("/api/auth/onboarding", payload);
+}
+
+/** GET /api/data-readiness */
+export async function getDataReadiness(): Promise<DataReadinessResponse> {
+  return get<DataReadinessResponse>("/api/data-readiness");
 }
 
 /** POST /api/auth/refresh */

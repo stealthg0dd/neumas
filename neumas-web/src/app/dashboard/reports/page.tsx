@@ -3,10 +3,18 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { BarChart2 } from "lucide-react";
-import { getEntitlements, listReports, requestReport, type EntitlementResponse, type Report } from "@/lib/api/endpoints";
+import {
+  getDataReadiness,
+  getEntitlements,
+  listReports,
+  requestReport,
+  type EntitlementResponse,
+  type Report,
+} from "@/lib/api/endpoints";
 import { EmptyState } from "@/components/ui/EmptyState";
 import SpendSummary from "@/components/reports/SpendSummary";
 import { ExportButton } from "@/components/reports/ExportButton";
+import type { DataReadinessResponse } from "@/lib/api/types";
 
 const STATUS_COLORS: Record<string, string> = {
   queued: "bg-gray-100 text-gray-600",
@@ -29,16 +37,21 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<EntitlementResponse | null>(null);
+  const [readiness, setReadiness] = useState<DataReadinessResponse | null>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const resp = await listReports({ page_size: 20 });
+      const [readyState, resp] = await Promise.all([
+        getDataReadiness().catch(() => null),
+        listReports({ page_size: 20 }),
+      ]);
+      setReadiness(readyState);
       setReports(resp.reports);
       setEntitlements(await getEntitlements().catch(() => null));
-    } catch {
-      setError("Failed to load reports");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load reports.");
     } finally {
       setLoading(false);
     }
@@ -96,9 +109,26 @@ export default function ReportsPage() {
           Loading reports…
         </div>
       ) : error ? (
-        <div className="border border-red-200 rounded-xl bg-red-50 p-4 text-red-700 text-sm">
-          {error}
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">Reports could not be loaded.</p>
+          <p className="mt-1">{error}</p>
+          <button
+            type="button"
+            onClick={load}
+            className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700"
+          >
+            Retry
+          </button>
         </div>
+      ) : readiness?.invoice_data.status === "MISSING" ? (
+        <EmptyState
+          icon={BarChart2}
+          badge="No report data yet"
+          headline="No supplier invoices yet"
+          body={readiness.invoice_data.required_action}
+          cta={{ label: "Upload an invoice", href: "/dashboard/scans/new" }}
+          secondaryCta={{ label: "Open integrations", href: "/dashboard/integrations" }}
+        />
       ) : !reports.length ? (
         <EmptyState
           icon={BarChart2}
