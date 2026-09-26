@@ -153,6 +153,8 @@ Relevant commits now on `main`:
 - Frontend:
   - `DataReadinessResponse` API type
   - `getDataReadiness()`
+  - `/dashboard/setup` readiness-driven setup hub
+  - downloadable CSV templates for inventory, sales, suppliers, supplier prices, recipes, recipe ingredients, and invoices
   - `/dashboard/reports` checks readiness before showing no-data setup state
   - `SpendSummary` has no-data CTAs and real error display
 - Tests:
@@ -174,6 +176,10 @@ Relevant commits now on `main`:
   - `pnpm lint` passed
   - `pnpm exec tsc --noEmit` passed
   - `pnpm exec tsc --noEmit` passed after readiness contract update
+  - `pnpm lint` passed after setup hub addition
+  - `pnpm exec tsc --noEmit` passed after setup hub addition
+  - `pnpm exec vitest run src/__tests__/setup-hub.test.tsx` passed, 1 test
+  - `pnpm exec vitest run src/__tests__/navigation.test.ts src/__tests__/setup-hub.test.tsx` passed, 7 tests
 
 ## Not Yet Verified
 
