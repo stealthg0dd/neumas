@@ -34,6 +34,7 @@ from app.schemas.auth import (
     TokenResponse,
     UserInfo,
 )
+from app.services.organization_onboarding_service import OrganizationOnboardingService
 from supabase import create_async_client
 
 logger = get_logger(__name__)
@@ -301,24 +302,16 @@ class AuthService:
         operating_profile: dict[str, Any] | None = None,
         completed_at: str | None = None,
     ) -> None:
-        """Best-effort write to the durable onboarding state-machine table."""
-        admin_client = await get_async_supabase_admin()
-        payload: dict[str, Any] = {
-            "organization_id": str(organization_id),
-            "property_id": str(property_id) if property_id else None,
-            "stage": stage,
-            "completed_steps": completed_steps,
-            "missing_requirements": missing_requirements,
-            "operating_profile": operating_profile or {},
-        }
-        if completed_at is not None:
-            payload["completed_at"] = completed_at
-
+        """Best-effort durable onboarding sync through the state-machine service."""
         try:
-            await (
-                admin_client.table("organization_onboarding")
-                .upsert(payload, on_conflict="organization_id")
-                .execute()
+            await OrganizationOnboardingService().upsert_snapshot(
+                organization_id=organization_id,
+                property_id=property_id,
+                stage=stage,
+                completed_steps=completed_steps,
+                missing_requirements=missing_requirements,
+                operating_profile=operating_profile,
+                completed_at=completed_at,
             )
         except Exception as exc:
             logger.warning(

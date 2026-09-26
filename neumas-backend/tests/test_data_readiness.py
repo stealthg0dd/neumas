@@ -110,6 +110,14 @@ async def test_data_readiness_classifies_missing_and_ready_sources(monkeypatch, 
     assert readiness.forecast_ready.status == "PARTIAL"
     assert readiness.procurement_ready.status == "PARTIAL"
     assert readiness.margin_ready.status == "PARTIAL"
+    assert readiness.overall_readiness == "PARTIAL"
+    assert readiness.readiness_tier == "TIER_3"
+    assert readiness.capability_readiness == {
+        "inventory": "READY",
+        "demand": "READY",
+        "procurement": "PARTIAL",
+        "margin": "PARTIAL",
+    }
     assert readiness.sales_data.last_updated == datetime(2026, 9, 26, tzinfo=UTC)
     assert ("organization_id", str(tenant.org_id)) in filters["sales_transactions"]
     assert ("property_id", str(tenant.property_id)) in filters["sales_transactions"]
@@ -127,6 +135,14 @@ async def test_data_readiness_endpoint(monkeypatch, tenant: TenantContext):
             return_value={
                 "organization_id": str(tenant.org_id),
                 "property_id": str(tenant.property_id),
+                "overall_readiness": "MISSING",
+                "readiness_tier": "TIER_0",
+                "capability_readiness": {
+                    "inventory": "MISSING",
+                    "demand": "MISSING",
+                    "procurement": "MISSING",
+                    "margin": "MISSING",
+                },
                 "sales_data": {"status": "MISSING", "record_count": 0, "last_updated": None, "required_action": "Connect POS or upload sales.csv"},
                 "inventory_data": {"status": "MISSING", "record_count": 0, "last_updated": None, "required_action": "Import inventory.csv or upload invoices/receipts"},
                 "supplier_data": {"status": "MISSING", "record_count": 0, "last_updated": None, "required_action": "Add suppliers and supplier pricing"},

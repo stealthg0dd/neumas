@@ -104,6 +104,12 @@ Relevant commits now on `main`:
   - when a valid active fallback property exists for the user's org, it is used for the current request
   - the fallback property is backfilled to `users.default_property_id` on a best-effort basis
   - orgs with no active properties continue with `property_id = null` so property-required endpoints can fail explicitly
+- Durable onboarding transitions now route through `OrganizationOnboardingService`.
+- `GET /api/data-readiness` exposes:
+  - `overall_readiness`
+  - `readiness_tier` (`TIER_0` through `TIER_4`)
+  - `capability_readiness` for inventory, demand, procurement, and margin
+- Readiness checks best-effort sync `organization_onboarding` from real tenant data without allowing stage downgrades.
 
 ### Reports Failure Path
 
@@ -141,6 +147,7 @@ Relevant commits now on `main`:
 - Backend:
   - `DataReadinessService`
   - `GET /api/data-readiness`
+  - `OrganizationOnboardingService`
   - Auth service best-effort sync to `organization_onboarding`
   - Tenant context default-property bootstrap repair
 - Frontend:
@@ -150,6 +157,7 @@ Relevant commits now on `main`:
   - `SpendSummary` has no-data CTAs and real error display
 - Tests:
   - `neumas-backend/tests/test_data_readiness.py`
+  - `neumas-backend/tests/test_organization_onboarding_service.py`
   - `neumas-backend/tests/test_property_and_shopping_consistency.py`
 
 ## Verification - 2026-09-27
@@ -160,9 +168,12 @@ Relevant commits now on `main`:
   - `pytest tests/test_data_readiness.py -q` passed, 2 tests
   - `ruff check app/api/deps.py tests/test_property_and_shopping_consistency.py` passed
   - `pytest tests/test_property_and_shopping_consistency.py -q` passed, 8 tests
+  - `ruff check app/schemas/data_readiness.py app/services/data_readiness_service.py app/services/organization_onboarding_service.py app/services/auth_service.py tests/test_data_readiness.py tests/test_organization_onboarding_service.py` passed
+  - `pytest tests/test_data_readiness.py tests/test_organization_onboarding_service.py -q` passed, 4 tests
 - Frontend targeted:
   - `pnpm lint` passed
   - `pnpm exec tsc --noEmit` passed
+  - `pnpm exec tsc --noEmit` passed after readiness contract update
 
 ## Not Yet Verified
 

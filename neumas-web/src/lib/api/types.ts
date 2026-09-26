@@ -164,6 +164,7 @@ export interface OnboardingStateResponse {
 }
 
 export type DataReadinessStatus = "READY" | "PARTIAL" | "MISSING";
+export type DataReadinessTier = "TIER_0" | "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4";
 
 export interface DataReadinessItem {
   status: DataReadinessStatus;
@@ -175,6 +176,9 @@ export interface DataReadinessItem {
 export interface DataReadinessResponse {
   organization_id: string;
   property_id: string | null;
+  overall_readiness: DataReadinessStatus;
+  readiness_tier: DataReadinessTier | null;
+  capability_readiness: Record<string, DataReadinessStatus>;
   sales_data: DataReadinessItem;
   inventory_data: DataReadinessItem;
   supplier_data: DataReadinessItem;

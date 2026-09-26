@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ReadinessStatus = Literal["READY", "PARTIAL", "MISSING"]
+ReadinessTier = Literal["TIER_0", "TIER_1", "TIER_2", "TIER_3", "TIER_4"]
 
 
 class DataReadinessItem(BaseModel):
@@ -18,6 +19,9 @@ class DataReadinessItem(BaseModel):
 class DataReadinessResponse(BaseModel):
     organization_id: str
     property_id: str | None = None
+    overall_readiness: ReadinessStatus
+    readiness_tier: ReadinessTier | None = None
+    capability_readiness: dict[str, ReadinessStatus] = Field(default_factory=dict)
     sales_data: DataReadinessItem
     inventory_data: DataReadinessItem
     supplier_data: DataReadinessItem
