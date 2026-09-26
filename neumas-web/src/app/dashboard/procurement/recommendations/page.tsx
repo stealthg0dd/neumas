@@ -7,6 +7,7 @@ import { getProcurementSummary } from "@/lib/api/endpoints";
 import type { ControlCenterAction, ProcurementRecommendation, ProcurementSummary } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/currency";
+import { PageErrorState } from "@/components/ui/PageState";
 
 function asAction(row: ProcurementRecommendation): ControlCenterAction {
   const allocation = row.selected_allocations.map((a) => `${a.vendor_name}: ${a.quantity}`).join("; ");
@@ -30,15 +31,18 @@ function asAction(row: ProcurementRecommendation): ControlCenterAction {
 export default function RecommendationsPage() {
   const [summary, setSummary] = useState<ProcurementSummary | null>(null);
   const [selected, setSelected] = useState<ControlCenterAction | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      setError(null);
       try {
         const payload = await getProcurementSummary();
         if (!cancelled) setSummary(payload);
       } catch (err) {
         captureUIError("procurement_recommendations_load", err);
+        if (!cancelled) setError("Unable to load procurement recommendations. Retry when the procurement API is reachable.");
       }
     }
     void load();
@@ -57,8 +61,11 @@ export default function RecommendationsPage() {
             Deterministic supplier allocation using requirement, MOQ, pack rounding, lead time, approved suppliers, delivery cost, and reliability.
           </p>
         </header>
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+        {error ? (
+          <PageErrorState message={error} onRetry={() => window.location.reload()} />
+        ) : (
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">Ingredient</th>
@@ -96,9 +103,10 @@ export default function RecommendationsPage() {
                 );
               })}
             </tbody>
-          </table>
-          {summary && summary.recommendations.length === 0 && <div className="p-8 text-center text-sm text-slate-500">No procurement recommendations yet.</div>}
-        </section>
+            </table>
+            {summary && summary.recommendations.length === 0 && <div className="p-8 text-center text-sm text-slate-500">No procurement recommendations yet.</div>}
+          </section>
+        )}
       </div>
       <EvidenceDrawer action={selected} onClose={() => setSelected(null)} />
     </main>

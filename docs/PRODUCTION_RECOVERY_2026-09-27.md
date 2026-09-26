@@ -156,6 +156,13 @@ Relevant commits now on `main`:
   - `/dashboard/setup` readiness-driven setup hub
   - downloadable CSV templates for inventory, sales, suppliers, supplier prices, recipes, recipe ingredients, and invoices
   - `/dashboard` now reads readiness and shows setup-required cards for missing/partial capabilities
+  - visible retryable error states for:
+    - `/dashboard/procurement/recommendations`
+    - `/dashboard/invoices`
+    - `/dashboard/exceptions`
+    - `/dashboard/agent-center`
+    - `/dashboard/decisions`
+    - `/dashboard/procurement/suppliers`
   - `/dashboard/reports` checks readiness before showing no-data setup state
   - `SpendSummary` has no-data CTAs and real error display
 - Tests:
@@ -183,6 +190,26 @@ Relevant commits now on `main`:
   - `pnpm exec vitest run src/__tests__/navigation.test.ts src/__tests__/setup-hub.test.tsx` passed, 7 tests
   - `pnpm exec vitest run src/__tests__/control-center-dashboard.test.tsx src/__tests__/setup-hub.test.tsx src/__tests__/navigation.test.ts` passed, 9 tests
   - `pnpm lint` and `pnpm exec tsc --noEmit` passed after Control Center readiness repair
+  - `pnpm lint` and `pnpm exec tsc --noEmit` passed after page error-state repair
+
+## Page Status - Initial Recovery Matrix
+
+| Page | API | Status | Notes |
+| --- | --- | --- | --- |
+| Overview | `/api/control-center/summary`, `/api/data-readiness` | PARTIAL | Real summary plus setup-required cards for missing capabilities. |
+| Margin | `/api/margin/summary` | SETUP_REQUIRED | Empty state present; error-state polish still pending. |
+| Demand | `/api/demand/summary` | SETUP_REQUIRED | Empty state present; error-state polish still pending. |
+| Inventory | `/api/inventory`, `/api/predictions` | PARTIAL | Existing operational page; import UI still not fully unified with setup hub. |
+| Procurement recommendations | `/api/procurement/summary` | PARTIAL | Empty and retryable error states present. |
+| Invoices | `/api/purchasing/summary` | PARTIAL | Empty and retryable error states present. |
+| Recipes | `/api/food-graph/recipes`, `/api/food-graph/food-cost-drivers` | SETUP_REQUIRED | Empty state present; error-state polish still pending. |
+| Waste | `/api/margin/summary` | SETUP_REQUIRED | Empty state present; error-state polish still pending. |
+| Exceptions | `/api/purchasing/summary` | PARTIAL | Empty and retryable error states present. |
+| Agent Center | `/api/autonomy/agent-center/summary` | PARTIAL | Empty and retryable error states present; no demo actions added. |
+| Decisions | `/api/autonomy/decisions` | PARTIAL | Empty and retryable error states present. |
+| Integrations | `/api/integrations` | PARTIAL | Statuses are real provider states; error-state polish still pending. |
+| Reports | `/api/reports`, `/api/documents`, `/api/data-readiness` | PARTIAL | Setup and API error states repaired. |
+| Suppliers | `/api/procurement/summary` | PARTIAL | Empty and retryable error states present. |
 
 ## Not Yet Verified
 
