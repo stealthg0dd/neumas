@@ -5,7 +5,8 @@ import { spawn } from "node:child_process";
 const port = process.env.SEO_AUDIT_PORT || "3105";
 const baseUrl = `http://127.0.0.1:${port}`;
 const canonicalHost = "https://www.neumas.cc";
-const organizationDescription = "Neumas is an AI operations intelligence platform for restaurants and F&B teams.";
+const organizationDescription =
+  "Neumas is an autonomous procurement and margin-control platform for food and beverage operators. It connects demand, inventory, recipes, suppliers, purchasing, deliveries and invoices to reduce food cost, waste and purchasing leakage.";
 const bannedConsumerTerms = [
   "grocery autopilot",
   "household autopilot",
