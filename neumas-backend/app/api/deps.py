@@ -143,7 +143,6 @@ async def resolve_active_property_id(
                 property_id=str(candidate),
                 error=str(e),
             )
-            return candidate
 
     try:
         prop_response = await (
@@ -168,6 +167,36 @@ async def resolve_active_property_id(
         )
 
     return None
+
+
+async def persist_default_property_id(
+    user: UserInfo,
+    property_id: UUID,
+    admin_client: Any | None,
+) -> None:
+    """Best-effort backfill after resolving an active property in the user's org."""
+    if admin_client is None or user.default_property_id == property_id:
+        return
+
+    try:
+        await (
+            admin_client.table("users")
+            .update({"default_property_id": str(property_id)})
+            .eq("id", str(user.id))
+            .execute()
+        )
+        logger.info(
+            "Backfilled default_property_id",
+            user_id=str(user.id),
+            property_id=str(property_id),
+        )
+    except Exception as e:
+        logger.warning(
+            "Default property backfill failed",
+            user_id=str(user.id),
+            property_id=str(property_id),
+            error=str(e),
+        )
 
 
 # =============================================================================
@@ -385,35 +414,10 @@ async def get_tenant_context(
 
     effective_property_id = await resolve_active_property_id(user, admin_client)
 
-    # Self-heal: user exists and has an org but no valid default_property_id.
-    # Caused by: (a) email/password signup before the default_property_id fix,
-    # (b) property deactivated after account creation. Query the org's first
-    # active property and backfill the users table so subsequent requests work.
-    if not effective_property_id and admin_client:
-        try:
-            if effective_property_id:
-                healed_id = str(effective_property_id)
-                # Persist so next request skips this lookup
-                try:
-                    await (
-                        admin_client.table("users")
-                        .update({"default_property_id": healed_id})
-                        .eq("id", str(user.id))
-                        .execute()
-                    )
-                except Exception as upd_err:
-                    logger.warning("Self-heal DB backfill failed (non-fatal)", error=str(upd_err))
-                logger.info(
-                    "Self-healed default_property_id",
-                    user_id=str(user.id),
-                    property_id=healed_id,
-                )
-        except Exception as e:
-            logger.warning(
-                "Self-heal property lookup failed — proceeding without property",
-                user_id=str(user.id),
-                error=str(e),
-            )
+    # Self-heal: when the user has no default property, or the stored default is
+    # inactive/deleted, persist the resolved active property from the same org.
+    if effective_property_id:
+        await persist_default_property_id(user, effective_property_id, admin_client)
 
     return TenantContext(
         user_id=user.id,

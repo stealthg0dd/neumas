@@ -74,7 +74,7 @@ Relevant commits now on `main`:
 
 ## Open Recovery Work
 
-- Trace new-user onboarding and tenant/property context end to end.
+- Trace new-user onboarding end to end.
 - Diagnose production dashboard failures, especially `/dashboard/reports` showing document/report load failures.
 - Compare code expectations against deployed database tables and migrations.
 - Add durable onboarding state if missing.
@@ -98,8 +98,12 @@ Relevant commits now on `main`:
   - if `/api/auth/me` succeeds, redirects to requested dashboard path with bootstrap cookie
   - if `/api/auth/me` fails because the backend profile does not exist, redirects to `/onboard?supabase_jwt=...`
   - `/onboard` then calls `/api/auth/google/complete` after persona selection
-- Tenant context resolves active property from `users.default_property_id`, then falls back to first active org property.
-- Bug noted: the intended self-heal/backfill block in `get_tenant_context()` is currently unreachable after fallback because it checks `if not effective_property_id` before checking `if effective_property_id`. This should be repaired in a later auth-focused pass.
+- Tenant context resolves active property from `users.default_property_id`, then falls back to the first active property in the user's own organization.
+- Repair made:
+  - invalid, deleted, inactive, cross-org, or unvalidated default properties are not silently accepted
+  - when a valid active fallback property exists for the user's org, it is used for the current request
+  - the fallback property is backfilled to `users.default_property_id` on a best-effort basis
+  - orgs with no active properties continue with `property_id = null` so property-required endpoints can fail explicitly
 
 ### Reports Failure Path
 
@@ -138,6 +142,7 @@ Relevant commits now on `main`:
   - `DataReadinessService`
   - `GET /api/data-readiness`
   - Auth service best-effort sync to `organization_onboarding`
+  - Tenant context default-property bootstrap repair
 - Frontend:
   - `DataReadinessResponse` API type
   - `getDataReadiness()`
@@ -145,6 +150,7 @@ Relevant commits now on `main`:
   - `SpendSummary` has no-data CTAs and real error display
 - Tests:
   - `neumas-backend/tests/test_data_readiness.py`
+  - `neumas-backend/tests/test_property_and_shopping_consistency.py`
 
 ## Verification - 2026-09-27
 
@@ -152,6 +158,8 @@ Relevant commits now on `main`:
   - `ruff check app/api/routes/data_readiness.py app/schemas/data_readiness.py app/services/data_readiness_service.py app/services/auth_service.py tests/test_data_readiness.py app/main.py` passed
   - `py_compile app/api/routes/data_readiness.py app/services/data_readiness_service.py app/services/auth_service.py app/main.py` passed
   - `pytest tests/test_data_readiness.py -q` passed, 2 tests
+  - `ruff check app/api/deps.py tests/test_property_and_shopping_consistency.py` passed
+  - `pytest tests/test_property_and_shopping_consistency.py -q` passed, 8 tests
 - Frontend targeted:
   - `pnpm lint` passed
   - `pnpm exec tsc --noEmit` passed
