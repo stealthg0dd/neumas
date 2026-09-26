@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AlertTriangle, ClipboardList, PackageSearch } from "lucide-react";
 
@@ -62,10 +63,10 @@ export default function WastePage() {
               Waste events feed procurement requirements and margin attribution without estimating unavailable causes.
             </p>
           </div>
-          <a href="/dashboard/inventory" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+          <Link href="/dashboard/inventory" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
             <PackageSearch className="h-4 w-4" />
             Open inventory
-          </a>
+          </Link>
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">

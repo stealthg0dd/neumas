@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { BarChart3, ReceiptText, Scale, TrendingDown, Wallet } from "lucide-react";
+import { BarChart3, ReceiptText, Scale, Wallet } from "lucide-react";
 
 import { EmptyState } from "@/components/control-center/EmptyState";
 import { getMarginSummary } from "@/lib/api/endpoints";
@@ -127,10 +128,10 @@ export default function MarginPage() {
               Explainable food-cost, procurement, invoice, and waste variance from persisted operating records.
             </p>
           </div>
-          <a href="/dashboard/reports" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+          <Link href="/dashboard/reports" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
             <ReceiptText className="h-4 w-4" />
             Open reports
-          </a>
+          </Link>
         </header>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

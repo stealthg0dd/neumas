@@ -27,6 +27,14 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - Wave 7 margin snapshots/calculations, leakage attribution, waste events, outcome learning calculations, and Margin/Waste UI added.
 - Wave 8 connector gateway contracts, raw provider events, secure credential references, Square adapter, Xero OAuth scaffold, and integrations UI added.
 - Wave 9 public-site positioning updated to autonomous procurement and margin control for F&B, with new indexable discovery pages and LLM-readable summaries.
+- Final release validation added org/property RLS policies for new autonomous procurement tables and a canonical local release workflow test.
+
+## Release Status
+
+- Live in code: Control Center, Food Graph, demand imports/forecasting, procurement optimizer, policy/decision/action gateway, purchase orders, acknowledgements, receiving, supplier invoices, three-way reconciliation, margin snapshots, waste events, outcome learning calculations, integrations catalog/gateway, and public autonomous procurement marketing pages.
+- Sandbox/local verified: canonical workflow from sales import through demand forecast, recipe explosion, ingredient requirement, supplier optimization, decision/policy, internal manual action, purchase order, acknowledgement, receiving, invoice, three-way match, margin calculation, and outcome variance.
+- Requires credentials: Square read/webhook adapter and Xero OAuth/read scaffolding. These remain disabled when `SQUARE_*` and `XERO_*` environment variables are absent.
+- Not implemented: real external supplier write providers, production supplier dispatch, automatic external accounting export, verified supplier OTIF outcomes from real providers, and automatic policy self-modification.
 
 ## Migrations Added
 
@@ -37,6 +45,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/supabase/migrations/202609250005_purchasing_lifecycle_reconciliation.sql`
 - `neumas-backend/supabase/migrations/202609250006_margin_waste_outcomes.sql`
 - `neumas-backend/supabase/migrations/202609250007_connector_gateway_square_xero.sql`
+- `neumas-backend/supabase/migrations/202609250008_autonomous_procurement_rls_policies.sql`
 
 ## Endpoints Added
 
@@ -103,6 +112,7 @@ Naming convention for new migrations: `YYYYMMDDNNNN_descriptive_name.sql`.
 - `neumas-backend/tests/test_purchasing.py`
 - `neumas-backend/tests/test_margin.py`
 - `neumas-backend/tests/test_connector_gateway.py`
+- `neumas-backend/tests/test_release_workflow.py`
 - `neumas-web/src/lib/public-site-wave9.test.ts`
 
 ## Remaining Blockers
