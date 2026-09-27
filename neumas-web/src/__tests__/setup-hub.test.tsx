@@ -3,7 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import SetupPage from "@/app/dashboard/setup/page";
-import { getDataReadiness } from "@/lib/api/endpoints";
+import { getDataReadiness, importCsv } from "@/lib/api/endpoints";
 import type { DataReadinessItem, DataReadinessResponse } from "@/lib/api/types";
 
 vi.mock("next/link", () => ({
@@ -20,6 +20,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/lib/api/endpoints", () => ({
   getDataReadiness: vi.fn(),
+  importCsv: vi.fn(),
 }));
 
 vi.mock("@/lib/analytics", () => ({
@@ -27,6 +28,7 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 const mockGetDataReadiness = vi.mocked(getDataReadiness);
+const mockImportCsv = vi.mocked(importCsv);
 
 function item(status: "READY" | "PARTIAL" | "MISSING", count = 0, action = "Add data"): DataReadinessItem {
   return {
@@ -66,6 +68,17 @@ function readiness(): DataReadinessResponse {
 describe("Setup hub", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockImportCsv.mockResolvedValue({
+      import_type: "sales.csv",
+      commit: false,
+      import_id: null,
+      total_rows: 1,
+      accepted_rows: 1,
+      rejected_rows: 0,
+      warnings: [],
+      row_errors: [],
+      canonical_counts: {},
+    });
   });
 
   afterEach(() => {
@@ -82,6 +95,8 @@ describe("Setup hub", () => {
     expect(screen.getAllByText("inventory.csv").length).toBeGreaterThan(0);
     expect(screen.getAllByText("sales.csv").length).toBeGreaterThan(0);
     expect(screen.getAllByText("supplier_prices.csv").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Preview").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Commit").length).toBeGreaterThan(0);
     expect(screen.getByText("Connect POS or upload sales.csv")).toBeTruthy();
   });
 });

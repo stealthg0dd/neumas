@@ -84,6 +84,7 @@ import type {
   BurnRateRecomputeRequest,
   BurnRateRecomputeResponse,
   ControlCenterSummary,
+  CsvImportResult,
   DecisionCenterResponse,
   DecisionRecord,
   DataReadinessResponse,
@@ -604,6 +605,49 @@ export async function getRecipeDetail(recipeId: string): Promise<RecipeDetail> {
 /** GET /api/food-graph/food-cost-drivers */
 export async function getFoodCostDrivers(): Promise<FoodCostDriversResponse> {
   return get<FoodCostDriversResponse>("/api/food-graph/food-cost-drivers");
+}
+
+interface CsvImportRawResponse {
+  import_type?: string;
+  commit?: boolean;
+  receipt_id?: string | null;
+  import_id?: string | null;
+  total_rows?: number;
+  valid_rows?: number;
+  accepted_rows?: number;
+  error_rows?: number;
+  rejected_rows?: number;
+  warnings?: string[];
+  errors?: Array<{ row_number: number; code: string; message: string }>;
+  row_errors?: Array<{ row_number: number; code: string; message: string }>;
+  canonical_counts?: Record<string, number>;
+}
+
+export async function importCsv(
+  endpoint: "/api/demand/imports" | "/api/food-graph/imports",
+  payload: {
+    import_type: string;
+    csv_text: string;
+    commit: boolean;
+    idempotency_key?: string;
+    source_filename?: string;
+    mapping?: Record<string, string>;
+  }
+): Promise<CsvImportResult> {
+  const raw = await post<CsvImportRawResponse>(endpoint, payload);
+  const acceptedRows = raw.accepted_rows ?? raw.valid_rows ?? 0;
+  const rejectedRows = raw.rejected_rows ?? raw.error_rows ?? 0;
+  return {
+    import_type: raw.import_type ?? payload.import_type,
+    commit: Boolean(raw.commit ?? payload.commit),
+    import_id: raw.import_id ?? raw.receipt_id ?? null,
+    total_rows: raw.total_rows ?? acceptedRows + rejectedRows,
+    accepted_rows: acceptedRows,
+    rejected_rows: rejectedRows,
+    warnings: raw.warnings ?? [],
+    row_errors: raw.row_errors ?? raw.errors ?? [],
+    canonical_counts: raw.canonical_counts ?? {},
+  };
 }
 
 /** GET /api/demand/summary */

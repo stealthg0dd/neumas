@@ -1033,6 +1033,24 @@ export interface FoodCostDriversResponse {
   top_ingredients: IngredientContribution[];
 }
 
+export interface ImportRowError {
+  row_number: number;
+  code: string;
+  message: string;
+}
+
+export interface CsvImportResult {
+  import_type: string;
+  commit: boolean;
+  import_id: string | null;
+  total_rows: number;
+  accepted_rows: number;
+  rejected_rows: number;
+  warnings: string[];
+  row_errors: ImportRowError[];
+  canonical_counts: Record<string, number>;
+}
+
 // ============================================================================
 // Demand Intelligence
 // ============================================================================

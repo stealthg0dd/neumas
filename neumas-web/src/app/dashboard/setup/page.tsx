@@ -12,15 +12,15 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { getDataReadiness } from "@/lib/api/endpoints";
-import type { DataReadinessItem, DataReadinessResponse, DataReadinessStatus } from "@/lib/api/types";
+import { getDataReadiness, importCsv } from "@/lib/api/endpoints";
+import type { CsvImportResult, DataReadinessItem, DataReadinessResponse, DataReadinessStatus } from "@/lib/api/types";
 import { captureUIError } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 interface CsvTemplate {
   key: string;
   filename: string;
-  endpoint: string;
+  endpoint: "/api/demand/imports" | "/api/food-graph/imports";
   importType: string;
   required: string[];
   optional: string[];
@@ -141,6 +141,99 @@ function StatusPill({ status }: { status: DataReadinessStatus }) {
   );
 }
 
+function ImportControl({
+  template,
+  onCommitted,
+}: {
+  template: CsvTemplate;
+  onCommitted: () => void;
+}) {
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [csvText, setCsvText] = useState("");
+  const [result, setResult] = useState<CsvImportResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File | null) {
+    setResult(null);
+    setError(null);
+    if (!file) {
+      setFileName(null);
+      setCsvText("");
+      return;
+    }
+    setFileName(file.name);
+    setCsvText(await file.text());
+  }
+
+  async function runImport(commit: boolean) {
+    if (!csvText.trim()) {
+      setError("Choose a CSV file first.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const payload = await importCsv(template.endpoint, {
+        import_type: template.importType,
+        csv_text: csvText,
+        commit,
+        source_filename: fileName ?? template.filename,
+        idempotency_key: `${template.key}:${fileName ?? template.filename}:${csvText.length}`,
+      });
+      setResult(payload);
+      if (commit) onCommitted();
+    } catch (err) {
+      captureUIError("setup_csv_import", err);
+      setError(err instanceof Error ? err.message : "Import failed. Review the file and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-slate-100 bg-white p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          className="min-h-10 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600"
+          onChange={(event) => void handleFile(event.target.files?.[0] ?? null)}
+        />
+        <Button type="button" variant="outline" disabled={busy || !csvText} onClick={() => void runImport(false)}>
+          Preview
+        </Button>
+        <Button
+          type="button"
+          disabled={busy || !result || result.rejected_rows > 0 || result.commit}
+          onClick={() => void runImport(true)}
+        >
+          Commit
+        </Button>
+      </div>
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {result && (
+        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+          <p className="font-semibold text-slate-800">
+            {result.commit ? "Committed" : "Preview"}: {result.accepted_rows} accepted, {result.rejected_rows} rejected, {result.total_rows} total
+          </p>
+          {result.import_id && <p className="mt-1">Import ID: {result.import_id}</p>}
+          {Object.keys(result.canonical_counts).length > 0 && (
+            <p className="mt-1">Canonical records: {JSON.stringify(result.canonical_counts)}</p>
+          )}
+          {result.row_errors.length > 0 && (
+            <ul className="mt-2 space-y-1 text-red-700">
+              {result.row_errors.slice(0, 5).map((rowError) => (
+                <li key={`${rowError.row_number}-${rowError.code}`}>Row {rowError.row_number}: {rowError.message}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SetupRow({
   title,
   item,
@@ -148,6 +241,7 @@ function SetupRow({
   primaryLabel,
   templateKeys,
   secondary,
+  onImportCommitted,
 }: {
   title: string;
   item?: DataReadinessItem;
@@ -155,6 +249,7 @@ function SetupRow({
   primaryLabel: string;
   templateKeys?: string[];
   secondary?: string;
+  onImportCommitted: () => void;
 }) {
   const templates = CSV_TEMPLATES.filter((template) => templateKeys?.includes(template.key));
   const status = item?.status ?? "READY";
@@ -206,6 +301,7 @@ function SetupRow({
               <p className="mt-1">Required: {template.required.join(", ")}</p>
               <p className="mt-1">Optional: {template.optional.join(", ") || "none"}</p>
               <p className="mt-1">Import: {template.endpoint} as {template.importType}</p>
+              <ImportControl template={template} onCommitted={onImportCommitted} />
             </div>
           ))}
         </div>
@@ -274,14 +370,14 @@ export default function SetupPage() {
             </section>
 
             <div className="grid gap-4">
-              <SetupRow title="Company" primaryHref="/dashboard/settings" primaryLabel="Open settings" secondary="Organization created." />
-              <SetupRow title="Location" primaryHref="/dashboard/settings" primaryLabel="Manage location" secondary="Main location created." />
-              <SetupRow title="Inventory" item={readiness.inventory_data} primaryHref="/dashboard/inventory" primaryLabel="Open inventory" templateKeys={["inventory"]} />
-              <SetupRow title="Sales history" item={readiness.sales_data} primaryHref="/dashboard/demand" primaryLabel="Open demand" templateKeys={["sales"]} />
-              <SetupRow title="Suppliers" item={readiness.supplier_data} primaryHref="/dashboard/procurement/suppliers" primaryLabel="Open suppliers" templateKeys={["suppliers", "supplier_prices"]} />
-              <SetupRow title="Recipes" item={readiness.recipe_data} primaryHref="/dashboard/recipes" primaryLabel="Open recipes" templateKeys={["recipes", "recipe_ingredients"]} />
-              <SetupRow title="Invoices" item={readiness.invoice_data} primaryHref="/dashboard/invoices" primaryLabel="Upload invoice" templateKeys={["invoices"]} />
-              <SetupRow title="Accounting" primaryHref="/dashboard/integrations" primaryLabel="Connect Xero" secondary="Available when OAuth credentials are configured." />
+              <SetupRow title="Company" primaryHref="/dashboard/settings" primaryLabel="Open settings" secondary="Organization created." onImportCommitted={() => void load()} />
+              <SetupRow title="Location" primaryHref="/dashboard/settings" primaryLabel="Manage location" secondary="Main location created." onImportCommitted={() => void load()} />
+              <SetupRow title="Inventory" item={readiness.inventory_data} primaryHref="/dashboard/inventory" primaryLabel="Open inventory" templateKeys={["inventory"]} onImportCommitted={() => void load()} />
+              <SetupRow title="Sales history" item={readiness.sales_data} primaryHref="/dashboard/demand" primaryLabel="Open demand" templateKeys={["sales"]} onImportCommitted={() => void load()} />
+              <SetupRow title="Suppliers" item={readiness.supplier_data} primaryHref="/dashboard/procurement/suppliers" primaryLabel="Open suppliers" templateKeys={["suppliers", "supplier_prices"]} onImportCommitted={() => void load()} />
+              <SetupRow title="Recipes" item={readiness.recipe_data} primaryHref="/dashboard/recipes" primaryLabel="Open recipes" templateKeys={["recipes", "recipe_ingredients"]} onImportCommitted={() => void load()} />
+              <SetupRow title="Invoices" item={readiness.invoice_data} primaryHref="/dashboard/invoices" primaryLabel="Upload invoice" templateKeys={["invoices"]} onImportCommitted={() => void load()} />
+              <SetupRow title="Accounting" primaryHref="/dashboard/integrations" primaryLabel="Connect Xero" secondary="Available when OAuth credentials are configured." onImportCommitted={() => void load()} />
             </div>
 
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
