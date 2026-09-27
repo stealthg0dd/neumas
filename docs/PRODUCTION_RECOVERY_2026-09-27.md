@@ -221,6 +221,10 @@ Relevant commits now on `main`:
   - `pytest tests/test_data_readiness.py -q` passed after supplier invoice readiness contract update, 2 tests
   - `ruff check app/services/demand_service.py tests/test_demand.py` passed
   - `pytest tests/test_demand.py tests/test_release_workflow.py tests/test_data_readiness.py tests/test_organization_onboarding_service.py -q` passed, 13 tests
+  - `pytest tests/test_data_readiness.py tests/test_organization_onboarding_service.py tests/test_property_and_shopping_consistency.py tests/test_control_center.py tests/test_demand.py tests/test_food_graph.py tests/test_procurement_optimizer.py tests/test_autonomy.py tests/test_purchasing.py tests/test_margin.py tests/test_integrations_foundation.py tests/test_auth.py tests/test_inventory.py tests/test_inventory_ledger.py tests/test_release_workflow.py tests/test_production_smoke.py -q` passed, 101 passed / 2 live-smoke tests skipped
+  - `ruff check app ... scripts/check_production_schema_parity.py` passed
+  - `supabase migration list` shows all local migrations matched on remote through `202609270002`
+  - `scripts/check_production_schema_parity.py` was not rerun live in the latest shell because `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` were not exported; earlier service-role parity check returned `status: ready`.
 - Frontend targeted:
   - `pnpm lint` passed
   - `pnpm exec tsc --noEmit` passed
@@ -232,6 +236,10 @@ Relevant commits now on `main`:
   - `pnpm exec vitest run src/__tests__/control-center-dashboard.test.tsx src/__tests__/setup-hub.test.tsx src/__tests__/navigation.test.ts` passed, 9 tests
   - `pnpm lint` and `pnpm exec tsc --noEmit` passed after Control Center readiness repair
   - `pnpm lint` and `pnpm exec tsc --noEmit` passed after page error-state repair
+  - `pnpm lint` passed
+  - `pnpm exec tsc --noEmit` passed
+  - `pnpm exec vitest run` passed, 19 files / 70 tests
+  - `pnpm build` passed; local build emitted expected Supabase OAuth env warnings because public Supabase env vars were not exported
 
 ## Page Status - Initial Recovery Matrix
 
@@ -257,4 +265,4 @@ Relevant commits now on `main`:
 - Fresh account through browser UI.
 - Production authenticated account dashboard state.
 - Full page-by-page API failure matrix.
-- End-to-end import -> readiness -> dashboard -> demand -> procurement -> decision -> PO -> receipt -> invoice -> margin.
+- Browser-driven end-to-end import -> readiness -> dashboard -> demand -> procurement -> decision -> PO -> receipt -> invoice -> margin. Backend release workflow coverage is green, but there is no browser E2E suite in this repository.
