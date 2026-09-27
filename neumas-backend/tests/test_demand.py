@@ -63,6 +63,16 @@ class _Query:
         self.pending = rows
         return self
 
+    def update(self, payload):
+        updated = []
+        for row in self.client.rows.get(self.table, []):
+            if all(str(row.get(key)) == value for key, value in self.filters):
+                row.update(payload)
+                updated.append(dict(row))
+        self.client.updates.append((self.table, payload, list(self.filters)))
+        self.pending = updated
+        return self
+
     async def execute(self):
         if self.pending is not None:
             return _Resp(self.pending)
@@ -78,6 +88,7 @@ class _Client:
         self.filters = {}
         self.inserts = []
         self.upserts = []
+        self.updates = []
 
     def table(self, table: str):
         return _Query(self, table)
@@ -174,3 +185,73 @@ async def test_import_validation_row_errors(tenant: TenantContext):
     assert result.errors[0].code == "missing_required"
     assert result.rejected_rows == 1
     assert result.row_errors == result.errors
+
+
+@pytest.mark.asyncio
+async def test_inventory_import_commits_snapshot_and_ledger(monkeypatch, tenant: TenantContext):
+    client = _Client({})
+    monkeypatch.setattr("app.services.demand_service.get_async_supabase_admin", AsyncMock(return_value=client))
+
+    result = await DemandService().import_csv(
+        tenant,
+        "inventory.csv",
+        "name,quantity,unit,cost_per_unit\nTomato,12,kg,2.40\n",
+        commit=True,
+        idempotency_key="inventory-1",
+    )
+
+    assert result.canonical_counts == {"inventory_items": 1, "inventory_movements": 1}
+    inventory = next(rows[0] for table, rows in client.inserts if table == "inventory_items")
+    movement = next(rows[0] for table, rows, _kwargs in client.upserts if table == "inventory_movements")
+    assert inventory["organization_id"] == str(tenant.org_id)
+    assert inventory["property_id"] == str(tenant.property_id)
+    assert movement["organization_id"] == str(tenant.org_id)
+    assert movement["property_id"] == str(tenant.property_id)
+    assert movement["movement_type"] == "count"
+
+
+@pytest.mark.asyncio
+async def test_supplier_and_invoice_import_create_canonical_records(monkeypatch, tenant: TenantContext):
+    client = _Client({})
+    monkeypatch.setattr("app.services.demand_service.get_async_supabase_admin", AsyncMock(return_value=client))
+
+    suppliers = await DemandService().import_csv(
+        tenant,
+        "suppliers.csv",
+        "supplier_name,contact_email\nFresh Foods,buyer@example.com\n",
+        commit=True,
+        idempotency_key="suppliers-1",
+    )
+    invoices = await DemandService().import_csv(
+        tenant,
+        "invoices.csv",
+        "external_id,supplier_name,total,currency\nINV-1,Fresh Foods,42.50,USD\n",
+        commit=True,
+        idempotency_key="invoices-1",
+    )
+
+    assert suppliers.canonical_counts == {"vendors": 1}
+    assert invoices.canonical_counts == {"supplier_invoices": 1}
+    vendor = next(rows[0] for table, rows, _kwargs in client.upserts if table == "vendors")
+    invoice = next(rows[0] for table, rows, _kwargs in client.upserts if table == "supplier_invoices")
+    assert vendor["organization_id"] == str(tenant.org_id)
+    assert vendor["normalized_name"] == "fresh foods"
+    assert invoice["organization_id"] == str(tenant.org_id)
+    assert invoice["property_id"] == str(tenant.property_id)
+    assert invoice["invoice_number"] == "INV-1"
+
+
+@pytest.mark.asyncio
+async def test_purchase_order_import_requires_supplier_identity(tenant: TenantContext):
+    result = await DemandService().import_csv(
+        tenant,
+        "purchase_orders.csv",
+        "external_id,total\nPO-1,100\n",
+        commit=True,
+        idempotency_key="po-1",
+    )
+
+    assert result.error_rows == 1
+    assert result.errors[0].code == "missing_required"
+    assert "supplier_name or vendor_id" in result.errors[0].message
+    assert result.canonical_counts == {}

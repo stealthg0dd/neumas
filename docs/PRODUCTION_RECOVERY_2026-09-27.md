@@ -179,6 +179,14 @@ Relevant commits now on `main`:
   - Auth service best-effort sync to `organization_onboarding`
   - Tenant context default-property bootstrap repair
   - Read-only production schema parity helper
+  - Setup CSV imports now commit supported first-run data into existing tenant-scoped production tables instead of returning validation-only receipts:
+    - inventory stock counts -> `inventory_items` and `inventory_movements`
+    - suppliers -> `vendors`
+    - invoices -> `supplier_invoices`
+    - purchase orders -> `purchase_orders`
+    - deliveries -> `goods_receipts`
+    - waste -> `waste_events`
+  - Purchase-order imports require `supplier_name` or `vendor_id`; no synthetic supplier fallback is created.
 - Frontend:
   - `DataReadinessResponse` API type
   - `getDataReadiness()`
@@ -211,6 +219,8 @@ Relevant commits now on `main`:
   - `pytest tests/test_data_readiness.py tests/test_organization_onboarding_service.py -q` passed, 4 tests
   - `ruff check scripts/check_production_schema_parity.py` passed
   - `pytest tests/test_data_readiness.py -q` passed after supplier invoice readiness contract update, 2 tests
+  - `ruff check app/services/demand_service.py tests/test_demand.py` passed
+  - `pytest tests/test_demand.py tests/test_release_workflow.py tests/test_data_readiness.py tests/test_organization_onboarding_service.py -q` passed, 13 tests
 - Frontend targeted:
   - `pnpm lint` passed
   - `pnpm exec tsc --noEmit` passed

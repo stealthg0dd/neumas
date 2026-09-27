@@ -75,6 +75,8 @@ class DemandService:
             missing = [key for key in required if not row.get(key)]
             if missing:
                 errors.append(ImportRowError(row_number=index, code="missing_required", message=f"Missing: {', '.join(sorted(missing))}"))
+            elif normalized_type in {"purchase_orders", "purchase_orders.csv"} and not (row.get("vendor_id") or self._supplier_name(row)):
+                errors.append(ImportRowError(row_number=index, code="missing_required", message="Missing: supplier_name or vendor_id"))
             else:
                 valid.append(row)
 
@@ -334,7 +336,273 @@ class DemandService:
                 for i, row in enumerate(rows)
             ], on_conflict="organization_id,property_id,signal_type,signal_date,service_period,idempotency_key").execute()
             return {"demand_signals": len(rows)}
+        if import_type in {"inventory", "inventory.csv"}:
+            inventory_count = 0
+            movement_count = 0
+            for i, row in enumerate(rows):
+                item = await self._upsert_inventory_item(client, tenant, row)
+                if item is None:
+                    continue
+                inventory_count += 1
+                await client.table("inventory_movements").upsert({
+                    "organization_id": org_id,
+                    "property_id": property_id,
+                    "item_id": item["id"],
+                    "movement_type": "count",
+                    "quantity_delta": str(Decimal(str(row["quantity"])) - Decimal(str(item.get("previous_quantity") or 0))),
+                    "quantity_before": str(item.get("previous_quantity") or 0),
+                    "quantity_after": row["quantity"],
+                    "unit": row.get("unit") or item.get("unit") or "unit",
+                    "reference_type": "import",
+                    "created_by_id": str(tenant.user_id),
+                    "notes": "Initial setup inventory import",
+                    "idempotency_key": row.get("external_id") or f"{idempotency_key or 'inventory-import'}:{org_id}:{property_id}:{row['name'].strip().lower()}:{i}",
+                }, on_conflict="idempotency_key").execute()
+                movement_count += 1
+            return {"inventory_items": inventory_count, "inventory_movements": movement_count}
+        if import_type in {"suppliers", "suppliers.csv"}:
+            for i, row in enumerate(rows):
+                await self._resolve_vendor_id(client, tenant, row, i, idempotency_key)
+            return {"vendors": len(rows)}
+        if import_type in {"invoices", "invoices.csv"}:
+            invoices = []
+            for i, row in enumerate(rows):
+                vendor_id = await self._resolve_vendor_id(client, tenant, row, i, idempotency_key)
+                subtotal = row.get("subtotal") or row.get("amount") or row.get("total") or "0"
+                delivery_fee = row.get("delivery_fee") or "0"
+                tax = row.get("tax") or "0"
+                total = row.get("total") or str(Decimal(str(subtotal)) + Decimal(str(delivery_fee)) + Decimal(str(tax)))
+                invoices.append({
+                    "organization_id": org_id,
+                    "property_id": property_id,
+                    "vendor_id": vendor_id,
+                    "purchase_order_id": row.get("purchase_order_id") or None,
+                    "goods_receipt_id": row.get("goods_receipt_id") or None,
+                    "invoice_number": row.get("invoice_number") or row["external_id"],
+                    "invoice_date": row.get("invoice_date") or row.get("business_date") or date.today().isoformat(),
+                    "currency": row.get("currency") or "USD",
+                    "subtotal": subtotal,
+                    "delivery_fee": delivery_fee,
+                    "tax": tax,
+                    "total": total,
+                    "status": row.get("status") or "open",
+                })
+            if invoices:
+                await client.table("supplier_invoices").upsert(invoices, on_conflict="organization_id,vendor_id,invoice_number").execute()
+            return {"supplier_invoices": len(invoices)}
+        if import_type in {"purchase_orders", "purchase_orders.csv"}:
+            purchase_orders = []
+            purchase_order_count = 0
+            for i, row in enumerate(rows):
+                vendor_id = await self._resolve_vendor_id(client, tenant, row, i, idempotency_key)
+                if vendor_id is None:
+                    continue
+                subtotal = row.get("subtotal") or row.get("total") or "0"
+                delivery_fee = row.get("delivery_fee") or "0"
+                tax = row.get("tax") or "0"
+                total = row.get("total") or str(Decimal(str(subtotal)) + Decimal(str(delivery_fee)) + Decimal(str(tax)))
+                purchase_orders.append({
+                    "organization_id": org_id,
+                    "property_id": property_id,
+                    "vendor_id": vendor_id,
+                    "state": row.get("state") or "DRAFT",
+                    "currency": row.get("currency") or "USD",
+                    "expected_delivery_date": row.get("expected_delivery_date") or None,
+                    "external_reference": row["external_id"],
+                    "subtotal": subtotal,
+                    "delivery_fee": delivery_fee,
+                    "tax": tax,
+                    "total": total,
+                    "pricing_snapshot": {"source": "csv"},
+                    "commercial_snapshot": {"source": "csv", "idempotency_key": idempotency_key},
+                })
+                existing_resp = await (
+                    client.table("purchase_orders")
+                    .select("id")
+                    .eq("organization_id", org_id)
+                    .eq("property_id", property_id)
+                    .eq("external_reference", row["external_id"])
+                    .limit(1)
+                    .execute()
+                )
+                existing = (existing_resp.data or [None])[0]
+                if existing:
+                    await (
+                        client.table("purchase_orders")
+                        .update(purchase_orders.pop())
+                        .eq("id", existing["id"])
+                        .eq("organization_id", org_id)
+                        .execute()
+                    )
+                purchase_order_count += 1
+            if purchase_orders:
+                await client.table("purchase_orders").insert(purchase_orders).execute()
+            return {"purchase_orders": purchase_order_count}
+        if import_type in {"deliveries", "deliveries.csv"}:
+            receipts = []
+            receipt_count = 0
+            for i, row in enumerate(rows):
+                notes = row.get("notes") or f"Imported delivery {row['external_id']}"
+                receipt = {
+                    "organization_id": org_id,
+                    "property_id": property_id,
+                    "vendor_id": await self._resolve_vendor_id(client, tenant, row, i, idempotency_key),
+                    "purchase_order_id": row.get("purchase_order_id") or None,
+                    "receipt_date": row.get("receipt_date") or row.get("delivery_date") or date.today().isoformat(),
+                    "status": row.get("status") or "RECEIVED",
+                    "received_by_id": str(tenant.user_id),
+                    "notes": notes,
+                }
+                existing_resp = await (
+                    client.table("goods_receipts")
+                    .select("id")
+                    .eq("organization_id", org_id)
+                    .eq("property_id", property_id)
+                    .eq("notes", notes)
+                    .limit(1)
+                    .execute()
+                )
+                existing = (existing_resp.data or [None])[0]
+                if existing:
+                    await (
+                        client.table("goods_receipts")
+                        .update(receipt)
+                        .eq("id", existing["id"])
+                        .eq("organization_id", org_id)
+                        .execute()
+                    )
+                else:
+                    receipts.append(receipt)
+                receipt_count += 1
+            if receipts:
+                await client.table("goods_receipts").insert(receipts).execute()
+            return {"goods_receipts": receipt_count}
+        if import_type in {"waste", "waste.csv"}:
+            waste_events = []
+            waste_count = 0
+            for row in rows:
+                event = {
+                    "organization_id": org_id,
+                    "property_id": property_id,
+                    "waste_type": row.get("waste_type") or row.get("type") or "unknown",
+                    "inventory_item_id": row.get("inventory_item_id") or None,
+                    "canonical_ingredient_id": row.get("canonical_ingredient_id") or None,
+                    "quantity": row["quantity"],
+                    "uom": row.get("unit") or row.get("uom") or "unit",
+                    "cost": row.get("cost") or None,
+                    "reason": row.get("reason") or row.get("item_name"),
+                    "source": "csv",
+                    "event_date": row.get("event_date") or row.get("business_date") or date.today().isoformat(),
+                    "created_by_id": str(tenant.user_id),
+                }
+                existing_resp = await (
+                    client.table("waste_events")
+                    .select("id")
+                    .eq("organization_id", org_id)
+                    .eq("property_id", property_id)
+                    .eq("event_date", event["event_date"])
+                    .eq("reason", event["reason"])
+                    .eq("quantity", event["quantity"])
+                    .limit(1)
+                    .execute()
+                )
+                existing = (existing_resp.data or [None])[0]
+                if existing:
+                    await (
+                        client.table("waste_events")
+                        .update(event)
+                        .eq("id", existing["id"])
+                        .eq("organization_id", org_id)
+                        .execute()
+                    )
+                else:
+                    waste_events.append(event)
+                waste_count += 1
+            if waste_events:
+                await client.table("waste_events").insert(waste_events).execute()
+            return {"waste_events": waste_count}
         return {"validated_rows": len(rows)}
+
+    async def _upsert_inventory_item(self, client: Any, tenant: TenantContext, row: dict[str, str]) -> dict[str, Any] | None:
+        org_id = str(tenant.org_id)
+        property_id = str(tenant.property_id) if tenant.property_id else None
+        if property_id is None:
+            return None
+        existing_resp = await (
+            client.table("inventory_items")
+            .select("id,quantity,unit")
+            .eq("organization_id", org_id)
+            .eq("property_id", property_id)
+            .eq("name", row["name"])
+            .limit(1)
+            .execute()
+        )
+        existing = (existing_resp.data or [None])[0]
+        payload = {
+            "organization_id": org_id,
+            "property_id": property_id,
+            "name": row["name"],
+            "quantity": row["quantity"],
+            "unit": row.get("unit") or row.get("uom") or (existing or {}).get("unit") or "unit",
+            "sku": row.get("sku") or None,
+            "barcode": row.get("barcode") or None,
+            "min_quantity": row.get("min_quantity") or "0",
+            "max_quantity": row.get("max_quantity") or None,
+            "reorder_point": row.get("reorder_point") or None,
+            "cost_per_unit": row.get("cost_per_unit") or None,
+            "currency": row.get("currency") or "USD",
+            "supplier_info": {"supplier_name": self._supplier_name(row)} if self._supplier_name(row) else {},
+            "metadata": {"source": "csv"},
+        }
+        if existing:
+            await (
+                client.table("inventory_items")
+                .update(payload)
+                .eq("id", existing["id"])
+                .eq("organization_id", org_id)
+                .execute()
+            )
+            return {**payload, "id": existing["id"], "previous_quantity": existing.get("quantity") or 0}
+        inserted = await client.table("inventory_items").insert(payload).execute()
+        item = (inserted.data or [payload])[0]
+        return {**item, "previous_quantity": 0}
+
+    async def _resolve_vendor_id(
+        self,
+        client: Any,
+        tenant: TenantContext,
+        row: dict[str, str],
+        index: int,
+        idempotency_key: str | None,
+    ) -> str | None:
+        if row.get("vendor_id"):
+            return row["vendor_id"]
+        supplier_name = self._supplier_name(row)
+        if not supplier_name:
+            return None
+        vendor_resp = await client.table("vendors").upsert({
+            "organization_id": str(tenant.org_id),
+            "name": supplier_name,
+            "normalized_name": self._normalize_name(supplier_name),
+            "contact_email": row.get("contact_email") or row.get("email") or None,
+            "contact_phone": row.get("contact_phone") or row.get("phone") or None,
+            "address": row.get("address") or None,
+            "website": row.get("website") or None,
+            "metadata": {
+                "source": "csv",
+                "external_id": row.get("supplier_external_id") or row.get("external_id"),
+                "idempotency_key": f"{idempotency_key}:{index}" if idempotency_key else None,
+            },
+        }, on_conflict="organization_id,normalized_name").execute()
+        data = vendor_resp.data or []
+        return str(data[0]["id"]) if data and data[0].get("id") else None
+
+    def _supplier_name(self, row: dict[str, str]) -> str | None:
+        value = row.get("supplier_name") or row.get("vendor_name")
+        return value.strip() if isinstance(value, str) and value.strip() else None
+
+    def _normalize_name(self, value: str) -> str:
+        return " ".join(value.strip().lower().split())
 
     async def _record_import(self, tenant: TenantContext, import_type: str, source_filename: str | None, idempotency_key: str | None, mapping: dict[str, str], rows: list[dict[str, str]], errors: list[ImportRowError], counts: dict[str, int]) -> None:
         client = await self._client()
