@@ -44,6 +44,11 @@ class UniversalImportResponse(BaseModel):
     errors: list[ImportRowError] = []
     receipt_id: str | None = None
     canonical_counts: dict[str, int] = {}
+    import_id: str | None = None
+    accepted_rows: int = 0
+    rejected_rows: int = 0
+    warnings: list[str] = []
+    row_errors: list[ImportRowError] = []
 
 
 class ForecastGenerateRequest(BaseModel):

@@ -251,7 +251,21 @@ class FoodGraphService:
         receipt_id = str(uuid4()) if commit and not errors else None
         if commit and not errors and valid:
             await self._commit_import_rows(tenant, import_type, valid, idempotency_key)
-        return ImportPreviewResponse(import_type=import_type, commit=commit, valid_rows=len(valid), error_rows=len(errors), errors=errors, receipt_id=receipt_id)
+        return ImportPreviewResponse(
+            import_type=import_type,
+            commit=commit,
+            total_rows=len(rows),
+            valid_rows=len(valid),
+            error_rows=len(errors),
+            errors=errors,
+            receipt_id=receipt_id,
+            canonical_counts={import_type: len(valid)} if commit and not errors else {},
+            import_id=receipt_id,
+            accepted_rows=len(valid),
+            rejected_rows=len(errors),
+            warnings=[],
+            row_errors=errors,
+        )
 
     async def _commit_import_rows(self, tenant: TenantContext, import_type: str, rows: list[dict[str, str]], idempotency_key: str | None) -> None:
         client = await self._client()

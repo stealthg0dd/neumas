@@ -94,6 +94,11 @@ class DemandService:
             errors=errors,
             receipt_id=receipt_id,
             canonical_counts=counts,
+            import_id=receipt_id,
+            accepted_rows=len(valid),
+            rejected_rows=len(errors),
+            warnings=[],
+            row_errors=errors,
         )
 
     async def generate_forecast(self, tenant: TenantContext, request: ForecastGenerateRequest, *, persist: bool = True) -> ForecastRunResponse:

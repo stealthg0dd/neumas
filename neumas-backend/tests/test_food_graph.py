@@ -158,6 +158,15 @@ async def test_import_preview_and_idempotent_commit(monkeypatch, tenant: TenantC
 
     assert preview.valid_rows == 1
     assert preview.receipt_id is None
+    assert preview.import_id is None
+    assert preview.accepted_rows == 1
+    assert preview.rejected_rows == 0
+    assert preview.row_errors == []
     assert committed.receipt_id is not None
+    assert committed.import_id == committed.receipt_id
+    assert committed.total_rows == 1
+    assert committed.accepted_rows == 1
+    assert committed.rejected_rows == 0
+    assert committed.canonical_counts == {"canonical_ingredients": 1}
     assert client.upserts[0][0] == "canonical_ingredients"
     assert client.upserts[0][2]["on_conflict"] == "organization_id,canonical_name"

@@ -17,10 +17,17 @@ class RowError(BaseModel):
 class ImportPreviewResponse(BaseModel):
     import_type: str
     commit: bool
+    total_rows: int = 0
     valid_rows: int
     error_rows: int
     errors: list[RowError] = []
     receipt_id: str | None = None
+    canonical_counts: dict[str, int] = {}
+    import_id: str | None = None
+    accepted_rows: int = 0
+    rejected_rows: int = 0
+    warnings: list[str] = []
+    row_errors: list[RowError] = []
 
 
 class UnitOfMeasure(BaseModel):

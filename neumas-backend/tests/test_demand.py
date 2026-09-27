@@ -93,6 +93,12 @@ async def test_sales_import_is_idempotent_and_records_receipt(monkeypatch, tenan
 
     assert result.valid_rows == 1
     assert result.receipt_id is not None
+    assert result.import_id == result.receipt_id
+    assert result.accepted_rows == 1
+    assert result.rejected_rows == 0
+    assert result.row_errors == []
+    assert result.canonical_counts["sales_transactions"] == 1
+    assert result.canonical_counts["sales_transaction_items"] == 1
     assert client.upserts[0][0] == "sales_transactions"
     assert client.upserts[0][2]["on_conflict"] == "organization_id,property_id,external_id"
     assert any(table == "import_receipts" for table, _rows, _kwargs in client.upserts)
@@ -166,3 +172,5 @@ async def test_import_validation_row_errors(tenant: TenantContext):
     )
     assert result.error_rows == 1
     assert result.errors[0].code == "missing_required"
+    assert result.rejected_rows == 1
+    assert result.row_errors == result.errors
