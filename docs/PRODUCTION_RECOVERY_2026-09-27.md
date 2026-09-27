@@ -87,10 +87,8 @@ Relevant commits now on `main`:
 ### Migration Parity
 
 - Production Supabase project ref derived from deployed env: `xvxtiroobmnnelvaprqv`.
-- Supabase CLI is installed and authenticated, but this local CLI identity cannot link the production project:
-  - `supabase link --project-ref xvxtiroobmnnelvaprqv`
-  - result: insufficient privileges for remote project status
-- Railway backend service env confirms production uses the same Supabase ref and has a service-role key, but no `DATABASE_URL`.
+- Supabase CLI is installed, authenticated, and linked to production project ref `xvxtiroobmnnelvaprqv`.
+- Railway backend service env confirms production uses the same Supabase ref and has a service-role key.
 - Read-only REST schema probe found legacy product tables present:
   - `organizations`, `users`, `properties`, `inventory_items`, `documents`, `reports`, `vendors`
 - Read-only REST schema probe found the autonomous/recovery schema is not deployed:
@@ -102,9 +100,15 @@ Relevant commits now on `main`:
   - missing purchase order, receiving, invoice reconciliation, waste, margin, raw event, import receipt, and webhook tables
 - Existing production `decisions` table is legacy and lacks the new decision-ledger columns expected by code.
 - Existing production `integration_connections` table lacks the connector gateway columns expected by code.
+- Applied missing production migrations:
+  - `202609150001`
+  - `202609250001` through `202609250008`
+  - `202609270001`
+  - `202609270002`
+- Patched `202609250004_autonomy_decision_action.sql` to safely handle the legacy production `decisions` table before indexing new columns.
 - Added migration `202609270002_production_recovery_schema_drift.sql` to safely repair legacy `decisions` and `integration_connections` column drift after the autonomous migrations are applied.
 - Added read-only helper `neumas-backend/scripts/check_production_schema_parity.py`.
-- Status: `MIGRATION PARITY = BLOCKED`, because normal production migration application requires Supabase project/database-owner access not available in this session.
+- Status: `MIGRATION PARITY = VERIFIED`; `check_production_schema_parity.py` returned `status: ready`.
 
 ### Onboarding / Tenant Context
 
@@ -206,6 +210,7 @@ Relevant commits now on `main`:
   - `ruff check app/schemas/data_readiness.py app/services/data_readiness_service.py app/services/organization_onboarding_service.py app/services/auth_service.py tests/test_data_readiness.py tests/test_organization_onboarding_service.py` passed
   - `pytest tests/test_data_readiness.py tests/test_organization_onboarding_service.py -q` passed, 4 tests
   - `ruff check scripts/check_production_schema_parity.py` passed
+  - `pytest tests/test_data_readiness.py -q` passed after supplier invoice readiness contract update, 2 tests
 - Frontend targeted:
   - `pnpm lint` passed
   - `pnpm exec tsc --noEmit` passed
@@ -241,6 +246,5 @@ Relevant commits now on `main`:
 
 - Fresh account through browser UI.
 - Production authenticated account dashboard state.
-- Production migration parity is not verified/applied; current probe shows missing tables/columns and CLI access is blocked.
 - Full page-by-page API failure matrix.
 - End-to-end import -> readiness -> dashboard -> demand -> procurement -> decision -> PO -> receipt -> invoice -> margin.

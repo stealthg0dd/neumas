@@ -45,16 +45,15 @@ REQUIRED_TABLES = [
     "supplier_acknowledgement_items",
     "goods_receipts",
     "goods_receipt_items",
-    "invoices",
+    "supplier_invoices",
     "reconciliation_cases",
     "reconciliation_issues",
     "waste_events",
     "margin_snapshots",
-    "decision_outcomes",
+    "outcome_learning_events",
     "integration_connections",
     "raw_provider_events",
     "import_receipts",
-    "webhook_subscriptions",
 ]
 
 REQUIRED_COLUMNS = {

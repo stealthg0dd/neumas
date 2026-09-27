@@ -68,7 +68,7 @@ class DataReadinessService:
             org_id,
             property_id,
             [
-                ("invoices", "updated_at", True),
+                ("supplier_invoices", "updated_at", True),
                 ("documents", "created_at", True),
             ],
         )
