@@ -163,6 +163,6 @@ async def test_agent_summary_uses_tenant_scoped_decisions(monkeypatch, tenant: T
     monkeypatch.setattr("app.services.autonomy_service.get_async_supabase_admin", AsyncMock(return_value=client))
 
     summary = await AutonomyService().agent_summary(tenant)
-    assert summary.active_agents == 5
+    assert summary.active_agents == 0
     assert summary.tasks_executed == 1
     assert ("organization_id", str(tenant.org_id)) in client.filters["decisions"]

@@ -30,7 +30,7 @@ const sectionShell = "mx-auto w-full max-w-7xl px-5 sm:px-8";
 
 function HeroSection({ section }: { section?: MarketingCmsContent["sections"][string] }) {
   const heroCopy = {
-    eyebrow: section?.eyebrow ?? hero.eyebrow,
+    eyebrow: "Autonomous Procurement & Agentic Commerce for the Food Economy",
     headline: section?.headline ?? hero.headline,
     body: section?.body ?? hero.body,
   };
@@ -101,6 +101,19 @@ function HeroSection({ section }: { section?: MarketingCmsContent["sections"][st
       </div>
     </section>
   );
+}
+
+function AgentReadyStrip() {
+  return <section className="border-y border-[#0b1736]/10 bg-[#0b1736] py-7 text-white"><div className={`${sectionShell} flex flex-col justify-between gap-4 lg:flex-row lg:items-center`}><p className="text-lg font-bold">Built for operators today. Agent-ready for what comes next.</p><p className="text-sm font-semibold text-slate-300">API · MCP · Policy-Controlled Actions · Supplier Network</p></div></section>;
+}
+
+function AgenticCommerceSection() {
+  const cards = [
+    { title: "Buyer Agents", body: "Search approved suppliers, create structured RFQs, compare offers, and request purchases within delegated policy." },
+    { title: "Suppliers", body: "Respond with versioned commercial terms covering price, quantity, availability, delivery, and payment conditions." },
+    { title: "Developers", body: "Build through tenant-scoped APIs and MCP tools backed by auditable decisions and existing procurement services." },
+  ];
+  return <section className="bg-[#f8fbff] py-20"><div className={sectionShell}><div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Neumas Exchange</p><h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">The food economy is becoming agent-to-agent.</h2><p className="mt-5 text-base leading-7 text-slate-600">Neumas provides the structured commercial and policy layer for operators, suppliers, and software agents to transact with human oversight.</p></div><div className="mt-10 grid gap-4 md:grid-cols-3">{cards.map((card) => <article key={card.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6"><h3 className="text-lg font-bold text-[#0b1736]">{card.title}</h3><p className="mt-3 text-sm leading-6 text-slate-600">{card.body}</p></article>)}</div><MarketingEventLink href="/pilot" event="marketing_demo_click" props={{ location: "agentic_commerce" }} className="mt-8 inline-flex items-center gap-2 rounded-md bg-[#f5c15c] px-5 py-3 text-sm font-bold text-[#0b1736]">Join the Agentic Commerce Pilot<ArrowRight className="h-4 w-4" /></MarketingEventLink></div></section>;
 }
 
 function MetricBand({ metricItems }: { metricItems: typeof metrics }) {
@@ -840,6 +853,7 @@ export function MarketingV2Page({ cmsContent }: { cmsContent?: MarketingCmsConte
       <main>
         {sectionEnabled("hero") ? <HeroSection section={section("hero")} /> : null}
         {sectionEnabled("metrics") ? <MetricBand metricItems={metricItems} /> : null}
+        <AgentReadyStrip />
         <PlatformSection />
         <WorkflowSection />
         <VideoSection videoItems={videoItems} />
@@ -849,6 +863,7 @@ export function MarketingV2Page({ cmsContent }: { cmsContent?: MarketingCmsConte
         {sectionEnabled("integrations") ? <IntegrationsAndUseCases integrationItems={integrationItems} /> : null}
         <UseCaseSection />
         <PartnerSection />
+        <AgenticCommerceSection />
         <OutcomesSection />
         <FounderSection videoItems={videoItems} />
         {sectionEnabled("team") ? <TeamSection teamMembers={teamMembers} /> : null}

@@ -199,6 +199,7 @@ class AutonomyService:
         return [self._decision_record(row, [], [], []) for row in resp.data or []]
 
     async def agent_summary(self, tenant: TenantContext) -> AgentCenterSummary:
+        client = await get_async_supabase_admin()
         decisions = await self.list_decisions(tenant)
         tasks = [
             {
@@ -212,16 +213,30 @@ class AutonomyService:
             }
             for decision in decisions
         ]
+        service_clients = await client.table("service_clients").select("id,name").eq("organization_id", str(tenant.org_id)).eq("status", "active").limit(100).execute()
+        rfqs = await client.table("rfqs").select("id,title,status,created_by_service_client_id,created_at").eq("organization_id", str(tenant.org_id)).eq("property_id", str(tenant.property_id)).order("created_at", desc=True).limit(20).execute()
+        offers = await client.table("rfq_offer_responses").select("id,rfq_id,vendor_id,status,submitted_by_service_client_id,created_at").eq("organization_id", str(tenant.org_id)).order("created_at", desc=True).limit(20).execute()
+        actions = await client.table("actions").select("id,action_type,state,created_at").eq("organization_id", str(tenant.org_id)).eq("property_id", str(tenant.property_id)).order("created_at", desc=True).limit(20).execute()
+        purchase_orders = await client.table("purchase_orders").select("id,state,total,created_at").eq("organization_id", str(tenant.org_id)).eq("property_id", str(tenant.property_id)).order("created_at", desc=True).limit(20).execute()
+        reconciliations = await client.table("reconciliation_cases").select("id,status,created_at").eq("organization_id", str(tenant.org_id)).eq("property_id", str(tenant.property_id)).order("created_at", desc=True).limit(20).execute()
+        activity_feed = [
+            *[{"type": "rfq", "title": "Buyer Agent created RFQ", "detail": row.get("title"), "status": row.get("status"), "created_at": row.get("created_at")} for row in rfqs.data or []],
+            *[{"type": "offer", "title": "Supplier responded", "detail": f"RFQ {row.get('rfq_id')}", "status": row.get("status"), "created_at": row.get("created_at")} for row in offers.data or []],
+            *[{"type": "action", "title": str(row.get("action_type") or "Action"), "detail": "Action Gateway", "status": row.get("state"), "created_at": row.get("created_at")} for row in actions.data or []],
+            *[{"type": "purchase_order", "title": "PO created", "detail": str(row.get("total") or ""), "status": row.get("state"), "created_at": row.get("created_at")} for row in purchase_orders.data or []],
+            *[{"type": "reconciliation", "title": "Invoice reconciliation updated", "detail": "Three-way match", "status": row.get("status"), "created_at": row.get("created_at")} for row in reconciliations.data or []],
+        ]
+        activity_feed.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
         compliance = Decimal("1.00") if decisions and all(d.policy_result != "BLOCKED" for d in decisions) else Decimal("0.00") if decisions else None
         return AgentCenterSummary(
-            active_agents=len(self.AGENTS),
+            active_agents=len(service_clients.data or []),
             tasks_executed=len(decisions),
             policy_compliance=compliance,
             time_saved_hours=None,
             actions_executed=sum(1 for d in decisions if d.status == "approved"),
             savings_captured=None,
             tasks=tasks,
-            activity_feed=tasks[:10],
+            activity_feed=activity_feed[:20],
             policy_boundaries=[{"name": "Default approval boundary", "mode": "APPROVAL_REQUIRED"}],
             autonomy_level="APPROVAL_REQUIRED",
             exception_watchlist=[task for task in tasks if task["status"] in {"blocked", "approval_required"}],
