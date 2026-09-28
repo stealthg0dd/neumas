@@ -1247,3 +1247,36 @@ export interface ApiCredential {
 export interface GeneratedApiCredential extends ApiCredential {
   api_key: string;
 }
+
+export interface RfqRecord {
+  id: string;
+  title: string;
+  status: string;
+  currency: string;
+  property_id: string | null;
+  required_by: string | null;
+  response_deadline: string | null;
+  notes: string | null;
+  items: Array<Record<string, unknown>>;
+  invitations: Array<Record<string, unknown>>;
+  offers: Array<Record<string, unknown>>;
+  recommendation: Record<string, unknown> | null;
+  negotiation_events: Array<Record<string, unknown>>;
+  created_at: string | null;
+}
+
+export interface ExchangeSummary {
+  rfq_value: number | null;
+  active_rfqs: number;
+  offers_received: number;
+  orders_created: number;
+  commercial_improvement: number | null;
+  active_buyer_agents: number;
+  active_suppliers: number;
+  rfqs: RfqRecord[];
+  recent_offers: Array<Record<string, unknown>>;
+  negotiations_requiring_action: Array<Record<string, unknown>>;
+  policy_approvals: Array<Record<string, unknown>>;
+  orders_in_flight: Array<Record<string, unknown>>;
+  network_activity: Array<Record<string, unknown>>;
+}

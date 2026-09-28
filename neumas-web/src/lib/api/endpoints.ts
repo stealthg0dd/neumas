@@ -132,6 +132,8 @@ import type {
   ApiCredential,
   GeneratedApiCredential,
   ServiceClient,
+  ExchangeSummary,
+  RfqRecord,
 } from "./types";
 import { normalizeShoppingItem } from "./types";
 import { normalizeShoppingListStatus } from "@/lib/operations";
@@ -1241,4 +1243,16 @@ export async function generateApiCredential(
 
 export async function revokeApiCredential(credentialId: string): Promise<ApiCredential> {
   return post<ApiCredential>(`/api/agent-commerce/developer/credentials/${credentialId}/revoke`);
+}
+
+export async function getExchangeSummary(): Promise<ExchangeSummary> {
+  return get<ExchangeSummary>("/api/exchange/summary");
+}
+
+export async function listRfqs(): Promise<RfqRecord[]> {
+  return get<RfqRecord[]>("/api/exchange/rfqs");
+}
+
+export async function getRfq(rfqId: string): Promise<RfqRecord> {
+  return get<RfqRecord>(`/api/exchange/rfqs/${rfqId}`);
 }

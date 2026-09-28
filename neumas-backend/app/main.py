@@ -103,11 +103,13 @@ from app.api.routes import (
     data_readiness,
     demand,
     documents,
+    exchange,
     food_graph,
     insights,
     integrations,
     inventory,
     margin,
+    mcp,
     predictions,
     procurement,
     public,
@@ -658,6 +660,9 @@ app.include_router(
     prefix="/api/agent-commerce",
     tags=["Agent Commerce"],
 )
+
+app.include_router(exchange.router, prefix="/api/exchange", tags=["Exchange"])
+app.include_router(mcp.router, prefix="/api/agent-commerce/v1/mcp", tags=["Agent Commerce MCP"])
 
 
 # ============================================================================

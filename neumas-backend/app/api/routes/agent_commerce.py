@@ -22,10 +22,12 @@ from app.schemas.agent_commerce import (
     ServiceClientCreate,
     ServiceClientResponse,
 )
+from app.schemas.exchange import CounterOfferInput, OfferTermsInput, RfqCreate
 from app.services.agent_commerce_service import (
     AgentCommerceAuthError,
     AgentCommerceService,
 )
+from app.services.exchange_service import ExchangeService
 
 
 def _request_id(request: Request) -> str | None:
@@ -86,6 +88,7 @@ class AgentCommerceRoute(APIRoute):
 
 router = APIRouter(route_class=AgentCommerceRoute)
 service = AgentCommerceService()
+exchange_service = ExchangeService()
 
 
 def _bounded_limit(limit: int) -> int:
@@ -228,3 +231,112 @@ async def external_availability(
     limit = _bounded_limit(limit)
     data = await service.list_availability(principal, supplier_id=supplier_id, limit=limit, offset=max(0, offset))
     return _envelope(request, [item.model_dump(mode="json") for item in data], limit=limit, offset=max(0, offset))
+
+
+def _require_idempotency_key(value: str | None) -> str:
+    if not value or not value.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": "idempotency_key_required", "message": "Idempotency-Key header is required"})
+    return value.strip()
+
+
+@router.post("/v1/rfqs", response_model=AgentCommerceEnvelope, status_code=status.HTTP_201_CREATED)
+async def external_create_rfq(
+    payload: RfqCreate,
+    request: Request,
+    principal: Annotated[ExternalPrincipal, Depends(require_scope("rfq:create"))],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> AgentCommerceEnvelope:
+    try:
+        record = await exchange_service.create_rfq(principal, payload, _require_idempotency_key(idempotency_key))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"code": "invalid_rfq", "message": str(exc)}) from exc
+    return _envelope(request, record.model_dump(mode="json"))
+
+
+@router.get("/v1/rfqs", response_model=AgentCommerceEnvelope)
+async def external_list_rfqs(
+    request: Request,
+    principal: Annotated[ExternalPrincipal, Depends(require_scope("rfq:read"))],
+    limit: int = 50,
+    offset: int = 0,
+) -> AgentCommerceEnvelope:
+    limit = _bounded_limit(limit)
+    records = await exchange_service.list_rfqs(principal, limit, max(0, offset))
+    return _envelope(request, [record.model_dump(mode="json") for record in records], limit=limit, offset=max(0, offset))
+
+
+@router.get("/v1/rfqs/{rfq_id}", response_model=AgentCommerceEnvelope)
+async def external_get_rfq(
+    rfq_id: UUID,
+    request: Request,
+    principal: Annotated[ExternalPrincipal, Depends(require_scope("rfq:read"))],
+) -> AgentCommerceEnvelope:
+    record = await exchange_service.get_rfq(principal, rfq_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail={"code": "rfq_not_found", "message": "RFQ not found"})
+    return _envelope(request, record.model_dump(mode="json"))
+
+
+@router.post("/v1/rfqs/{rfq_id}/offers", response_model=AgentCommerceEnvelope, status_code=status.HTTP_201_CREATED)
+async def external_submit_rfq_offer(
+    rfq_id: UUID,
+    payload: OfferTermsInput,
+    request: Request,
+    principal: Annotated[ExternalPrincipal, Depends(require_scope("rfq:create"))],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> AgentCommerceEnvelope:
+    try:
+        offer = await exchange_service.submit_offer(principal, rfq_id, payload, _require_idempotency_key(idempotency_key))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"code": "invalid_offer", "message": str(exc)}) from exc
+    return _envelope(request, offer)
+
+
+@router.get("/v1/rfqs/{rfq_id}/offers", response_model=AgentCommerceEnvelope)
+async def external_list_rfq_offers(
+    rfq_id: UUID,
+    request: Request,
+    principal: Annotated[ExternalPrincipal, Depends(require_scope("offer:read"))],
+) -> AgentCommerceEnvelope:
+    try:
+        offers = await exchange_service.list_offers(principal, rfq_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail={"code": "rfq_not_found", "message": str(exc)}) from exc
+    return _envelope(request, offers)
+
+
+@router.post("/v1/offers/{offer_id}/counter", response_model=AgentCommerceEnvelope)
+async def external_counter_offer(
+    offer_id: UUID,
+    payload: CounterOfferInput,
+    request: Request,
+    principal: Annotated[ExternalPrincipal, Depends(require_scope("rfq:create"))],
+) -> AgentCommerceEnvelope:
+    try:
+        return _envelope(request, await exchange_service.counter_offer(principal, offer_id, payload))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"code": "invalid_counteroffer", "message": str(exc)}) from exc
+
+
+@router.post("/v1/offers/{offer_id}/accept", response_model=AgentCommerceEnvelope)
+async def external_accept_offer(
+    offer_id: UUID,
+    request: Request,
+    principal: Annotated[ExternalPrincipal, Depends(require_scope("order:create"))],
+) -> AgentCommerceEnvelope:
+    try:
+        return _envelope(request, await exchange_service.set_offer_status(principal, offer_id, "ACCEPTED"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"code": "offer_action_failed", "message": str(exc)}) from exc
+
+
+@router.post("/v1/offers/{offer_id}/reject", response_model=AgentCommerceEnvelope)
+async def external_reject_offer(
+    offer_id: UUID,
+    request: Request,
+    principal: Annotated[ExternalPrincipal, Depends(require_scope("rfq:create"))],
+) -> AgentCommerceEnvelope:
+    try:
+        return _envelope(request, await exchange_service.set_offer_status(principal, offer_id, "REJECTED"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"code": "offer_action_failed", "message": str(exc)}) from exc
