@@ -289,6 +289,21 @@ def neumas_task(*args, **kwargs):
 _tasks_discovered = False
 
 
+# Task modules that must be imported for worker registration.
+# related_name=None is required so Celery imports these modules directly
+# (default related_name='tasks' would look for app.tasks.scan_tasks.tasks).
+TASK_MODULES = (
+    "app.tasks.scan_tasks",
+    "app.tasks.agent_tasks",
+    "app.tasks.shopping_tasks",
+    "app.tasks.inventory_tasks",
+    "app.tasks.alert_tasks",
+    "app.tasks.report_tasks",
+    "app.tasks.evaluation_tasks",
+    "app.tasks.operational_tasks",
+)
+
+
 def discover_tasks() -> None:
     """Manually trigger task discovery. Safe to call multiple times."""
     global _tasks_discovered
@@ -296,13 +311,8 @@ def discover_tasks() -> None:
         return
 
     celery_app.autodiscover_tasks(
-        [
-            "app.tasks.scan_tasks",
-            "app.tasks.prediction_tasks",
-            "app.tasks.agent_tasks",
-            "app.tasks.shopping_tasks",
-            "app.tasks.maintenance",
-        ],
+        list(TASK_MODULES),
+        related_name=None,
         force=True,
     )
     _tasks_discovered = True
