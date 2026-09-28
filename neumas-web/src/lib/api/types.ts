@@ -1214,3 +1214,36 @@ export interface MarginDashboardSummary {
   savings_realized_vs_projected: Array<Record<string, unknown>>;
   waste_events: Array<Record<string, unknown>>;
 }
+
+// ============================================================================
+// Agent Commerce Developer Access
+// ============================================================================
+
+export interface ServiceClient {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  allowed_scopes: string[];
+  allowed_property_ids: string[];
+  allowed_supplier_ids: string[];
+  allowed_categories: string[];
+  spend_limit: number | null;
+  created_at: string | null;
+}
+
+export interface ApiCredential {
+  id: string;
+  service_client_id: string;
+  credential_prefix: string;
+  name: string | null;
+  scopes: string[];
+  expires_at: string | null;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string | null;
+}
+
+export interface GeneratedApiCredential extends ApiCredential {
+  api_key: string;
+}

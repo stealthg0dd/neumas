@@ -129,6 +129,9 @@ import type {
   VendorOrderExportResponse,
   ExecutiveBriefingResponse,
   ScanRerunResponse,
+  ApiCredential,
+  GeneratedApiCredential,
+  ServiceClient,
 } from "./types";
 import { normalizeShoppingItem } from "./types";
 import { normalizeShoppingListStatus } from "@/lib/operations";
@@ -1207,4 +1210,35 @@ export async function getReorderRecommendations(params?: {
   min_urgency?: string;
 }): Promise<ReorderRecommendation[]> {
   return get<ReorderRecommendation[]>("/api/inventory/reorder-recommendations", params);
+}
+
+// ============================================================================
+// Agent Commerce Developer Access
+// ============================================================================
+
+export async function listServiceClients(): Promise<ServiceClient[]> {
+  return get<ServiceClient[]>("/api/agent-commerce/developer/service-clients");
+}
+
+export async function createServiceClient(payload: {
+  name: string;
+  description?: string;
+  allowed_scopes: string[];
+}): Promise<ServiceClient> {
+  return post<ServiceClient>("/api/agent-commerce/developer/service-clients", payload);
+}
+
+export async function listApiCredentials(serviceClientId?: string): Promise<ApiCredential[]> {
+  return get<ApiCredential[]>("/api/agent-commerce/developer/credentials", serviceClientId ? { service_client_id: serviceClientId } : undefined);
+}
+
+export async function generateApiCredential(
+  serviceClientId: string,
+  payload: { name?: string; scopes: string[]; expires_at?: string },
+): Promise<GeneratedApiCredential> {
+  return post<GeneratedApiCredential>(`/api/agent-commerce/developer/service-clients/${serviceClientId}/credentials`, payload);
+}
+
+export async function revokeApiCredential(credentialId: string): Promise<ApiCredential> {
+  return post<ApiCredential>(`/api/agent-commerce/developer/credentials/${credentialId}/revoke`);
 }

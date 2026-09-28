@@ -94,6 +94,7 @@ except ImportError:
 # Import routers explicitly at the top - errors will be visible in logs
 from app.api.routes import (
     admin,
+    agent_commerce,
     alerts,
     analytics,
     auth,
@@ -650,6 +651,12 @@ app.include_router(
     integrations.router,
     prefix="/api/integrations",
     tags=["Integrations"],
+)
+
+app.include_router(
+    agent_commerce.router,
+    prefix="/api/agent-commerce",
+    tags=["Agent Commerce"],
 )
 
 

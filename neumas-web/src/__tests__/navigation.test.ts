@@ -8,6 +8,13 @@ describe("workspace navigation", () => {
     expect(navigation.primary.some((item) => item.href === "/dashboard")).toBe(true);
     expect(navigation.primary.some((item) => item.href === "/dashboard/procurement/recommendations")).toBe(true);
     expect(navigation.admin.some((item) => item.href === "/dashboard/admin")).toBe(true);
+    expect(navigation.admin.some((item) => item.href === "/dashboard/developer")).toBe(true);
+  });
+
+  it("restricts developer credentials to F&B admins", () => {
+    expect(isRouteAllowedForWorkspace("/dashboard/developer", "FNB", "admin")).toBe(true);
+    expect(isRouteAllowedForWorkspace("/dashboard/developer", "FNB", "staff")).toBe(false);
+    expect(isRouteAllowedForWorkspace("/dashboard/developer", "HOUSEHOLD", "admin")).toBe(false);
   });
 
   it("moves raw scan workflow out of primary F&B navigation while keeping invoices primary", () => {

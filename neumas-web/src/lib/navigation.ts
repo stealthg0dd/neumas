@@ -4,6 +4,7 @@ import {
   Bell,
   Clock3,
   Cog,
+  KeyRound,
   FileText,
   History,
   Home,
@@ -70,6 +71,7 @@ const FNB_PRIMARY: WorkspaceNavItem[] = [
 
 const FNB_ADMIN: WorkspaceNavItem[] = [
   { href: "/dashboard/admin", label: "Admin", icon: Shield, match: (p) => startsWith(p, "/dashboard/admin") },
+  { href: "/dashboard/developer", label: "Developer", icon: KeyRound, match: (p) => startsWith(p, "/dashboard/developer") },
   { href: "/dashboard/procurement/suppliers", label: "Suppliers", icon: Cog, match: (p) => startsWith(p, "/dashboard/procurement/suppliers") || startsWith(p, "/dashboard/vendors") },
 ];
 
@@ -114,6 +116,7 @@ const FNB_ALLOWED_PREFIXES = [
   "/dashboard/documents",
   "/dashboard/vendors",
   "/dashboard/admin",
+  "/dashboard/developer",
 ];
 
 const HOUSEHOLD_ALLOWED_PREFIXES = [
@@ -149,7 +152,9 @@ export function getNavigationForWorkspace(
   return {
     primary: FNB_PRIMARY,
     admin: isAdmin ? FNB_ADMIN : [],
-    allowedPrefixes: isAdmin ? FNB_ALLOWED_PREFIXES : FNB_ALLOWED_PREFIXES.filter((prefix) => prefix !== "/dashboard/admin"),
+    allowedPrefixes: isAdmin
+      ? FNB_ALLOWED_PREFIXES
+      : FNB_ALLOWED_PREFIXES.filter((prefix) => prefix !== "/dashboard/admin" && prefix !== "/dashboard/developer"),
     dashboardTitle: "Command Center",
     dashboardEyebrow: "Executive summary",
     dashboardDescription: "Login -> scan -> analyze -> reorder -> repeat. Built for daily operator decisions.",
