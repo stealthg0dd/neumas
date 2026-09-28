@@ -1280,3 +1280,37 @@ export interface ExchangeSummary {
   orders_in_flight: Array<Record<string, unknown>>;
   network_activity: Array<Record<string, unknown>>;
 }
+
+export interface SupplierAccount {
+  id: string;
+  organization_id: string;
+  vendor_id: string;
+  display_name: string;
+  contact_email: string | null;
+  contact_phone: string | null;
+  status: string;
+  onboarding_step: string;
+  agent_endpoint_enabled: boolean;
+  metadata: Record<string, unknown>;
+}
+
+export interface SupplierHomepageMetrics {
+  open_rfq_value: number | null;
+  rfqs_requiring_response: number;
+  offers_submitted: number;
+  orders_won: number;
+  agent_sourced_revenue: number | null;
+  catalog_readiness_pct: number;
+  fill_rate: number | null;
+}
+
+export interface SupplierWorkspaceSummary {
+  account: SupplierAccount | null;
+  metrics: SupplierHomepageMetrics;
+  locations: Array<Record<string, unknown>>;
+  service_areas: Array<Record<string, unknown>>;
+  delivery_slots: Array<Record<string, unknown>>;
+  capabilities: Array<Record<string, unknown>>;
+  commercial_terms: Record<string, unknown> | null;
+  onboarding_complete: boolean;
+}

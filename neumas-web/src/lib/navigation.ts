@@ -75,6 +75,7 @@ const FNB_ADMIN: WorkspaceNavItem[] = [
   { href: "/dashboard/admin", label: "Admin", icon: Shield, match: (p) => startsWith(p, "/dashboard/admin") },
   { href: "/dashboard/developer", label: "Developer", icon: KeyRound, match: (p) => startsWith(p, "/dashboard/developer") },
   { href: "/dashboard/procurement/suppliers", label: "Suppliers", icon: Cog, match: (p) => startsWith(p, "/dashboard/procurement/suppliers") || startsWith(p, "/dashboard/vendors") },
+  { href: "/supplier", label: "Supplier Portal", icon: Truck, match: (p) => startsWith(p, "/supplier") },
 ];
 
 const HOUSEHOLD_PRIMARY: WorkspaceNavItem[] = [

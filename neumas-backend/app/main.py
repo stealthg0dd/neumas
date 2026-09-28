@@ -117,6 +117,7 @@ from app.api.routes import (
     reports,
     scans,
     shopping,
+    supplier_network,
     vendor_analytics,
     vendors,
 )
@@ -672,6 +673,11 @@ app.include_router(
 )
 
 app.include_router(exchange.router, prefix="/api/exchange", tags=["Exchange"])
+app.include_router(
+    supplier_network.router,
+    prefix="/api/supplier",
+    tags=["Supplier Network"],
+)
 app.include_router(mcp.router, prefix="/api/agent-commerce/v1/mcp", tags=["Agent Commerce MCP"])
 
 
