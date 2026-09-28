@@ -32,6 +32,20 @@ describe("content SEO contract", () => {
     expect(() => validateIndexableContent({ ...content, description: "" })).toThrow("description");
   });
 
+  it("rejects non-HTTPS non-local canonical URLs", () => {
+    expect(() =>
+      validateIndexableContent({ ...content, canonicalUrl: "http://example.com/about" })
+    ).toThrow("invalid canonical URL");
+  });
+
+  it("allows local http://localhost canonicals for development rendering", () => {
+    const local = validateIndexableContent({
+      ...content,
+      canonicalUrl: "http://localhost:3000/about",
+    });
+    expect(local.canonicalUrl).toBe("http://localhost:3000/about");
+  });
+
   it("builds canonical metadata and entity-connected article schemas", () => {
     const metadata = buildContentMetadata(content, context, true);
     const article = buildContentArticleSchema(content, context);

@@ -30,6 +30,28 @@ function isValidDate(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
 }
 
+/**
+ * Production/indexable canonicals must be HTTPS.
+ * Local development may render with http://localhost or http://127.0.0.1
+ * so pages do not crash when NEXT_PUBLIC_APP_URL points at the local origin.
+ * SEO audit scripts and production builds still require https://.
+ */
+export function isAllowedCanonicalUrl(url: string): boolean {
+  if (url.startsWith("https://")) {
+    return true;
+  }
+  try {
+    const parsed = new URL(url);
+    const localHost =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "[::1]";
+    return parsed.protocol === "http:" && localHost;
+  } catch {
+    return false;
+  }
+}
+
 export function validateIndexableContent<T extends IndexableContent>(content: T): T {
   const requiredTextFields: (keyof Pick<
     IndexableContent,
@@ -42,7 +64,7 @@ export function validateIndexableContent<T extends IndexableContent>(content: T)
     }
   }
 
-  if (!content.canonicalUrl.startsWith("https://")) {
+  if (!isAllowedCanonicalUrl(content.canonicalUrl)) {
     throw new Error(`Indexable content has an invalid canonical URL: ${content.canonicalUrl}`);
   }
   if (!Array.isArray(content.keywords) || content.keywords.length === 0 || !content.keywords.every(hasValue)) {

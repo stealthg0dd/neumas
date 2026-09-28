@@ -30,6 +30,37 @@ _admin_client: Client | None = None
 _async_admin_client: AsyncClient | None = None
 
 
+_PLACEHOLDER_URL_MARKERS = (
+    "test.supabase.co",
+    "placeholder.supabase.co",
+    "your-project.supabase.co",
+    "your-project-ref.supabase.co",
+)
+_PLACEHOLDER_KEY_VALUES = {
+    "placeholder",
+    "your-service-role-key",
+    "your-anon-key",
+    "placeholder-anon-key",
+    "placeholder-publishable-key",
+    "placeholder-service-role-key",
+}
+
+
+def _looks_like_placeholder_credential(url: str, key: str) -> bool:
+    """Return True for .env.example / CI stub values that must not hit the network."""
+    url_l = url.lower().strip()
+    key_l = key.strip().lower()
+    if any(marker in url_l for marker in _PLACEHOLDER_URL_MARKERS):
+        return True
+    if key_l in _PLACEHOLDER_KEY_VALUES:
+        return True
+    return (
+        key_l.startswith("test-")
+        or key_l.startswith("placeholder")
+        or key_l.startswith("your-")
+    )
+
+
 def _supabase_configured() -> bool:
     """Return True only when real (non-stub) Supabase credentials are present."""
     url = settings.SUPABASE_URL
@@ -39,14 +70,29 @@ def _supabase_configured() -> bool:
             "Supabase not configured — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
         )
         return False
-    # Detect obviously fake/test credentials so we skip network calls in CI.
-    if "test.supabase.co" in url or key.startswith("test-") or key == "placeholder":
+    # Detect obviously fake/test/example credentials so we skip network calls in CI/local.
+    if _looks_like_placeholder_credential(url, key):
         logger.info(
-            "Supabase configured with test stubs — client skipped (ENV=%s)",
+            "Supabase configured with stub/placeholder credentials — client skipped (ENV=%s)",
             settings.ENV,
         )
         return False
     return True
+
+
+def supabase_readiness_status() -> tuple[bool, str]:
+    """
+    Return (configured, status_label) for readiness probes.
+
+    status_label is one of:
+      - intentionally_unconfigured  (empty or placeholder credentials)
+      - configured                  (real credentials present; reachability checked separately)
+    """
+    url = settings.SUPABASE_URL
+    key = settings.SUPABASE_SERVICE_ROLE_KEY
+    if not url or not key or _looks_like_placeholder_credential(url, key):
+        return False, "intentionally_unconfigured"
+    return True, "configured"
 
 
 def get_supabase_admin() -> Client | None:

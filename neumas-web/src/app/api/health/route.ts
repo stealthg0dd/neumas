@@ -17,7 +17,7 @@
  *  }
  */
 
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { BACKEND_URL } from "@/lib/backend-url";
 import { publicConfig, serverConfig } from "@/lib/config";
 import { withLogger, withErrorHandler } from "@/lib/api-handler";
@@ -34,6 +34,9 @@ type BackendHealthPayload = {
   checks?: {
     supabase?: boolean | null;
     redis?: boolean | null;
+  };
+  metadata?: {
+    supabase?: string;
   };
 };
 
@@ -62,7 +65,10 @@ function normalizeCheckStatus(value: unknown): "ok" | "error" | "not_configured"
   return "not_configured";
 }
 
-async function handler(): Promise<NextResponse> {
+async function handler(
+  _req: NextRequest,
+  _ctx: { params: Promise<Record<string, string>> },
+): Promise<NextResponse> {
   try {
     const livenessResponse = await fetch(`${BACKEND_URL}/health`, {
       cache: "no-store",
@@ -78,7 +84,10 @@ async function handler(): Promise<NextResponse> {
     const livenessPayload = extractHealthPayload(livenessRaw);
     const readinessPayload = extractHealthPayload(readinessRaw);
 
-    const supabase = normalizeCheckStatus(readinessPayload.supabase ?? readinessPayload.checks?.supabase);
+    const supabase =
+      readinessPayload.metadata?.supabase === "intentionally_unconfigured"
+        ? "not_configured"
+        : normalizeCheckStatus(readinessPayload.supabase ?? readinessPayload.checks?.supabase);
     const redis = normalizeCheckStatus(readinessPayload.redis ?? readinessPayload.checks?.redis);
     const isLive = livenessResponse.ok;
     const isReady = readinessResponse.ok;

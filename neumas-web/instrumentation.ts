@@ -12,6 +12,8 @@
  * Docs: https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 
+import * as Sentry from "@sentry/nextjs";
+
 export async function register() {
   // ── 1. Sentry initialisation ──────────────────────────────────────────────
   if (process.env.NEXT_RUNTIME === "nodejs") {
@@ -71,3 +73,5 @@ export async function register() {
     logger.warn({ err }, "agent OS registration failed (non-fatal)");
   }
 }
+
+export const onRequestError = Sentry.captureRequestError;
