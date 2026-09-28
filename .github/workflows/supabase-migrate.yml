@@ -1,0 +1,112 @@
+name: Supabase Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: "Type apply-production to run against the production Supabase project"
+        required: true
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - "neumas-backend/supabase/migrations/**"
+      - ".github/workflows/supabase-migrate.yml"
+
+# Never cancel an in-flight migration mid-apply.
+concurrency:
+  group: supabase-migrate-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Apply Supabase migrations
+    runs-on: ubuntu-latest
+    environment: production
+    # Fail closed: push-to-main applies; manual runs require explicit confirmation.
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.confirm_production == 'apply-production')
+
+    defaults:
+      run:
+        working-directory: neumas-backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require migration secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${SUPABASE_ACCESS_TOKEN:-}" ] || missing+=("SUPABASE_ACCESS_TOKEN")
+          [ -n "${SUPABASE_PROJECT_REF:-}" ] || missing+=("SUPABASE_PROJECT_REF")
+          [ -n "${SUPABASE_DB_PASSWORD:-}" ] || missing+=("SUPABASE_DB_PASSWORD")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Missing required GitHub secrets: ${missing[*]}"
+            exit 1
+          fi
+          # Never print secret values — only confirm presence and ref shape.
+          echo "Secrets present. Project ref length=${#SUPABASE_PROJECT_REF}"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project (non-interactive)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          supabase link \
+            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
+            --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Show migration status (before)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "## Migration status (before)" >> "$GITHUB_STEP_SUMMARY"
+          supabase migration list --linked | tee /tmp/migration-before.txt
+          {
+            echo '```'
+            cat /tmp/migration-before.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply pending migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Fail closed: only push/apply pending migrations.
+          # Never db reset, never force, never drop.
+          supabase db push --linked --include-all
+
+      - name: Show migration status (after)
+        if: always()
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "## Migration status (after)" >> "$GITHUB_STEP_SUMMARY"
+          supabase migration list --linked | tee /tmp/migration-after.txt
+          {
+            echo '```'
+            cat /tmp/migration-after.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
