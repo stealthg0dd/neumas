@@ -6,6 +6,7 @@ All cost/margin figures are estimates unless real supplier data is linked.
 
 from datetime import datetime
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
