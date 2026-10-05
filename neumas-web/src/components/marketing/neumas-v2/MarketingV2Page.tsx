@@ -80,7 +80,7 @@ function HeroSection({ section }: { section?: MarketingCmsContent["sections"][st
             <p className="text-[12px] text-slate-500 mb-3">Upload a menu to reveal estimated food cost, ingredient exposure and margin opportunities.</p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <MarketingEventLink
-                href="/onboard/menu-xray"
+                href="/menu-xray"
                 event="marketing_demo_click"
                 props={{ location: "hero_menu_xray_primary" }}
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0071a3] px-4 py-2 text-[12px] font-bold text-white hover:bg-[#005f8a]"
