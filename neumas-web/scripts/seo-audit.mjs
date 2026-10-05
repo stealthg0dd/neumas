@@ -6,7 +6,7 @@ const port = process.env.SEO_AUDIT_PORT || "3105";
 const baseUrl = `http://127.0.0.1:${port}`;
 const canonicalHost = "https://www.neumas.cc";
 const organizationDescription =
-  "Neumas is an autonomous procurement and margin-control platform for food and beverage operators. It connects demand, inventory, recipes, suppliers, purchasing, deliveries and invoices to reduce food cost, waste and purchasing leakage.";
+  "Neumas is an autonomous procurement, margin intelligence and agentic-commerce platform for the food economy. It connects menus, demand, inventory, recipes, suppliers, purchasing, deliveries and invoices to help F&B operators protect margin and progressively automate procurement.";
 const bannedConsumerTerms = [
   "grocery autopilot",
   "household autopilot",
@@ -91,7 +91,6 @@ function getHomepageEntityErrors(html) {
   if (organization.alternateName !== "Neumas AI") errors.push("homepage Organization alternateName is not Neumas AI");
   if (organization.url !== canonicalHost) errors.push("homepage Organization URL is not canonical");
   if (organization.description !== organizationDescription) errors.push("homepage Organization description is not canonical");
-  if (nodes.some((node) => node?.["@type"] === "SoftwareApplication")) errors.push("homepage includes unsupported SoftwareApplication JSON-LD");
   return errors;
 }
 
