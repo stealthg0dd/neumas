@@ -141,7 +141,7 @@ export default function MenuXRayPage() {
       }
     };
     pollRef.current = setTimeout(poll, 2000);
-  }, []);
+  }, [router]);
 
   async function runAnalysis(f: File) {
     setUploadState({ phase: "uploading", progress: 5, label: "Uploading menu…" });

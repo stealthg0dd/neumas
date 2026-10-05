@@ -5,9 +5,9 @@ GET /api/menu-xray/sample           — pre-built sample analysis (no scan requi
 GET /api/menu-xray/{scan_id}        — retrieve stored analysis for a completed scan
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
-from app.api.deps import TenantContext, get_tenant_context, require_property
+from app.api.deps import TenantContext, require_property
 from app.core.logging import get_logger
 from app.schemas.menu_xray import MenuXRayAnalysisResponse
 

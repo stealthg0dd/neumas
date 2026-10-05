@@ -19,16 +19,15 @@ import { useAuthStore, selectHasSession } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
 import type { MarginOpportunity, MenuXRayAnalysis } from "@/lib/api/types";
 
+type AnalyticsWindow = Window & { analytics?: { track?: (e: string, p?: Record<string, unknown>) => void } };
+
 function track(event: string, props?: Record<string, unknown>) {
   try {
-    if (typeof window !== "undefined" && (window as any).analytics?.track) {
-      (window as any).analytics.track(event, props);
+    if (typeof window !== "undefined") {
+      (window as AnalyticsWindow).analytics?.track?.(event, props);
     }
   } catch { /* no-op */ }
 }
-
-type OpportunityType = "Procurement" | "Pricing" | "Waste" | "Recipe";
-type Effort = "Low" | "Medium" | "High";
 
 function effortColor(effort: string): string {
   if (effort === "Low") return "text-emerald-700 bg-emerald-50 border-emerald-200";
@@ -43,11 +42,11 @@ function typeColor(type: string): string {
   return "text-teal-700 bg-teal-50 border-teal-200";
 }
 
-function typeIcon(type: string) {
-  if (type === "Procurement") return TrendingDown;
-  if (type === "Pricing") return Sparkles;
-  if (type === "Waste") return AlertTriangle;
-  return Zap;
+function TypeIcon({ type, className }: { type: string; className?: string }) {
+  if (type === "Procurement") return <TrendingDown className={className} />;
+  if (type === "Pricing") return <Sparkles className={className} />;
+  if (type === "Waste") return <AlertTriangle className={className} />;
+  return <Zap className={className} />;
 }
 
 function fmt(n: number, currency: string): string {
@@ -69,7 +68,6 @@ function confidenceBar(confidence: number | null | undefined) {
 }
 
 function OpportunityCard({ opp, currency, idx }: { opp: MarginOpportunity; currency: string; idx: number }) {
-  const IconComp = typeIcon(opp.opportunity_type ?? "Procurement");
   const saving = opp.estimated_saving_per_dish ?? 0;
 
   return (
@@ -83,7 +81,7 @@ function OpportunityCard({ opp, currency, idx }: { opp: MarginOpportunity; curre
             <p className="text-[14px] font-bold text-gray-900">{opp.dish_name}</p>
             {opp.opportunity_type && (
               <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold", typeColor(opp.opportunity_type))}>
-                <IconComp className="h-3 w-3" />
+                <TypeIcon type={opp.opportunity_type} className="h-3 w-3" />
                 {opp.opportunity_type}
               </span>
             )}

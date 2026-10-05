@@ -35,10 +35,12 @@ import type {
 
 // ── Analytics helpers ─────────────────────────────────────────────────────────
 
+type AnalyticsWindow = Window & { analytics?: { track?: (e: string, p?: Record<string, unknown>) => void } };
+
 function track(event: string, props?: Record<string, unknown>) {
   try {
-    if (typeof window !== "undefined" && (window as any).analytics?.track) {
-      (window as any).analytics.track(event, props);
+    if (typeof window !== "undefined") {
+      (window as AnalyticsWindow).analytics?.track?.(event, props);
     }
   } catch {
     // non-blocking
