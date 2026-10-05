@@ -16,6 +16,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 1,
     },
+    {
+      url: buildAbsoluteUrl("/menu-xray"),
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
     ...publicHubs.map((hub) => ({
       url: buildAbsoluteUrl(hub.path),
       lastModified: new Date(),

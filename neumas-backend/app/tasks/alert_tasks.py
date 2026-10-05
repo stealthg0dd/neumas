@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 
 @celery_app.task(
     bind=True,
-    name="tasks.evaluate_inventory_alerts",
+    name="alerts.evaluate_inventory_alerts",
     queue="alerts",
     max_retries=3,
     default_retry_delay=60,

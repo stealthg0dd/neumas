@@ -265,6 +265,8 @@ class OnboardingStateResponse(BaseModel):
     onboarding_source: str | None = None
     country: str | None = None
     currency: str | None = None
+    onboarding_role: str | None = None
+    onboarding_goal: str | None = None
     has_scans: bool = False
     has_inventory_activity: bool = False
     is_complete: bool = False
@@ -281,6 +283,8 @@ class OnboardingStateUpdate(BaseModel):
     org_name: str | None = Field(default=None, min_length=2, max_length=255)
     country: str | None = Field(default=None, max_length=64)
     currency: str | None = Field(default=None, max_length=16)
+    onboarding_role: str | None = Field(default=None, max_length=128)
+    onboarding_goal: str | None = Field(default=None, max_length=255)
     outlet_count: int | None = Field(default=None, ge=1, le=500)
     household_size: int | None = Field(default=None, ge=1, le=50)
     shopping_frequency: str | None = Field(default=None, max_length=64)

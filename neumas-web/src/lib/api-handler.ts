@@ -18,9 +18,8 @@ import { logger } from "@/lib/logger";
 
 type RouteHandler = (
   req: NextRequest,
-  // Next.js 16+ passes params as Promise<Record<string,string>>; earlier versions
-  // pass it as a plain Record. Accept both so the wrapper works across versions.
-  ctx?: { params?: Promise<Record<string, string>> | Record<string, string> }
+  // Next.js 16 App Router typegen expects a required context with Promise params.
+  ctx: { params: Promise<Record<string, string>> }
 ) => Promise<NextResponse | Response> | NextResponse | Response;
 
 // ── withLogger ────────────────────────────────────────────────────────────────

@@ -7,23 +7,26 @@ import { StructuredData } from "@/components/public/StructuredData";
 import { buildAbsoluteUrl, getHomepageSchemas, siteConfig } from "@/lib/public-site";
 
 export const metadata: Metadata = {
-  title: "Neumas — Autonomous Procurement & Margin Control for F&B",
+  title: "Neumas — Autonomous Procurement & Agentic Commerce for the Food Economy",
   description: siteConfig.description,
   keywords: [
     "Neumas",
     "autonomous procurement",
-    "margin control for F&B",
+    "agentic commerce",
+    "food economy",
+    "margin intelligence for F&B",
     "restaurant procurement software",
     "food cost management",
     "purchase order automation",
     "invoice reconciliation",
     "restaurant demand forecasting",
+    "menu economics",
   ],
   alternates: {
     canonical: buildAbsoluteUrl("/"),
   },
   openGraph: {
-    title: "Neumas — Autonomous Procurement & Margin Control for F&B",
+    title: "Neumas — Autonomous Procurement & Agentic Commerce for the Food Economy",
     description: siteConfig.description,
     url: buildAbsoluteUrl("/"),
     type: "website",
@@ -33,13 +36,13 @@ export const metadata: Metadata = {
         url: siteConfig.ogImagePath,
         width: 1200,
         height: 630,
-        alt: "Neumas autonomous procurement and margin control homepage",
+        alt: "Neumas autonomous procurement and agentic commerce for the food economy",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Neumas — Autonomous Procurement & Margin Control for F&B",
+    title: "Neumas — Autonomous Procurement & Agentic Commerce for the Food Economy",
     description: siteConfig.description,
     images: [siteConfig.ogImagePath],
   },

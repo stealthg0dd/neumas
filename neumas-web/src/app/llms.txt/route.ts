@@ -48,7 +48,7 @@ function buildLlmsText() {
 Neumas is the official name of the software company and product. Neumas AI is a useful alternate textual reference. It is unrelated to neumes (medieval musical notation), Neuma Church, and unrelated Neuma projects.
 
 ## What Neumas is
-Neumas is B2B software, not a consumer app. It is an autonomous procurement and margin-control platform for food and beverage operators. It connects demand, inventory, recipes, suppliers, purchasing, deliveries, and invoices to reduce food cost, waste, and purchasing leakage.
+Neumas is B2B software, not a consumer app. It is an autonomous procurement, margin intelligence and agentic-commerce platform for the food economy. It connects menus, demand, inventory, recipes, suppliers, purchasing, deliveries, and invoices to help F&B operators protect margin and progressively automate procurement. It is not a household, grocery, or personal pantry application.
 
 ## Who Neumas is for
 Neumas is built for F&B businesses, including:
@@ -81,6 +81,13 @@ Neumas is not a household, grocery, or personal pantry app.
 
 ## Primary use cases
 ${listLinks(useCasePages)}
+
+## Menu X-Ray
+- Menu X-Ray: ${buildAbsoluteUrl("/menu-xray")}
+
+Menu X-Ray is Neumas's menu economics analysis experience for F&B operators. It analyses restaurant menus to estimate ingredient exposure, food-cost pressure, margin-risk dishes and potential operational opportunities.
+
+Menu X-Ray is an entry point into the broader Neumas platform. Neumas can combine menu intelligence with actual recipes, supplier invoices, inventory, demand and purchasing data to move from estimated economics toward verified operational decisions.
 
 ## Product pages
 - Homepage: ${buildAbsoluteUrl("/")}

@@ -1691,6 +1691,8 @@ class AuthService:
             onboarding_source=org.get("onboarding_source"),
             country=org.get("country"),
             currency=org.get("currency"),
+            onboarding_role=org.get("onboarding_role"),
+            onboarding_goal=org.get("onboarding_goal"),
             has_scans=has_scans,
             has_inventory_activity=has_inventory_activity,
             is_complete=is_complete,
@@ -1714,6 +1716,8 @@ class AuthService:
                 org_name=update.org_name,
                 country=update.country,
                 currency=update.currency,
+                onboarding_role=update.onboarding_role,
+                onboarding_goal=update.onboarding_goal,
                 outlet_count=update.outlet_count,
                 household_size=update.household_size,
                 shopping_frequency=update.shopping_frequency,
@@ -1737,6 +1741,8 @@ class AuthService:
                 org_name=update.org_name,
                 country=update.country,
                 currency=update.currency,
+                onboarding_role=update.onboarding_role,
+                onboarding_goal=update.onboarding_goal,
                 outlet_count=update.outlet_count,
                 household_size=update.household_size,
                 shopping_frequency=update.shopping_frequency,
@@ -1759,6 +1765,8 @@ class AuthService:
             org_name=update.org_name,
             country=update.country,
             currency=update.currency,
+            onboarding_role=update.onboarding_role,
+            onboarding_goal=update.onboarding_goal,
             outlet_count=update.outlet_count,
             household_size=update.household_size,
             shopping_frequency=update.shopping_frequency,
@@ -1784,6 +1792,8 @@ class AuthService:
         org_name: str | None = None,
         country: str | None = None,
         currency: str | None = None,
+        onboarding_role: str | None = None,
+        onboarding_goal: str | None = None,
         outlet_count: int | None = None,
         household_size: int | None = None,
         shopping_frequency: str | None = None,
@@ -1815,6 +1825,10 @@ class AuthService:
             org_update["country"] = country
         if currency is not None:
             org_update["currency"] = currency
+        if onboarding_role is not None:
+            org_update["onboarding_role"] = onboarding_role
+        if onboarding_goal is not None:
+            org_update["onboarding_goal"] = onboarding_goal
         await (
             admin_client.table("organizations")
             .update(org_update)
@@ -1887,6 +1901,8 @@ class AuthService:
         org_name: str | None = None,
         country: str | None = None,
         currency: str | None = None,
+        onboarding_role: str | None = None,
+        onboarding_goal: str | None = None,
         outlet_count: int | None = None,
         household_size: int | None = None,
         shopping_frequency: str | None = None,
@@ -1921,6 +1937,10 @@ class AuthService:
             org_update["country"] = country
         if currency is not None:
             org_update["currency"] = currency
+        if onboarding_role is not None:
+            org_update["onboarding_role"] = onboarding_role
+        if onboarding_goal is not None:
+            org_update["onboarding_goal"] = onboarding_goal
         await (
             admin_client.table("organizations")
             .update(org_update)
@@ -1987,6 +2007,8 @@ class AuthService:
         org_name: str | None = None,
         country: str | None = None,
         currency: str | None = None,
+        onboarding_role: str | None = None,
+        onboarding_goal: str | None = None,
         outlet_count: int | None = None,
         household_size: int | None = None,
         shopping_frequency: str | None = None,
@@ -2021,6 +2043,10 @@ class AuthService:
             org_update["country"] = country
         if currency is not None:
             org_update["currency"] = currency
+        if onboarding_role is not None:
+            org_update["onboarding_role"] = onboarding_role
+        if onboarding_goal is not None:
+            org_update["onboarding_goal"] = onboarding_goal
         await (
             admin_client.table("organizations")
             .update(org_update)

@@ -134,6 +134,9 @@ import type {
   ServiceClient,
   ExchangeSummary,
   RfqRecord,
+  SupplierAccount,
+  SupplierWorkspaceSummary,
+  MenuXRayAnalysisResponse,
 } from "./types";
 import { normalizeShoppingItem } from "./types";
 import { normalizeShoppingListStatus } from "@/lib/operations";
@@ -235,7 +238,7 @@ export async function refreshToken(refreshToken: string): Promise<{
 /** POST /api/scan/upload — multipart/form-data */
 export async function uploadScan(
   file: File,
-  scanType: "receipt" | "barcode" | "full",
+  scanType: "receipt" | "barcode" | "full" | "menu",
   onProgress?: (progress: number) => void,
 ): Promise<ScanQueuedResponse> {
   const form = new FormData();
@@ -1255,4 +1258,66 @@ export async function listRfqs(): Promise<RfqRecord[]> {
 
 export async function getRfq(rfqId: string): Promise<RfqRecord> {
   return get<RfqRecord>(`/api/exchange/rfqs/${rfqId}`);
+}
+
+export async function getSupplierSummary(): Promise<SupplierWorkspaceSummary> {
+  return get<SupplierWorkspaceSummary>("/api/supplier/summary");
+}
+
+export async function createSupplierAccount(payload: {
+  display_name: string;
+  contact_email?: string;
+  contact_phone?: string;
+  vendor_id?: string;
+}): Promise<SupplierAccount> {
+  return post<SupplierAccount>("/api/supplier/accounts", payload);
+}
+
+export async function activateSupplierAgent(): Promise<SupplierAccount> {
+  return post<SupplierAccount>("/api/supplier/accounts/me/activate-agent");
+}
+
+export async function importSupplierCatalog(payload: {
+  format?: "csv" | "json";
+  csv_text?: string;
+  rows?: Array<Record<string, unknown>>;
+}): Promise<{ imported: number; skipped: number; errors: string[] }> {
+  return post("/api/supplier/catalog/import", payload);
+}
+
+export async function listSupplierRfqs(): Promise<Array<Record<string, unknown>>> {
+  return get("/api/supplier/rfqs");
+}
+
+export async function listSupplierOffers(): Promise<Array<Record<string, unknown>>> {
+  return get("/api/supplier/offers");
+}
+
+export async function listSupplierAvailability(): Promise<Array<Record<string, unknown>>> {
+  return get("/api/supplier/availability");
+}
+
+export async function upsertSupplierCommercialTerms(
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return post("/api/supplier/commercial-terms", payload);
+}
+
+export async function createSupplierServiceArea(payload: {
+  name: string;
+  area_type?: string;
+  area_value: string;
+  radius_km?: number;
+}): Promise<Record<string, unknown>> {
+  return post("/api/supplier/service-areas", payload);
+}
+
+// ── Menu X-Ray ─────────────────────────────────────────────────────────────
+
+export async function getMenuXRaySample(): Promise<MenuXRayAnalysisResponse> {
+  return get("/api/menu-xray/sample");
+}
+
+export async function getMenuXRayAnalysis(scanId: string): Promise<MenuXRayAnalysisResponse> {
+  return get(`/api/menu-xray/${scanId}`);
 }

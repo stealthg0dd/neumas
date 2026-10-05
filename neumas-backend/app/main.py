@@ -110,6 +110,7 @@ from app.api.routes import (
     inventory,
     margin,
     mcp,
+    menu_xray,
     predictions,
     procurement,
     public,
@@ -117,6 +118,7 @@ from app.api.routes import (
     reports,
     scans,
     shopping,
+    supplier_network,
     vendor_analytics,
     vendors,
 )
@@ -424,11 +426,14 @@ async def readiness_check() -> dict:
         "redis": True,
         "ocr_provider_configured": True,
     }
-    metadata = {
+    metadata: dict = {
         "queue_required": not settings.celery_always_eager,
         "dev_mode": settings.DEV_MODE,
     }
     failures: list[str] = []
+    # Staging/prod must never report ready without a real Supabase dependency.
+    # local/dev/test may boot with intentional placeholder credentials.
+    supabase_required = settings.ENV in ("staging", "prod")
 
     # Provider keys are required in non-DEV_MODE deployments.
     ocr_provider_configured = bool(
@@ -438,11 +443,18 @@ async def readiness_check() -> dict:
         checks["ocr_provider_configured"] = False
         failures.append("ocr_provider_config")
 
-    # Check Supabase only when configured.
-    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY:
-        try:
-            from app.db.supabase_client import health_check as db_health
+    # Supabase: distinguish intentional local stubs from real reachability failure.
+    from app.db.supabase_client import health_check as db_health
+    from app.db.supabase_client import supabase_readiness_status
 
+    configured, supabase_status = supabase_readiness_status()
+    metadata["supabase"] = supabase_status
+    if not configured:
+        checks["supabase"] = False
+        if supabase_required:
+            failures.append("supabase")
+    else:
+        try:
             checks["supabase"] = await db_health()
         except Exception as e:
             logger.warning("Readiness: Supabase check failed", error=str(e))
@@ -662,6 +674,12 @@ app.include_router(
 )
 
 app.include_router(exchange.router, prefix="/api/exchange", tags=["Exchange"])
+app.include_router(menu_xray.router, prefix="/api/menu-xray", tags=["Menu X-Ray"])
+app.include_router(
+    supplier_network.router,
+    prefix="/api/supplier",
+    tags=["Supplier Network"],
+)
 app.include_router(mcp.router, prefix="/api/agent-commerce/v1/mcp", tags=["Agent Commerce MCP"])
 
 

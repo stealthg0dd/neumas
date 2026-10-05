@@ -30,8 +30,9 @@ describe("Wave 9 public positioning", () => {
   });
 
   it("uses the canonical F&B procurement entity description", () => {
-    expect(siteConfig.description).toContain("autonomous procurement and margin-control platform");
-    expect(siteConfig.description).toContain("demand, inventory, recipes, suppliers, purchasing, deliveries and invoices");
+    expect(siteConfig.description).toContain("autonomous procurement");
+    expect(siteConfig.description).toContain("food economy");
+    expect(siteConfig.description).toContain("F&B operators");
   });
 
   it("does not use household grocery positioning on canonical public pages", () => {

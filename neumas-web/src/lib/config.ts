@@ -72,19 +72,48 @@ const PUBLIC_VAR_NAMES: Record<keyof typeof publicConfig, string> = {
 
 // ── Required var lists ────────────────────────────────────────────────────────
 
-/** Server-side vars that MUST be present to run safely in any environment. */
-const REQUIRED_SERVER: ReadonlyArray<keyof typeof serverConfig> = [
+/** Server-side vars required in staging/production. */
+const REQUIRED_SERVER_PRODUCTION: ReadonlyArray<keyof typeof serverConfig> = [
   "supabaseServiceKey",
   "agentOsUrl",
   "agentOsApiKey",
   "environment",
 ];
 
-/** Client-side vars that MUST be present to run safely. */
-const REQUIRED_PUBLIC: ReadonlyArray<keyof typeof publicConfig> = [
+/** Server-side vars always required (even in local development). */
+const REQUIRED_SERVER_ALWAYS: ReadonlyArray<keyof typeof serverConfig> = [
+  "environment",
+];
+
+/** Client-side vars required in staging/production. */
+const REQUIRED_PUBLIC_PRODUCTION: ReadonlyArray<keyof typeof publicConfig> = [
   "supabaseUrl",
   "supabaseAnonKey",
 ];
+
+function isLocalDevelopment(): boolean {
+  const env = serverConfig.environment.toLowerCase();
+  return (
+    env === "development" ||
+    env === "dev" ||
+    env === "local" ||
+    env === "test" ||
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "test"
+  );
+}
+
+function isPlaceholderValue(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  if (!v) return true;
+  return (
+    v.includes("your-project.supabase.co") ||
+    v.includes("placeholder.supabase.co") ||
+    v.startsWith("your-") ||
+    v.startsWith("placeholder") ||
+    v.startsWith("test-")
+  );
+}
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
@@ -94,28 +123,47 @@ const REQUIRED_PUBLIC: ReadonlyArray<keyof typeof publicConfig> = [
  * Called from `instrumentation.ts` (Node.js runtime only) at startup.
  * Logs a FATAL message and terminates the process if any required variable
  * is missing, preventing the app from silently running in a broken state.
+ *
+ * Local development may boot with placeholder Supabase / missing Agent OS
+ * values so UI work is possible without production secrets. Staging and
+ * production still fail closed.
  */
 export function validateServerConfig(): void {
   const missing: string[] = [];
+  const local = isLocalDevelopment();
+  const requiredServer = local ? REQUIRED_SERVER_ALWAYS : REQUIRED_SERVER_PRODUCTION;
+  const requiredPublic = local ? [] : REQUIRED_PUBLIC_PRODUCTION;
 
-  for (const key of REQUIRED_SERVER) {
+  for (const key of requiredServer) {
     if (!serverConfig[key]) {
       missing.push(SERVER_VAR_NAMES[key]);
     }
   }
 
-  for (const key of REQUIRED_PUBLIC) {
-    if (!publicConfig[key]) {
+  for (const key of requiredPublic) {
+    if (!publicConfig[key] || isPlaceholderValue(String(publicConfig[key]))) {
       missing.push(PUBLIC_VAR_NAMES[key]);
+    }
+  }
+
+  if (!local) {
+    if (!serverConfig.supabaseServiceKey || isPlaceholderValue(serverConfig.supabaseServiceKey)) {
+      missing.push(SERVER_VAR_NAMES.supabaseServiceKey);
     }
   }
 
   if (missing.length > 0) {
     // Use stderr directly — logger may not be initialised yet at this point
     process.stderr.write(
-      `[FATAL] neumas-web: Missing required environment variables: ${missing.join(", ")}. ` +
+      `[FATAL] neumas-web: Missing required environment variables: ${[...new Set(missing)].join(", ")}. ` +
         "The application cannot start safely. Set the missing variables and restart.\n"
     );
     process.exit(1);
+  }
+
+  if (local && (!publicConfig.supabaseUrl || isPlaceholderValue(publicConfig.supabaseUrl))) {
+    process.stderr.write(
+      "[WARN] neumas-web: Supabase credentials look like placeholders — auth/data calls will be degraded until real local credentials are set.\n"
+    );
   }
 }

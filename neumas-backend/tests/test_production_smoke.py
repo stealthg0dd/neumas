@@ -49,8 +49,13 @@ async def test_backend_ready(smoke_client: AsyncClient):
     response = await smoke_client.get("/ready")
     assert response.status_code == 200
     body = response.json()
+    assert body["status"] == "ready"
     assert body["checks"]["redis"] is True
-    assert body["checks"]["supabase"] is True
+    assert body["checks"]["app_boot"] is True
+    # CI/test uses stub Supabase credentials — readiness stays green but reports
+    # intentional unavailability rather than faking a live DB.
+    assert body["metadata"]["supabase"] == "intentionally_unconfigured"
+    assert body["checks"]["supabase"] is False
 
 
 @live_only

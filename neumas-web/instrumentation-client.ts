@@ -1,6 +1,7 @@
 /**
  * Sentry client-side (browser) initialisation.
- * Automatically imported by @sentry/nextjs via next.config.ts withSentryConfig.
+ * Next.js 16 + @sentry/nextjs recommend instrumentation-client.ts
+ * (sentry.client.config.ts is deprecated, especially under Turbopack).
  */
 
 import * as Sentry from "@sentry/nextjs";

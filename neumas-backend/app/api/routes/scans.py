@@ -69,7 +69,7 @@ async def upload_scan(
     request: Request,
     file: Annotated[UploadFile, File(description="Image file (JPEG, PNG, WebP)")],
     scan_type: Annotated[
-        Literal["receipt", "barcode"],
+        Literal["receipt", "barcode", "menu"],
         Form(description="Type of scan"),
     ] = "receipt",
     tenant: TenantContext = require_property(),
@@ -97,21 +97,33 @@ async def upload_scan(
     file_name = file.filename or ""
     file_ext = Path(file_name).suffix.lower()
 
-    # Validate file type and extension using one canonical contract.
+    # Menu uploads additionally accept PDF files (up to 20 MB)
+    MENU_ALLOWED_MIME_TYPES = SCAN_UPLOAD_ALLOWED_MIME_TYPES | frozenset({"application/pdf"})
+    MENU_ALLOWED_EXTENSIONS = SCAN_UPLOAD_ALLOWED_EXTENSIONS | frozenset({".pdf"})
+    MENU_MAX_BYTES = 20 * 1024 * 1024
+
+    if scan_type == "menu":
+        allowed_types = MENU_ALLOWED_MIME_TYPES
+        allowed_exts = MENU_ALLOWED_EXTENSIONS
+        max_bytes = MENU_MAX_BYTES
+        type_msg = "Only JPEG, PNG, WebP, and PDF files are supported for menus."
+    else:
+        allowed_types = SCAN_UPLOAD_ALLOWED_MIME_TYPES
+        allowed_exts = SCAN_UPLOAD_ALLOWED_EXTENSIONS
+        max_bytes = SCAN_UPLOAD_MAX_BYTES
+        type_msg = "Only JPEG, PNG, and WebP images are supported."
+
     if (
         not file.content_type
-        or file.content_type not in SCAN_UPLOAD_ALLOWED_MIME_TYPES
-        or file_ext not in SCAN_UPLOAD_ALLOWED_EXTENSIONS
+        or file.content_type not in allowed_types
+        or file_ext not in allowed_exts
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_error_payload(
-                "scan_upload_unsupported_type",
-                "Only JPEG, PNG, and WebP images are supported.",
-            ),
+            detail=_error_payload("scan_upload_unsupported_type", type_msg),
         )
 
-    # Validate file size (max 10MB)
+    # Validate file size
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(
@@ -122,12 +134,13 @@ async def upload_scan(
             ),
         )
 
-    if len(file_bytes) > SCAN_UPLOAD_MAX_BYTES:
+    if len(file_bytes) > max_bytes:
+        limit_label = "20MB" if scan_type == "menu" else "10MB"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=_error_payload(
                 "scan_upload_too_large",
-                "File too large. Maximum size is 10MB.",
+                f"File too large. Maximum size is {limit_label}.",
             ),
         )
     request_id = getattr(request.state, "request_id", None)
