@@ -14,7 +14,6 @@ All figures are clearly labelled as estimates.
 """
 
 import json
-import re
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -522,7 +521,7 @@ async def analyze_menu_from_scan(
     Returns the full analysis dict (matches MenuXRayAnalysis schema).
     Persists to menu_xray_analyses table.
     """
-    from app.services.llm_failover import AllProvidersFailed, get_completion_with_failover
+    from app.services.llm_failover import AllProvidersFailed, get_completion_with_failover  # noqa: I001
 
     logger.info("Menu X-Ray analysis started", scan_id=scan_id, org_id=org_id)
 
