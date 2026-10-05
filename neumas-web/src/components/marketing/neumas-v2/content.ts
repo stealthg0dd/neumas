@@ -105,7 +105,7 @@ export const hero = {
   headline: "Turn food operations into autonomous decisions.",
   body:
     "Neumas connects menus, demand, inventory, recipes, suppliers, purchasing and invoices to protect margin and progressively automate procurement.",
-  primaryCta: { label: "X-Ray My Menu", href: "/onboard/menu-xray" },
+  primaryCta: { label: "X-Ray My Menu", href: "/menu-xray" },
   secondaryCta: { label: "Explore the Platform", href: "#platform" },
 };
 
