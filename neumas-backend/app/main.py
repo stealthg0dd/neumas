@@ -110,6 +110,7 @@ from app.api.routes import (
     inventory,
     margin,
     mcp,
+    menu_xray,
     predictions,
     procurement,
     public,
@@ -673,6 +674,7 @@ app.include_router(
 )
 
 app.include_router(exchange.router, prefix="/api/exchange", tags=["Exchange"])
+app.include_router(menu_xray.router, prefix="/api/menu-xray", tags=["Menu X-Ray"])
 app.include_router(
     supplier_network.router,
     prefix="/api/supplier",

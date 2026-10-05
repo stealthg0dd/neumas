@@ -12,6 +12,7 @@ import {
   LineChart,
   Package,
   Receipt,
+  ScanSearch,
   Settings,
   SlidersHorizontal,
   Shield,
@@ -54,6 +55,7 @@ function routeMatchesPrefix(pathname: string, prefix: string): boolean {
 
 const FNB_PRIMARY: WorkspaceNavItem[] = [
   { href: "/dashboard", label: "Overview", icon: Home, match: (p) => p === "/dashboard" || p === "/dashboard/" },
+  { href: "/dashboard/menu-xray", label: "Menu X-Ray", icon: ScanSearch, match: (p) => startsWith(p, "/dashboard/menu-xray") },
   { href: "/dashboard/setup", label: "Setup", icon: SlidersHorizontal, match: (p) => startsWith(p, "/dashboard/setup") },
   { href: "/dashboard/margin", label: "Margin", icon: Wallet, match: (p) => startsWith(p, "/dashboard/margin") },
   { href: "/dashboard/demand", label: "Demand", icon: LineChart, match: (p) => startsWith(p, "/dashboard/demand") || startsWith(p, "/dashboard/predictions") },
@@ -96,6 +98,7 @@ const HOUSEHOLD_SECONDARY: WorkspaceNavItem[] = [
 
 const FNB_ALLOWED_PREFIXES = [
   "/dashboard",
+  "/dashboard/menu-xray",
   "/dashboard/setup",
   "/dashboard/inventory",
   "/dashboard/margin",

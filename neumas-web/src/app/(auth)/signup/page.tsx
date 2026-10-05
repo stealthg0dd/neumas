@@ -185,9 +185,9 @@ export default function SignupPage() {
 
             <ul className="mt-8 space-y-3 text-left">
               {[
-                "Scan receipts with your phone camera",
-                "AI predicts stockouts before they happen",
-                "Auto-generated shopping lists every week",
+                "Upload menus, receipts and invoices",
+                "AI estimates food cost and margin risk",
+                "Autonomous procurement with human oversight",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3 text-sm text-neutral-400">
                   <Check className="w-4 h-4 text-cyan-500 mt-0.5 shrink-0" />

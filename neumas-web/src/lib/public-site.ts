@@ -43,8 +43,8 @@ export const siteConfig = {
   alternateName: "Neumas AI",
   url: getCanonicalAppUrl(),
   description:
-    "Neumas is an autonomous procurement and margin-control platform for food and beverage operators. It connects demand, inventory, recipes, suppliers, purchasing, deliveries and invoices to reduce food cost, waste and purchasing leakage.",
-  shortDescription: "Autonomous procurement and margin control for F&B operators.",
+    "Neumas is an autonomous procurement, margin intelligence and agentic-commerce platform for the food economy. It connects menus, demand, inventory, recipes, suppliers, purchasing, deliveries and invoices to help F&B operators protect margin and progressively automate procurement.",
+  shortDescription: "Autonomous procurement and margin intelligence for the food economy.",
   contactEmail: "team@neumas.cc",
   companyName: "Neumas",
   region: "Singapore and Southeast Asia",
@@ -55,7 +55,7 @@ export const homepageFaqs: PublicFaq[] = [
   {
     question: "What is Neumas?",
     answer:
-      "Neumas is an autonomous procurement and margin-control platform for food and beverage operators. It connects demand, inventory, recipes, suppliers, purchasing, deliveries, and invoices to reduce food cost, waste, and purchasing leakage.",
+      "Neumas is an autonomous procurement, margin intelligence and agentic-commerce platform for the food economy. It connects menus, demand, inventory, recipes, suppliers, purchasing, deliveries, and invoices to help F&B operators protect margin and progressively automate procurement.",
   },
   {
     question: "Who is Neumas built for?",
@@ -66,6 +66,11 @@ export const homepageFaqs: PublicFaq[] = [
     question: "Does Neumas automatically place supplier orders?",
     answer:
       "Neumas supports policy-controlled decisions, approvals, purchase-order workflows, and an internal action gateway. External supplier writes are not claimed unless a real provider adapter and credentials are configured.",
+  },
+  {
+    question: "What is Neumas Menu X-Ray?",
+    answer:
+      "Menu X-Ray is a free tool from Neumas that analyses a restaurant menu PDF or image to estimate food cost percentages, ingredient exposures, and margin risks per dish. It is an entry point into the broader Neumas platform for F&B operators.",
   },
   {
     question: "Are private dashboards and operational records public?",
@@ -1966,13 +1971,35 @@ export function buildArticleSchema(page: Pick<PublicPageContent, "path" | "title
   };
 }
 
+export function buildSoftwareApplicationSchema(): JsonLd {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "@id": `${siteConfig.url}/#application`,
+    name: siteConfig.name,
+    alternateName: siteConfig.alternateName,
+    description: siteConfig.description,
+    url: siteConfig.url,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      description: "Contact Neumas for pricing.",
+    },
+    provider: { "@id": entityIds.organization },
+  };
+}
+
 export function getHomepageSchemas(): JsonLd[] {
   return [
     buildOrganizationSchema(),
     buildWebSiteSchema(),
+    buildSoftwareApplicationSchema(),
     buildWebPageSchema({
       path: "/",
-      title: "Neumas — Autonomous Procurement & Margin Control for F&B",
+      title: "Neumas — Autonomous Procurement & Agentic Commerce for the Food Economy",
       description: siteConfig.description,
     }),
     buildBreadcrumbSchema("/"),

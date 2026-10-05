@@ -136,6 +136,7 @@ import type {
   RfqRecord,
   SupplierAccount,
   SupplierWorkspaceSummary,
+  MenuXRayAnalysisResponse,
 } from "./types";
 import { normalizeShoppingItem } from "./types";
 import { normalizeShoppingListStatus } from "@/lib/operations";
@@ -237,7 +238,7 @@ export async function refreshToken(refreshToken: string): Promise<{
 /** POST /api/scan/upload — multipart/form-data */
 export async function uploadScan(
   file: File,
-  scanType: "receipt" | "barcode" | "full",
+  scanType: "receipt" | "barcode" | "full" | "menu",
   onProgress?: (progress: number) => void,
 ): Promise<ScanQueuedResponse> {
   const form = new FormData();
@@ -1309,4 +1310,14 @@ export async function createSupplierServiceArea(payload: {
   radius_km?: number;
 }): Promise<Record<string, unknown>> {
   return post("/api/supplier/service-areas", payload);
+}
+
+// ── Menu X-Ray ─────────────────────────────────────────────────────────────
+
+export async function getMenuXRaySample(): Promise<MenuXRayAnalysisResponse> {
+  return get("/api/menu-xray/sample");
+}
+
+export async function getMenuXRayAnalysis(scanId: string): Promise<MenuXRayAnalysisResponse> {
+  return get(`/api/menu-xray/${scanId}`);
 }

@@ -219,6 +219,18 @@ async def _process_scan_async(
             "skipped": True,
         }
 
+    # ── Menu X-Ray: branch to dedicated pipeline ──────────────────────────────
+    if scan_type == "menu":
+        return await _process_menu_xray_async(
+            supabase=supabase,
+            scan_id=scan_id,
+            property_id=property_id,
+            org_id=org_id,
+            user_id=user_id,
+            image_url=image_url,
+            request_id=request_id,
+        )
+
     result: dict[str, Any] = {
         "scan_id": scan_id,
         "property_id": property_id,
@@ -1312,3 +1324,117 @@ async def _reprocess_scan_async(
         user_hint=user_hint,
         force_reprocess=True,
     )
+
+
+# =============================================================================
+# Menu X-Ray pipeline
+# =============================================================================
+
+async def _process_menu_xray_async(
+    supabase: Any,
+    scan_id: str,
+    property_id: str,
+    org_id: str,
+    user_id: str,
+    image_url: str,
+    request_id: str | None = None,
+) -> dict[str, Any]:
+    """Run the Menu X-Ray analysis pipeline for a menu scan."""
+    from app.services.menu_xray_service import analyze_menu_from_scan
+
+    wall_start = time.perf_counter()
+
+    # Mark processing
+    await supabase.table("scans").update({
+        "status": "processing",
+        "started_at": datetime.now(UTC).isoformat(),
+        "processed_results": {
+            "stage_details": {
+                "current_stage": "menu_analysis",
+                "storage": {"status": "completed"},
+                "menu_analysis": {"status": "running"},
+            },
+            "stage_errors": [],
+        },
+    }).eq("id", scan_id).execute()
+
+    try:
+        analysis = await analyze_menu_from_scan(
+            scan_id=scan_id,
+            org_id=org_id,
+            user_id=user_id,
+            image_url=image_url,
+            supabase=supabase,
+            request_id=request_id,
+        )
+
+        elapsed_ms = int((time.perf_counter() - wall_start) * 1000)
+        dishes_detected = analysis.get("dishes_detected", 0)
+        confidence = analysis.get("analysis_confidence", 0)
+
+        await supabase.table("scans").update({
+            "status": "completed",
+            "completed_at": datetime.now(UTC).isoformat(),
+            "items_detected": dishes_detected,
+            "confidence_score": confidence,
+            "processing_time_ms": elapsed_ms,
+            "processed_results": {
+                "stage_details": {
+                    "current_stage": "done",
+                    "storage": {"status": "completed"},
+                    "menu_analysis": {"status": "completed", "elapsed_ms": elapsed_ms},
+                },
+                "stage_errors": [],
+                "menu_analysis_id": analysis.get("analysis_id"),
+            },
+        }).eq("id", scan_id).execute()
+
+        logger.info(
+            "Menu X-Ray scan completed",
+            scan_id=scan_id,
+            dishes_detected=dishes_detected,
+            elapsed_ms=elapsed_ms,
+        )
+        log_business_event(
+            "menu_xray.completed",
+            property_id=property_id,
+            user_id=user_id,
+            scan_id=scan_id,
+            dishes_detected=dishes_detected,
+        )
+
+        return {
+            "scan_id": scan_id,
+            "property_id": property_id,
+            "status": "completed",
+            "items_upserted": dishes_detected,
+            "errors": [],
+        }
+
+    except Exception as exc:
+        elapsed_ms = int((time.perf_counter() - wall_start) * 1000)
+        error_msg = str(exc)
+        logger.error("Menu X-Ray pipeline failed", scan_id=scan_id, error=error_msg)
+
+        await supabase.table("scans").update({
+            "status": "failed",
+            "completed_at": datetime.now(UTC).isoformat(),
+            "processing_time_ms": elapsed_ms,
+            "error_message": error_msg,
+            "processed_results": {
+                "stage_details": {
+                    "current_stage": "menu_analysis",
+                    "storage": {"status": "completed"},
+                    "menu_analysis": {"status": "failed"},
+                },
+                "stage_errors": [{"stage": "menu_analysis", "error": error_msg}],
+            },
+        }).eq("id", scan_id).execute()
+
+        return {
+            "scan_id": scan_id,
+            "property_id": property_id,
+            "status": "failed",
+            "items_upserted": 0,
+            "errors": [{"stage": "menu_analysis", "error": error_msg}],
+        }

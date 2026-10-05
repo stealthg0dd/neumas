@@ -157,6 +157,8 @@ export interface OnboardingStateResponse {
   onboarding_source?: string | null;
   country?: string | null;
   currency?: string | null;
+  onboarding_role?: string | null;
+  onboarding_goal?: string | null;
   has_scans: boolean;
   has_inventory_activity: boolean;
   is_complete: boolean;
@@ -200,6 +202,8 @@ export interface OnboardingStateUpdateRequest {
   org_name?: string | null;
   country?: string | null;
   currency?: string | null;
+  onboarding_role?: string | null;
+  onboarding_goal?: string | null;
   outlet_count?: number | null;
   household_size?: number | null;
   shopping_frequency?: string | null;
@@ -1313,4 +1317,91 @@ export interface SupplierWorkspaceSummary {
   capabilities: Array<Record<string, unknown>>;
   commercial_terms: Record<string, unknown> | null;
   onboarding_complete: boolean;
+}
+
+// ── Menu X-Ray ─────────────────────────────────────────────────────────────
+
+export type MarginSignal = "Healthy" | "Watch" | "Margin Risk";
+
+export interface IngredientEstimate {
+  ingredient: string;
+  quantity: number;
+  unit: string;
+  estimated_cost_low: number;
+  estimated_cost_high: number;
+  estimated_cost: number;
+}
+
+export interface DishAnalysis {
+  dish_name: string;
+  menu_price: number;
+  currency: string;
+  category: string;
+  description: string | null;
+  inferred_ingredients: IngredientEstimate[];
+  estimated_ingredient_cost: number;
+  estimated_ingredient_cost_max: number;
+  estimated_food_cost_pct: number;
+  confidence: number;
+  margin_signal: MarginSignal;
+}
+
+export interface IngredientExposure {
+  ingredient: string;
+  appears_in_dishes: number;
+  estimated_total_cost_contribution: number;
+  exposure_pct: number;
+}
+
+export interface CategoryEconomic {
+  category: string;
+  dish_count: number;
+  average_food_cost_pct: number;
+  margin_signal: MarginSignal;
+}
+
+export interface MarginOpportunity {
+  dish_name: string;
+  current_food_cost_pct: number;
+  opportunity_description: string;
+  estimated_saving_per_dish: number;
+  opportunity_type?: "Procurement" | "Pricing" | "Waste" | "Recipe" | null;
+  effort?: "Low" | "Medium" | "High" | null;
+  confidence?: number | null;
+}
+
+export interface MenuXRayInsights {
+  menu_health_score: number;
+  average_food_cost_pct: number;
+  margin_risk_count: number;
+  watch_count: number;
+  healthy_count: number;
+  largest_ingredient_exposures: IngredientExposure[];
+  category_economics: CategoryEconomic[];
+  top_margin_opportunities: MarginOpportunity[];
+  recommended_action: string;
+  estimated_monthly_opportunity: number | null;
+  currency: string;
+}
+
+export interface MenuXRayAnalysis {
+  analysis_id: string;
+  scan_id: string | null;
+  user_id: string | null;
+  org_id: string | null;
+  menu_name: string;
+  currency: string;
+  dishes_detected: number;
+  analysis_confidence: number;
+  created_at: string;
+  dishes: DishAnalysis[];
+  insights: MenuXRayInsights;
+  is_sample: boolean;
+  estimates_disclaimer: string;
+}
+
+export interface MenuXRayAnalysisResponse {
+  analysis: MenuXRayAnalysis;
+  status: string;
+  message?: string | null;
 }

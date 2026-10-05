@@ -74,6 +74,30 @@ function HeroSection({ section }: { section?: MarketingCmsContent["sections"][st
               );
             })}
           </div>
+          <div className="mt-6 rounded-xl border border-[#0071a3]/20 bg-white p-4 shadow-sm">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#0071a3] mb-1.5">New — Menu X-Ray</p>
+            <p className="text-[13px] font-semibold text-[#0b1736] leading-snug mb-1">See the economics hiding inside your menu.</p>
+            <p className="text-[12px] text-slate-500 mb-3">Upload a menu to reveal estimated food cost, ingredient exposure and margin opportunities.</p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <MarketingEventLink
+                href="/onboard/menu-xray"
+                event="marketing_demo_click"
+                props={{ location: "hero_menu_xray_primary" }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0071a3] px-4 py-2 text-[12px] font-bold text-white hover:bg-[#005f8a]"
+              >
+                X-Ray My Menu
+                <ArrowRight className="h-3.5 w-3.5" />
+              </MarketingEventLink>
+              <MarketingEventLink
+                href="#platform"
+                event="marketing_demo_click"
+                props={{ location: "hero_menu_xray_secondary" }}
+                className="inline-flex items-center justify-center rounded-lg border border-[#0b1736]/15 px-4 py-2 text-[12px] font-bold text-[#0b1736] hover:border-[#0b4fd8]/40"
+              >
+                Explore the Platform
+              </MarketingEventLink>
+            </div>
+          </div>
         </div>
         <div className="relative">
           <div className="relative overflow-hidden rounded-lg border border-[#0b1736]/10 bg-white shadow-xl shadow-[#0b1736]/10">
@@ -113,7 +137,7 @@ function AgenticCommerceSection() {
     { title: "Suppliers", body: "Respond with versioned commercial terms covering price, quantity, availability, delivery, and payment conditions." },
     { title: "Developers", body: "Build through tenant-scoped APIs and MCP tools backed by auditable decisions and existing procurement services." },
   ];
-  return <section className="bg-[#f8fbff] py-20"><div className={sectionShell}><div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Neumas Exchange</p><h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">The food economy is becoming agent-to-agent.</h2><p className="mt-5 text-base leading-7 text-slate-600">Neumas provides the structured commercial and policy layer for operators, suppliers, and software agents to transact with human oversight.</p></div><div className="mt-10 grid gap-4 md:grid-cols-3">{cards.map((card) => <article key={card.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6"><h3 className="text-lg font-bold text-[#0b1736]">{card.title}</h3><p className="mt-3 text-sm leading-6 text-slate-600">{card.body}</p></article>)}</div><MarketingEventLink href="/pilot" event="marketing_demo_click" props={{ location: "agentic_commerce" }} className="mt-8 inline-flex items-center gap-2 rounded-md bg-[#f5c15c] px-5 py-3 text-sm font-bold text-[#0b1736]">Join the Agentic Commerce Pilot<ArrowRight className="h-4 w-4" /></MarketingEventLink></div></section>;
+  return <section className="bg-[#f8fbff] py-20"><div className={sectionShell}><div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Neumas Exchange</p><h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">The food economy is becoming agent-to-agent.</h2><p className="mt-5 text-base leading-7 text-slate-600">Neumas gives buyer agents and supplier agents the commercial, policy and evidence layer required to discover, negotiate and transact with human oversight.</p></div><div className="mt-10 grid gap-4 md:grid-cols-3">{cards.map((card) => <article key={card.title} className="rounded-lg border border-[#0b1736]/10 bg-white p-6"><h3 className="text-lg font-bold text-[#0b1736]">{card.title}</h3><p className="mt-3 text-sm leading-6 text-slate-600">{card.body}</p></article>)}</div><MarketingEventLink href="/pilot" event="marketing_demo_click" props={{ location: "agentic_commerce" }} className="mt-8 inline-flex items-center gap-2 rounded-md bg-[#f5c15c] px-5 py-3 text-sm font-bold text-[#0b1736]">Join the Agentic Commerce Pilot<ArrowRight className="h-4 w-4" /></MarketingEventLink></div></section>;
 }
 
 function MetricBand({ metricItems }: { metricItems: typeof metrics }) {
@@ -254,9 +278,9 @@ function PlatformSection() {
       <div className={sectionShell}>
         <div className="max-w-3xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Platform</p>
-          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">One platform. Every operational decision.</h2>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">One operating layer from demand to purchase.</h2>
           <p className="mt-5 text-base leading-7 text-slate-600">
-            Neumas connects daily operational inputs to decision-ready intelligence, using yellow for action states and blue for data intelligence.
+            Neumas turns operational signals into forecasts, purchasing decisions, supplier actions and margin intelligence.
           </p>
         </div>
 
@@ -620,7 +644,7 @@ function ProductStorytellingSection() {
       <div className={sectionShell}>
         <div className="max-w-3xl">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0b4fd8]">Product Story</p>
-          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">The operating layer between stock, suppliers, and decisions.</h2>
+          <h2 className="mt-4 text-4xl font-bold tracking-normal text-[#0b1736]">The decision and commerce layer between demand, inventory and suppliers.</h2>
           <p className="mt-5 text-base leading-7 text-slate-600">
             Large product scenes show how Neumas turns existing inventory, prediction, vendor, reporting, and property concepts into a commercial F&B workflow.
           </p>

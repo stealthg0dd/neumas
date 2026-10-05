@@ -101,11 +101,11 @@ export const marketingAssets = {
 } satisfies Record<string, MarketingAsset>;
 
 export const hero = {
-  eyebrow: "AUTONOMOUS PROCUREMENT & MARGIN CONTROL FOR F&B",
-  headline: "Protect every point of food margin. Automatically.",
+  eyebrow: "AUTONOMOUS PROCUREMENT & AGENTIC COMMERCE FOR THE FOOD ECONOMY",
+  headline: "Turn food operations into autonomous decisions.",
   body:
-    "Neumas predicts what every location will need, finds the best way to buy it, controls purchasing within policy, reconciles deliveries and invoices, and catches margin leakage before it reaches the P&L.",
-  primaryCta: { label: "See Neumas in Action", href: "/pilot" },
+    "Neumas connects menus, demand, inventory, recipes, suppliers, purchasing and invoices to protect margin and progressively automate procurement.",
+  primaryCta: { label: "X-Ray My Menu", href: "/onboard/menu-xray" },
   secondaryCta: { label: "Explore the Platform", href: "#platform" },
 };
 
