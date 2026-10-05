@@ -42,7 +42,7 @@ function buildLlmsText() {
 
   return `# Neumas
 
-> Neumas is an autonomous procurement, margin intelligence and agentic-commerce platform for the food economy. It connects menus, demand, recipes, inventory, suppliers, purchasing, deliveries and invoices to help F&B operators protect margin and progressively automate procurement.
+> ${siteConfig.description}
 
 ## Entity identity
 Neumas is the official name of the software company and product. Neumas AI is a useful alternate textual reference. It is unrelated to neumes (medieval musical notation), Neuma Church, and unrelated Neuma projects.
